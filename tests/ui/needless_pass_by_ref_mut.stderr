@@ -107,5 +107,65 @@ error: this argument is a mutable reference, but not used mutably
 LL | async fn inner_async3(x: &mut i32, y: &mut u32) {
    |                          ^^^^^^^^ help: consider changing to: `&i32`
 
-error: aborting due to 17 previous errors
+error: this argument is a mutable reference, but not used mutably
+  --> $DIR/needless_pass_by_ref_mut.rs:235:18
+   |
+LL | fn _empty_tup(x: &mut (())) {}
+   |                  ^^^^^^^^^ help: consider changing to: `&()`
+
+error: this argument is a mutable reference, but not used mutably
+  --> $DIR/needless_pass_by_ref_mut.rs:236:19
+   |
+LL | fn _single_tup(x: &mut ((i32,))) {}
+   |                   ^^^^^^^^^^^^^ help: consider changing to: `&(i32,)`
+
+error: this argument is a mutable reference, but not used mutably
+  --> $DIR/needless_pass_by_ref_mut.rs:237:18
+   |
+LL | fn _multi_tup(x: &mut ((i32, u32))) {}
+   |                  ^^^^^^^^^^^^^^^^^ help: consider changing to: `&(i32, u32)`
+
+error: this argument is a mutable reference, but not used mutably
+  --> $DIR/needless_pass_by_ref_mut.rs:238:11
+   |
+LL | fn _fn(x: &mut (fn())) {}
+   |           ^^^^^^^^^^^ help: consider changing to: `&fn()`
+
+error: this argument is a mutable reference, but not used mutably
+  --> $DIR/needless_pass_by_ref_mut.rs:240:23
+   |
+LL | fn _extern_rust_fn(x: &mut extern "Rust" fn()) {}
+   |                       ^^^^^^^^^^^^^^^^^^^^^^^ help: consider changing to: `&extern "Rust" fn()`
+
+error: this argument is a mutable reference, but not used mutably
+  --> $DIR/needless_pass_by_ref_mut.rs:241:20
+   |
+LL | fn _extern_c_fn(x: &mut extern "C" fn()) {}
+   |                    ^^^^^^^^^^^^^^^^^^^^ help: consider changing to: `&extern "C" fn()`
+
+error: this argument is a mutable reference, but not used mutably
+  --> $DIR/needless_pass_by_ref_mut.rs:242:18
+   |
+LL | fn _unsafe_fn(x: &mut unsafe fn()) {}
+   |                  ^^^^^^^^^^^^^^^^ help: consider changing to: `&unsafe fn()`
+
+error: this argument is a mutable reference, but not used mutably
+  --> $DIR/needless_pass_by_ref_mut.rs:243:25
+   |
+LL | fn _unsafe_extern_fn(x: &mut unsafe extern "C" fn()) {}
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider changing to: `&unsafe extern "C" fn()`
+
+error: this argument is a mutable reference, but not used mutably
+  --> $DIR/needless_pass_by_ref_mut.rs:244:20
+   |
+LL | fn _fn_with_arg(x: &mut unsafe extern "C" fn(i32)) {}
+   |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider changing to: `&unsafe extern "C" fn(i32)`
+
+error: this argument is a mutable reference, but not used mutably
+  --> $DIR/needless_pass_by_ref_mut.rs:245:20
+   |
+LL | fn _fn_with_ret(x: &mut unsafe extern "C" fn() -> (i32)) {}
+   |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider changing to: `&unsafe extern "C" fn() -> (i32)`
+
+error: aborting due to 27 previous errors
 
