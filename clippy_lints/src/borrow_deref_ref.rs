@@ -58,7 +58,6 @@ impl<'tcx> LateLintPass<'tcx> for BorrowDerefRef {
             if !matches!(deref_target.kind, ExprKind::Unary(UnOp::Deref, ..) );
             let ref_ty = cx.typeck_results().expr_ty(deref_target);
             if let ty::Ref(_, inner_ty, Mutability::Not) = ref_ty.kind();
-            if !is_from_proc_macro(cx, e);
             then{
 
                 if let Some(parent_expr) = get_parent_expr(cx, e){
@@ -75,6 +74,9 @@ impl<'tcx> LateLintPass<'tcx> for BorrowDerefRef {
                      && matches!(parent_expr.kind, ExprKind::AddrOf(_, Mutability::Mut, _)) {
                        return;
                     }
+                }
+                if is_from_proc_macro(cx, e) {
+                    return;
                 }
 
                 span_lint_and_then(
