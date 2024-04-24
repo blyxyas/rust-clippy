@@ -50,7 +50,7 @@ fn is_ok_filter_map(cx: &LateContext<'_>, filter_arg: &Expr<'_>, map_arg: &Expr<
     is_method(cx, map_arg, sym::unwrap) && is_method(cx, filter_arg, sym!(is_ok))
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 enum OffendingFilterExpr<'tcx> {
     /// `.filter(|opt| opt.is_some())`
     IsSome {
@@ -78,14 +78,12 @@ enum OffendingFilterExpr<'tcx> {
     },
 }
 
-#[derive(Debug)]
 enum CalledMethod {
     OptionIsSome,
     ResultIsOk,
 }
 
 /// The result of checking a `map` call, returned by `OffendingFilterExpr::check_map_call`
-#[derive(Debug)]
 enum CheckResult<'tcx> {
     Method {
         map_arg: &'tcx Expr<'tcx>,

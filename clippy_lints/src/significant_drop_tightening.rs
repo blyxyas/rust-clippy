@@ -380,7 +380,6 @@ impl<'others, 'stmt, 'tcx> AuxParams<'others, 'stmt, 'tcx> {
 }
 
 /// Auxiliary parameters used on expression created with `#[has_significant_drop]`.
-#[derive(Debug)]
 struct AuxParamsAttr {
     /// The number of times `#[has_significant_drop]` was referenced.
     counter: usize,

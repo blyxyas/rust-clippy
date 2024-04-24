@@ -72,13 +72,13 @@ fn all_ranges<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>], ty: Ty<'tcx>)
         .collect()
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum EndBound<T> {
     Included(T),
     Excluded(T),
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 struct SpannedRange<T> {
     pub span: Span,
     pub node: (T, EndBound<T>),
@@ -88,14 +88,14 @@ fn overlapping<T>(ranges: &[SpannedRange<T>]) -> Option<(&SpannedRange<T>, &Span
 where
     T: Copy + Ord,
 {
-    #[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+    #[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
     enum BoundKind {
         EndExcluded,
         Start,
         EndIncluded,
     }
 
-    #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+    #[derive(Copy, Clone, Eq, PartialEq)]
     struct RangeBound<'a, T>(T, BoundKind, &'a SpannedRange<T>);
 
     impl<'a, T: Copy + Ord> PartialOrd for RangeBound<'a, T> {

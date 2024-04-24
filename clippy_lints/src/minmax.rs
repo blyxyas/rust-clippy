@@ -60,7 +60,7 @@ impl<'tcx> LateLintPass<'tcx> for MinMaxPass {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(Copy, Clone, PartialEq)]
 enum MinMax {
     Min,
     Max,

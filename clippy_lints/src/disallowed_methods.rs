@@ -55,7 +55,7 @@ declare_clippy_lint! {
     "use of a disallowed method call"
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct DisallowedMethods {
     conf_disallowed: Vec<DisallowedPath>,
     disallowed: DefIdMap<usize>,

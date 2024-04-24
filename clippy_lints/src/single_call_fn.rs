@@ -53,7 +53,7 @@ declare_clippy_lint! {
 }
 impl_lint_pass!(SingleCallFn => [SINGLE_CALL_FN]);
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum CallState {
     Once { call_site: Span },
     Multiple,

@@ -35,7 +35,6 @@ declare_clippy_lint! {
 /// The (callsite span, (open brace, close brace), source snippet)
 type MacroInfo = (Span, (char, char), String);
 
-#[derive(Debug)]
 pub struct MacroBraces {
     macro_braces: FxHashMap<String, (char, char)>,
     done: FxHashSet<Span>,

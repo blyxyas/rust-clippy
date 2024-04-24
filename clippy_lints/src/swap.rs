@@ -259,7 +259,7 @@ fn is_same(cx: &LateContext<'_>, lhs: ExprOrIdent<'_>, rhs: &Expr<'_>) -> bool {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 enum ExprOrIdent<'a> {
     Expr(&'a Expr<'a>),
     Ident(Ident),

@@ -44,7 +44,7 @@ declare_clippy_lint! {
     "usage of non-allowed Unicode scripts"
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct DisallowedScriptIdents {
     whitelist: FxHashSet<Script>,
 }

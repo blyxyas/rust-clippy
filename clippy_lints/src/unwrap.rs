@@ -81,7 +81,7 @@ struct UnwrappableVariablesVisitor<'a, 'tcx> {
 }
 
 /// What kind of unwrappable this is.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 enum UnwrappableKind {
     Option,
     Result,
@@ -104,7 +104,6 @@ impl UnwrappableKind {
 }
 
 /// Contains information about whether a variable can be unwrapped.
-#[derive(Copy, Clone, Debug)]
 struct UnwrapInfo<'tcx> {
     /// The variable that is checked
     local_id: HirId,

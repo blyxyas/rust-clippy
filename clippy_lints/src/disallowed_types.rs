@@ -49,7 +49,7 @@ declare_clippy_lint! {
     "use of disallowed types"
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct DisallowedTypes {
     conf_disallowed: Vec<DisallowedPath>,
     def_ids: FxHashMap<DefId, usize>,

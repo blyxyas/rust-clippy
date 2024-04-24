@@ -28,13 +28,12 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, e: &'tcx Expr<'_>, recv: &'tcx
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug)]
 enum Argument {
     Set(bool),
     Unknown,
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash)]
 enum OpenOption {
     Append,
     Create,
@@ -146,7 +145,7 @@ fn check_open_options(cx: &LateContext<'_>, settings: &[(OpenOption, Argument, S
     // The args passed to these methods, if they have been called
     let mut options = FxHashMap::default();
     for (option, arg, sp) in settings {
-        if let Some((_, prev_span)) = options.insert(option.clone(), (arg.clone(), *sp)) {
+        if let Some((_, prev_span)) = options.insert(option, (arg, *sp)) {
             span_lint(
                 cx,
                 NONSENSICAL_OPEN_OPTIONS,

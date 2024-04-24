@@ -65,7 +65,7 @@ impl<'tcx> LateLintPass<'tcx> for InfiniteIter {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy)]
 enum Finiteness {
     Infinite,
     MaybeInfinite,

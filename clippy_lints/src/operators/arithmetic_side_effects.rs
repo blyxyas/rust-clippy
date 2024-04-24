@@ -20,7 +20,6 @@ const DISALLOWED_INT_METHODS: &[Symbol] = &[
     sym::wrapping_rem_euclid,
 ];
 
-#[derive(Debug)]
 pub struct ArithmeticSideEffects {
     allowed_binary: FxHashMap<String, FxHashSet<String>>,
     allowed_unary: FxHashSet<String>,

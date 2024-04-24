@@ -125,7 +125,7 @@ impl<'tcx> LateLintPass<'tcx> for PatternTypeMismatch {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 enum DerefPossible {
     Possible,
     Impossible,
@@ -158,7 +158,7 @@ fn apply_lint(cx: &LateContext<'_>, pat: &Pat<'_>, deref_possible: DerefPossible
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+// #[derive(Copy, Clone)]
 enum Level {
     Top,
     Lower,

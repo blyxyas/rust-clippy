@@ -2,13 +2,13 @@ use serde::de::{self, Deserializer, Visitor};
 use serde::{ser, Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct Rename {
     pub path: String,
     pub rename: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(untagged)]
 pub enum DisallowedPath {
     Simple(String),
@@ -32,7 +32,7 @@ impl DisallowedPath {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub enum MatchLintBehaviour {
     AllTypes,
     WellKnownTypes,
@@ -127,7 +127,7 @@ unimplemented_serialize! {
     MacroMatcher,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Deserialize, Serialize)]
 pub enum PubUnderscoreFieldsBehaviour {
     PubliclyExported,
     AllPubFields,

@@ -11,7 +11,6 @@ use rustc_span::Span;
 
 use super::MATCH_STR_CASE_MISMATCH;
 
-#[derive(Debug)]
 enum CaseMethod {
     LowerCase,
     AsciiLowerCase,

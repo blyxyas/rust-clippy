@@ -58,7 +58,7 @@ msrv_aliases! {
 }
 
 /// Tracks the current MSRV from `clippy.toml`, `Cargo.toml` or set via `#[clippy::msrv]`
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Msrv {
     stack: Vec<RustcVersion>,
 }

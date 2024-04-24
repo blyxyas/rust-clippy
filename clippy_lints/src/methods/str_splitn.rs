@@ -178,7 +178,6 @@ fn check_manual_split_once_indirect(
     Some(())
 }
 
-#[derive(Debug)]
 struct IndirectUsage<'a> {
     name: Symbol,
     span: Span,
@@ -249,19 +248,19 @@ fn indirect_usage<'tcx>(
     None
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 enum IterUsageKind {
     Nth(u128),
     NextTuple,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Clone, Copy)]
 enum UnwrapKind {
     Unwrap,
     QuestionMark,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy)]
 struct IterUsage {
     kind: IterUsageKind,
     unwrap_kind: Option<UnwrapKind>,

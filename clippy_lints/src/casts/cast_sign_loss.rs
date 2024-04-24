@@ -111,7 +111,6 @@ fn get_const_unsigned_int_eval<'cx>(
     None
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum Sign {
     ZeroOrPositive,
     Negative,

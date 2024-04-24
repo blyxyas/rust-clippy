@@ -24,7 +24,7 @@ declare_clippy_lint! {
     "usage of a disallowed/placeholder name"
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct DisallowedNames {
     disallow: FxHashSet<String>,
     test_modules_deep: u32,

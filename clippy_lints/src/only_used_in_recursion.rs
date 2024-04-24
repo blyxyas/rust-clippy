@@ -120,7 +120,6 @@ impl Param {
     }
 }
 
-#[derive(Debug)]
 struct Usage {
     span: Span,
     idx: usize,

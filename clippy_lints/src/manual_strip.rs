@@ -58,7 +58,7 @@ impl ManualStrip {
 
 impl_lint_pass!(ManualStrip => [MANUAL_STRIP]);
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy)]
 enum StripKind {
     Prefix,
     Suffix,

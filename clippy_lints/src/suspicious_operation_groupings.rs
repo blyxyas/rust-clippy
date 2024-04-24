@@ -316,7 +316,6 @@ fn replace_right_sugg(
     )
 }
 
-#[derive(Clone, Debug)]
 struct BinaryOp<'exprs> {
     op: BinOpKind,
     span: Span,
@@ -429,7 +428,7 @@ fn chained_binops_helper<'expr>(left_outer: &'expr Expr, right_outer: &'expr Exp
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Default)]
 struct IdentLocation {
     index: usize,
 }
@@ -450,7 +449,7 @@ impl AddAssign for IdentLocation {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 enum IdentDifference {
     NoDifference,
     Single(IdentLocation),

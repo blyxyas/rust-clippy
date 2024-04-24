@@ -106,7 +106,7 @@ fn double_check<'a>(cx: &LateContext<'_>, left: &'a Expr<'_>, right: &'a Expr<'_
 }
 
 /// Contains the result of a tried conversion check
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct Conversion<'a> {
     cvt: ConversionType,
     expr_to_cast: &'a Expr<'a>,
@@ -114,7 +114,7 @@ struct Conversion<'a> {
 }
 
 /// The kind of conversion that is checked
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 enum ConversionType {
     SignedToUnsigned,
     SignedToSigned,

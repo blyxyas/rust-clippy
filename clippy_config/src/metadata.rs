@@ -1,6 +1,6 @@
 use std::fmt::{self, Write};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct ClippyConfiguration {
     pub name: String,
     pub default: String,

@@ -556,7 +556,7 @@ fn exit_with_failure() {
 }
 
 /// Lint data parsed from the Clippy source code.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq)]
 struct Lint {
     name: String,
     group: String,
@@ -600,7 +600,7 @@ impl Lint {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq)]
 struct DeprecatedLint {
     name: String,
     reason: String,

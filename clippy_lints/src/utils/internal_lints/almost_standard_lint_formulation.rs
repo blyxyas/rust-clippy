@@ -26,7 +26,6 @@ pub struct AlmostStandardFormulation {
     standard_formulations: Vec<StandardFormulations<'static>>,
 }
 
-#[derive(Debug)]
 struct StandardFormulations<'a> {
     wrong_pattern: Regex,
     correction: &'a str,

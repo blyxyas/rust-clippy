@@ -63,7 +63,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
     }
 }
 
-#[derive(Debug)]
 struct IterExpr {
     /// The fields used, in order of child to parent.
     fields: Vec<Symbol>,

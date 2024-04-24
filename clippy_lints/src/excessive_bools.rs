@@ -87,7 +87,7 @@ pub struct ExcessiveBools {
     max_fn_params_bools: u64,
 }
 
-#[derive(Eq, PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq)]
 enum Kind {
     Struct,
     Fn,

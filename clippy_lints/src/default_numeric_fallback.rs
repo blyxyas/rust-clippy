@@ -242,7 +242,7 @@ fn fn_sig_opt<'tcx>(cx: &LateContext<'tcx>, hir_id: HirId) -> Option<PolyFnSig<'
 }
 
 /// Wrapper around a `bool` to make the meaning of the value clearer
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct ExplicitTyBound(pub bool);
 
 impl<'tcx> From<Ty<'tcx>> for ExplicitTyBound {

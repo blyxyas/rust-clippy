@@ -254,7 +254,6 @@ where
 }
 
 /// A type to distinguish between the two distinct cases this lint handles.
-#[derive(Copy, Clone, Debug)]
 enum LintType {
     ContinueInsideElseBlock,
     ContinueInsideThenBlock,

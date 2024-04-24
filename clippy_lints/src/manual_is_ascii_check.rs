@@ -68,7 +68,7 @@ impl ManualIsAsciiCheck {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 enum CharRange {
     /// 'a'..='z' | b'a'..=b'z'
     LowerChar,

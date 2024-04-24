@@ -168,7 +168,7 @@ struct SigDropHelper<'a, 'tcx> {
 }
 
 #[expect(clippy::enum_variant_names)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 enum LintSuggestion {
     MoveOnly,
     MoveAndDerefToCopy,

@@ -235,19 +235,18 @@ fn suggest<'tcx>(cx: &LateContext<'tcx>, assign_expr: &Expr<'tcx>, lhs: &Expr<'t
     });
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 enum CallKind<'tcx> {
     MethodCall { receiver: &'tcx Expr<'tcx> },
     FunctionCall { self_arg: &'tcx Expr<'tcx> },
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 enum TargetTrait {
     Clone,
     ToOwned,
 }
 
-#[derive(Debug)]
 struct CallCandidate<'tcx> {
     target: TargetTrait,
     kind: CallKind<'tcx>,

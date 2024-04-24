@@ -313,7 +313,7 @@ fn apply_offset(lhs: &MinifyingSugg<'static>, rhs: &Offset) -> MinifyingSugg<'st
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 enum StartKind<'hir> {
     Range,
     Counter { initializer: &'hir Expr<'hir> },

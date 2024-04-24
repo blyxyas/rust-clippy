@@ -78,7 +78,7 @@ where
     });
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 enum LengthComparison {
     /// `v.len() < 5`
     LengthLessThanInt,
@@ -153,7 +153,6 @@ fn assert_len_expr<'hir>(
     }
 }
 
-#[derive(Debug)]
 enum IndexEntry<'hir> {
     /// `assert!` without any indexing (so far)
     StrayAssert {

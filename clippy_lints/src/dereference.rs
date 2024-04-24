@@ -167,7 +167,6 @@ pub struct Dereferencing<'tcx> {
     ref_locals: FxIndexMap<HirId, Option<RefPat>>,
 }
 
-#[derive(Debug)]
 struct StateData<'tcx> {
     first_expr: &'tcx Expr<'tcx>,
     adjusted_ty: Ty<'tcx>,

@@ -71,7 +71,6 @@ const HOST_NAMES: [&str; 2] = ["from_ne_bytes", "to_ne_bytes"];
 const LITTLE_NAMES: [&str; 2] = ["from_le_bytes", "to_le_bytes"];
 const BIG_NAMES: [&str; 2] = ["from_be_bytes", "to_be_bytes"];
 
-#[derive(Clone, Debug)]
 enum LintKind {
     Host,
     Little,

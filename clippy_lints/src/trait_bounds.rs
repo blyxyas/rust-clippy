@@ -366,7 +366,7 @@ fn check_trait_bound_duplication(cx: &LateContext<'_>, gen: &'_ Generics<'_>) {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 struct ComparableTraitRef(Res, Vec<Res>);
 impl Default for ComparableTraitRef {
     fn default() -> Self {

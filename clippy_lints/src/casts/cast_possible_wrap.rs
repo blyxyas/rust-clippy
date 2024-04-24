@@ -9,7 +9,6 @@ use super::{utils, CAST_POSSIBLE_WRAP};
 const ALLOWED_POINTER_SIZES: [u64; 3] = [16, 32, 64];
 
 // whether the lint should be emitted, and the required pointer size, if it matters
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum EmitState {
     NoLint,
     LintAlways,

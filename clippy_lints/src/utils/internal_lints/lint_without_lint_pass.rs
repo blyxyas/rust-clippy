@@ -127,7 +127,7 @@ declare_clippy_lint! {
     "found 'default deprecation note' in a deprecated lint declaration"
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct LintWithoutLintPass {
     declared_lints: FxHashMap<Symbol, Span>,
     registered_lints: FxHashSet<Symbol>,

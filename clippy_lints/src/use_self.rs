@@ -69,7 +69,6 @@ impl UseSelf {
     }
 }
 
-#[derive(Debug)]
 enum StackItem {
     Check {
         impl_id: LocalDefId,

@@ -31,7 +31,6 @@ declare_clippy_lint! {
 }
 
 /// `MacroRefData` includes the name of the macro.
-#[derive(Debug, Clone)]
 pub struct MacroRefData {
     name: String,
 }

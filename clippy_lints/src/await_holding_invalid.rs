@@ -168,7 +168,6 @@ declare_clippy_lint! {
 
 impl_lint_pass!(AwaitHolding => [AWAIT_HOLDING_LOCK, AWAIT_HOLDING_REFCELL_REF, AWAIT_HOLDING_INVALID_TYPE]);
 
-#[derive(Debug)]
 pub struct AwaitHolding {
     conf_invalid_types: Vec<DisallowedPath>,
     def_ids: FxHashMap<DefId, DisallowedPath>,

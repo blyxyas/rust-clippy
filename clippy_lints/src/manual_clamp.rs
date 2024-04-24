@@ -102,7 +102,6 @@ impl ManualClamp {
     }
 }
 
-#[derive(Debug)]
 struct ClampSuggestion<'tcx> {
     params: InputMinMax<'tcx>,
     span: Span,
@@ -130,7 +129,6 @@ impl<'tcx> ClampSuggestion<'tcx> {
     }
 }
 
-#[derive(Debug)]
 struct InputMinMax<'tcx> {
     input: &'tcx Expr<'tcx>,
     min: &'tcx Expr<'tcx>,
@@ -209,7 +207,6 @@ fn maybe_emit_suggestion<'tcx>(cx: &LateContext<'tcx>, suggestion: &ClampSuggest
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum TypeClampability {
     Float,
     Ord,
@@ -575,7 +572,7 @@ fn is_if_elseif_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) ->
 }
 
 /// `ExprKind::Binary` but more narrowly typed
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct BinaryOp<'tcx> {
     op: BinOpKind,
     left: &'tcx Expr<'tcx>,
@@ -724,7 +721,6 @@ fn is_ord_op(op: BinOpKind) -> bool {
 }
 
 /// Really similar to Cow, but doesn't have a `Clone` requirement.
-#[derive(Debug)]
 enum MaybeBorrowedStmtKind<'a> {
     Borrowed(&'a StmtKind<'a>),
     Owned(StmtKind<'a>),

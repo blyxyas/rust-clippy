@@ -7,7 +7,6 @@ use std::process::{self, Command, Stdio};
 use std::{fs, io};
 use walkdir::WalkDir;
 
-#[derive(Debug)]
 pub enum CliError {
     CommandFailed(String, String),
     IoError(io::Error),

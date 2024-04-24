@@ -98,7 +98,6 @@ fn stmt_needs_ordered_drop(cx: &LateContext<'_>, stmt: &Stmt<'_>) -> bool {
     })
 }
 
-#[derive(Debug)]
 struct LocalAssign {
     lhs_id: HirId,
     lhs_span: Span,

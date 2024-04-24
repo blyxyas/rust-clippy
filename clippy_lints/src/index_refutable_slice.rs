@@ -186,7 +186,6 @@ fn lint_slice(cx: &LateContext<'_>, slice: &SliceLintInformation) {
     }
 }
 
-#[derive(Debug)]
 struct SliceLintInformation {
     ident: Ident,
     needs_ref: bool,
