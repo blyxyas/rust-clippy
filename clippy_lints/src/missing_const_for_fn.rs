@@ -1,6 +1,6 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::qualify_min_const_fn::is_min_const_fn;
 use clippy_utils::{fn_has_unsatisfiable_preds, is_entrypoint_fn, is_from_proc_macro, trait_ref_of_method};
 use rustc_errors::Applicability;
@@ -10,7 +10,7 @@ use rustc_hir::{self as hir, Body, Constness, FnDecl, GenericParamKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::lint::in_external_macro;
 use rustc_middle::ty;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::LocalDefId;
 use rustc_target::spec::abi::Abi;
@@ -73,19 +73,8 @@ declare_clippy_lint! {
     "Lint functions definitions that could be made `const fn`"
 }
 
-impl_lint_pass!(MissingConstForFn => [MISSING_CONST_FOR_FN]);
+declare_lint_pass!(MissingConstForFn => [MISSING_CONST_FOR_FN]);
 
-pub struct MissingConstForFn {
-    msrv: Msrv,
-}
-
-impl MissingConstForFn {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
 
 impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
     fn check_fn(
@@ -97,7 +86,8 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
         span: Span,
         def_id: LocalDefId,
     ) {
-        if !self.msrv.meets(msrvs::CONST_IF_MATCH) {
+        let msrv = &*MSRV.lock().unwrap();
+        if !msrv.meets(msrvs::CONST_IF_MATCH) {
             return;
         }
 
@@ -119,7 +109,7 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
                     .iter()
                     .any(|param| matches!(param.kind, GenericParamKind::Const { .. }));
 
-                if already_const(header) || has_const_generic_params || !could_be_const_with_abi(&self.msrv, header.abi)
+                if already_const(header) || has_const_generic_params || !could_be_const_with_abi(&msrv, header.abi)
                 {
                     return;
                 }
@@ -156,7 +146,7 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
 
         let mir = cx.tcx.optimized_mir(def_id);
 
-        if let Ok(()) = is_min_const_fn(cx.tcx, mir, &self.msrv)
+        if let Ok(()) = is_min_const_fn(cx.tcx, mir, &msrv)
             && let hir::Node::Item(hir::Item { vis_span, .. }) | hir::Node::ImplItem(hir::ImplItem { vis_span, .. }) =
                 cx.tcx.hir_node_by_def_id(def_id)
         {
@@ -172,7 +162,6 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
         }
     }
 
-    extract_msrv_attr!(LateContext);
 }
 
 // We don't have to lint on something that's already `const`

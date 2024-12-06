@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_from_proc_macro;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::snippet_opt;
 use rustc_errors::Applicability;
 use rustc_hir::def::{DefKind, Res};
@@ -9,7 +9,7 @@ use rustc_hir::{Item, ItemKind, UseKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext as _};
 use rustc_middle::lint::in_external_macro;
 use rustc_middle::ty::Visibility;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::symbol::kw;
 
 declare_clippy_lint! {
@@ -46,23 +46,12 @@ declare_clippy_lint! {
     "use items that import a trait but only use it anonymously"
 }
 
-pub struct UnusedTraitNames {
-    msrv: Msrv,
-}
-
-impl UnusedTraitNames {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(UnusedTraitNames => [UNUSED_TRAIT_NAMES]);
+declare_lint_pass!(UnusedTraitNames => [UNUSED_TRAIT_NAMES]);
 
 impl<'tcx> LateLintPass<'tcx> for UnusedTraitNames {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
-        if self.msrv.meets(msrvs::UNDERSCORE_IMPORTS)
+        let msrv = &*MSRV.lock().unwrap();
+        if msrv.meets(msrvs::UNDERSCORE_IMPORTS)
             && !in_external_macro(cx.sess(), item.span)
             && let ItemKind::Use(path, UseKind::Single) = item.kind
             // Ignore imports that already use Underscore
@@ -89,6 +78,4 @@ impl<'tcx> LateLintPass<'tcx> for UnusedTraitNames {
             );
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }

@@ -133,21 +133,6 @@ use crate::ty::{adt_and_variant_of_res, can_partially_move_ty, expr_sig, is_copy
 use crate::visitors::for_each_expr_without_closures;
 use rustc_middle::hir::nested_filter;
 
-#[macro_export]
-macro_rules! extract_msrv_attr {
-    ($context:ident) => {
-        fn check_attributes(&mut self, cx: &rustc_lint::$context<'_>, attrs: &[rustc_ast::ast::Attribute]) {
-            let sess = rustc_lint::LintContext::sess(cx);
-            self.msrv.check_attributes(sess, attrs);
-        }
-
-        fn check_attributes_post(&mut self, cx: &rustc_lint::$context<'_>, attrs: &[rustc_ast::ast::Attribute]) {
-            let sess = rustc_lint::LintContext::sess(cx);
-            self.msrv.check_attributes_post(sess, attrs);
-        }
-    };
-}
-
 /// If the given expression is a local binding, find the initializer expression.
 /// If that initializer expression is another local binding, find its initializer again.
 ///

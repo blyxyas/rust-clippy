@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::eager_or_lazy::switch_to_eager_eval;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::{
@@ -12,7 +12,7 @@ use rustc_hir::LangItem::{OptionNone, OptionSome};
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::lint::in_external_macro;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 
 declare_clippy_lint! {
     /// ### What it does
@@ -49,19 +49,7 @@ declare_clippy_lint! {
     "Finds if-else that could be written using either `bool::then` or `bool::then_some`"
 }
 
-pub struct IfThenSomeElseNone {
-    msrv: Msrv,
-}
-
-impl IfThenSomeElseNone {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(IfThenSomeElseNone => [IF_THEN_SOME_ELSE_NONE]);
+declare_lint_pass!(IfThenSomeElseNone => [IF_THEN_SOME_ELSE_NONE]);
 
 impl<'tcx> LateLintPass<'tcx> for IfThenSomeElseNone {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
@@ -80,10 +68,11 @@ impl<'tcx> LateLintPass<'tcx> for IfThenSomeElseNone {
             && !is_else_clause(cx.tcx, expr)
             && !is_in_const_context(cx)
             && !in_external_macro(cx.sess(), expr.span)
-            && self.msrv.meets(msrvs::BOOL_THEN)
+            && let msrv = &*MSRV.lock().unwrap()
+            && msrv.meets(msrvs::BOOL_THEN)
             && !contains_return(then_block.stmts)
         {
-            let method_name = if switch_to_eager_eval(cx, expr) && self.msrv.meets(msrvs::BOOL_THEN_SOME) {
+            let method_name = if switch_to_eager_eval(cx, expr) && msrv.meets(msrvs::BOOL_THEN_SOME) {
                 "then_some"
             } else {
                 "then"
@@ -122,5 +111,4 @@ impl<'tcx> LateLintPass<'tcx> for IfThenSomeElseNone {
         }
     }
 
-    extract_msrv_attr!(LateContext);
 }

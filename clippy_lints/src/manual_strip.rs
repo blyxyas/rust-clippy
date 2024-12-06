@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::snippet;
 use clippy_utils::usage::mutated_variables;
 use clippy_utils::{eq_expr_value, higher};
@@ -12,7 +12,7 @@ use rustc_hir::intravisit::{Visitor, walk_expr};
 use rustc_hir::{BinOpKind, BorrowKind, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::source_map::Spanned;
 use rustc_span::{Span, sym};
 use std::iter;
@@ -48,19 +48,7 @@ declare_clippy_lint! {
     "suggests using `strip_{prefix,suffix}` over `str::{starts,ends}_with` and slicing"
 }
 
-pub struct ManualStrip {
-    msrv: Msrv,
-}
-
-impl ManualStrip {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(ManualStrip => [MANUAL_STRIP]);
+declare_lint_pass!(ManualStrip => [MANUAL_STRIP]);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum StripKind {
@@ -73,7 +61,8 @@ impl<'tcx> LateLintPass<'tcx> for ManualStrip {
         if let Some(higher::If { cond, then, .. }) = higher::If::hir(expr)
             && let ExprKind::MethodCall(_, target_arg, [pattern], _) = cond.kind
             && let ExprKind::Path(target_path) = &target_arg.kind
-            && self.msrv.meets(msrvs::STR_STRIP_PREFIX)
+            && let msrv = &*MSRV.lock().unwrap()
+            && msrv.meets(msrvs::STR_STRIP_PREFIX)
             && let Some(method_def_id) = cx.typeck_results().type_dependent_def_id(cond.hir_id)
         {
             let strip_kind = if cx.tcx.is_diagnostic_item(sym::str_starts_with, method_def_id) {
@@ -129,8 +118,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualStrip {
             }
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 // Returns `Some(arg)` if `expr` matches `arg.len()` and `None` otherwise.

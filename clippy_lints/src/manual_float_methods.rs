@@ -1,14 +1,14 @@
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::{is_from_proc_macro, path_to_local};
 use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Constness, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass, Lint, LintContext};
 use rustc_middle::lint::in_external_macro;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 
 declare_clippy_lint! {
     /// ### What it does
@@ -58,7 +58,8 @@ declare_clippy_lint! {
     style,
     "use dedicated method to check if a float is finite"
 }
-impl_lint_pass!(ManualFloatMethods => [MANUAL_IS_INFINITE, MANUAL_IS_FINITE]);
+
+declare_lint_pass!(ManualFloatMethods => [MANUAL_IS_INFINITE, MANUAL_IS_FINITE]);
 
 #[derive(Clone, Copy)]
 enum Variant {
@@ -82,18 +83,6 @@ impl Variant {
     }
 }
 
-pub struct ManualFloatMethods {
-    msrv: Msrv,
-}
-
-impl ManualFloatMethods {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
 impl<'tcx> LateLintPass<'tcx> for ManualFloatMethods {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let ExprKind::Binary(kind, lhs, rhs) = expr.kind
@@ -106,7 +95,10 @@ impl<'tcx> LateLintPass<'tcx> for ManualFloatMethods {
             && !in_external_macro(cx.sess(), expr.span)
             && (
                 matches!(cx.tcx.constness(cx.tcx.hir().enclosing_body_owner(expr.hir_id)), Constness::NotConst)
-                    || self.msrv.meets(msrvs::CONST_FLOAT_CLASSIFY)
+
+                    || {
+                        let msrv = &*MSRV.lock().unwrap();
+                        msrv.meets(msrvs::CONST_FLOAT_CLASSIFY) }
             )
             && let [first, second, const_1, const_2] = exprs
             && let ecx = ConstEvalCtxt::new(cx)
@@ -164,8 +156,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualFloatMethods {
             });
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 fn is_infinity(constant: &Constant<'_>) -> bool {

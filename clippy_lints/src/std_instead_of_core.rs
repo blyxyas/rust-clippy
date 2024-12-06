@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_from_proc_macro;
-use clippy_utils::msrvs::Msrv;
+use clippy_utils::msrvs::{Msrv, MSRV};
 use rustc_attr::{StabilityLevel, StableSince};
 use rustc_errors::Applicability;
 use rustc_hir::def::Res;
@@ -93,14 +93,12 @@ pub struct StdReexports {
     // twice. First for the mod, second for the macro. This is used to avoid the lint reporting for the macro
     // when the path could be also be used to access the module.
     prev_span: Span,
-    msrv: Msrv,
 }
 
 impl StdReexports {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
             prev_span: Span::default(),
-            msrv: conf.msrv.clone(),
         }
     }
 }
@@ -111,7 +109,8 @@ impl<'tcx> LateLintPass<'tcx> for StdReexports {
     fn check_path(&mut self, cx: &LateContext<'tcx>, path: &Path<'tcx>, _: HirId) {
         if let Res::Def(_, def_id) = path.res
             && let Some(first_segment) = get_first_segment(path)
-            && is_stable(cx, def_id, &self.msrv)
+            && let msrv = &*MSRV.lock().unwrap()
+            && is_stable(cx, def_id, &msrv)
             && !in_external_macro(cx.sess(), path.span)
             && !is_from_proc_macro(cx, &first_segment.ident)
         {
@@ -154,8 +153,6 @@ impl<'tcx> LateLintPass<'tcx> for StdReexports {
             }
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 /// Returns the first named segment of a [`Path`].

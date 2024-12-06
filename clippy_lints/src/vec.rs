@@ -4,7 +4,7 @@ use std::ops::ControlFlow;
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_hir_and_then;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::ty::is_copy;
 use clippy_utils::visitors::for_each_local_use_after_expr;
@@ -19,7 +19,6 @@ use rustc_span::{DesugaringKind, Span, sym};
 
 pub struct UselessVec {
     too_large_for_stack: u64,
-    msrv: Msrv,
     span_to_lint_map: BTreeMap<Span, Option<(HirId, SuggestedType, String, Applicability)>>,
     allow_in_test: bool,
 }
@@ -27,7 +26,6 @@ impl UselessVec {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
             too_large_for_stack: conf.too_large_for_stack,
-            msrv: conf.msrv.clone(),
             span_to_lint_map: BTreeMap::new(),
             allow_in_test: conf.allow_useless_vec_in_tests,
         }
@@ -111,7 +109,9 @@ impl<'tcx> LateLintPass<'tcx> for UselessVec {
             },
             // search for `for _ in vec![...]`
             Node::Expr(Expr { span, .. })
-                if span.is_desugaring(DesugaringKind::ForLoop) && self.msrv.meets(msrvs::ARRAY_INTO_ITERATOR) =>
+                if span.is_desugaring(DesugaringKind::ForLoop) &&
+                let msrv = &*MSRV.lock().unwrap() &&
+                msrv.meets(msrvs::ARRAY_INTO_ITERATOR) =>
             {
                 let suggest_slice = suggest_type(expr);
                 self.check_vec_macro(cx, &vec_args, callsite, expr.hir_id, suggest_slice);
@@ -139,8 +139,6 @@ impl<'tcx> LateLintPass<'tcx> for UselessVec {
             }
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 impl UselessVec {

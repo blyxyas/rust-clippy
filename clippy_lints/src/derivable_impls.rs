@@ -1,6 +1,6 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::indent_of;
 use clippy_utils::{is_default_equivalent, peel_blocks};
 use rustc_errors::Applicability;
@@ -11,7 +11,7 @@ use rustc_hir::{
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::adjustment::{Adjust, PointerCoercion};
 use rustc_middle::ty::{self, AdtDef, GenericArgsRef, Ty, TypeckResults};
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::sym;
 
 declare_clippy_lint! {
@@ -56,19 +56,7 @@ declare_clippy_lint! {
     "manual implementation of the `Default` trait which is equal to a derive"
 }
 
-pub struct DerivableImpls {
-    msrv: Msrv,
-}
-
-impl DerivableImpls {
-    pub fn new(conf: &'static Conf) -> Self {
-        DerivableImpls {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(DerivableImpls => [DERIVABLE_IMPLS]);
+declare_lint_pass!(DerivableImpls => [DERIVABLE_IMPLS]);
 
 fn is_path_self(e: &Expr<'_>) -> bool {
     if let ExprKind::Path(QPath::Resolved(_, p)) = e.kind {
@@ -205,11 +193,12 @@ impl<'tcx> LateLintPass<'tcx> for DerivableImpls {
         {
             if adt_def.is_struct() {
                 check_struct(cx, item, self_ty, func_expr, adt_def, args, cx.tcx.typeck_body(*b));
-            } else if adt_def.is_enum() && self.msrv.meets(msrvs::DEFAULT_ENUM_ATTRIBUTE) {
+            } else if adt_def.is_enum() &&
+            let msrv = &*MSRV.lock().unwrap() &&
+            msrv.meets(msrvs::DEFAULT_ENUM_ATTRIBUTE) {
                 check_enum(cx, item, func_expr, adt_def);
             }
         }
     }
 
-    extract_msrv_attr!(LateContext);
 }

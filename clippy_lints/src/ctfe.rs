@@ -1,3 +1,4 @@
+use clippy_utils::msrvs::{msrv_check_attributes, msrv_check_attributes_post};
 use rustc_hir::def_id::LocalDefId;
 use rustc_hir::intravisit::FnKind;
 use rustc_hir::{Body, FnDecl};
@@ -22,5 +23,15 @@ impl<'tcx> LateLintPass<'tcx> for ClippyCtfe {
         defid: LocalDefId,
     ) {
         cx.tcx.ensure().mir_drops_elaborated_and_const_checked(defid); // Lint
+    }
+
+    fn check_attributes(&mut self, cx: &LateContext<'_>, attrs: &[rustc_ast::ast::Attribute]) {
+        let sess = rustc_lint::LintContext::sess(cx);
+        msrv_check_attributes(sess, attrs);
+    }
+
+    fn check_attributes_post(&mut self, cx: &LateContext<'_>, attrs: &[rustc_ast::ast::Attribute]) {
+        let sess = rustc_lint::LintContext::sess(cx);
+        msrv_check_attributes_post(sess, attrs);
     }
 }

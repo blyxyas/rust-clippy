@@ -1,10 +1,11 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::paths::MSRV;
 use rustc_ast::ast::{FloatTy, LitFloatType, LitKind};
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_session::{RustcVersion, impl_lint_pass};
+use rustc_session::{RustcVersion, declare_lint_pass};
 use rustc_span::symbol;
 use std::f64::consts as f64;
 
@@ -62,16 +63,7 @@ const KNOWN_CONSTS: [(f64, &str, usize, Option<RustcVersion>); 19] = [
     (f64::TAU, "TAU", 3, Some(msrvs::TAU)),
 ];
 
-pub struct ApproxConstant {
-    msrv: Msrv,
-}
-
 impl ApproxConstant {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
 
     fn check_lit(&self, cx: &LateContext<'_>, lit: &LitKind, e: &Expr<'_>) {
         match *lit {
@@ -90,8 +82,10 @@ impl ApproxConstant {
     fn check_known_consts(&self, cx: &LateContext<'_>, e: &Expr<'_>, s: symbol::Symbol, module: &str) {
         let s = s.as_str();
         if s.parse::<f64>().is_ok() {
+            let outer_msrv = &*msrvs::MSRV.lock().unwrap();
+            let current_msrv = outer_msrv.current();
             for &(constant, name, min_digits, msrv) in &KNOWN_CONSTS {
-                if is_approx_const(constant, s, min_digits) && msrv.is_none_or(|msrv| self.msrv.meets(msrv)) {
+                if is_approx_const(constant, s, min_digits) && current_msrv.is_none_or(|msrv| outer_msrv.meets(msrv)) {
                     span_lint_and_help(
                         cx,
                         APPROX_CONSTANT,
@@ -107,7 +101,7 @@ impl ApproxConstant {
     }
 }
 
-impl_lint_pass!(ApproxConstant => [APPROX_CONSTANT]);
+declare_lint_pass!(ApproxConstant => [APPROX_CONSTANT]);
 
 impl<'tcx> LateLintPass<'tcx> for ApproxConstant {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
@@ -116,7 +110,6 @@ impl<'tcx> LateLintPass<'tcx> for ApproxConstant {
         }
     }
 
-    extract_msrv_attr!(LateContext);
 }
 
 /// Returns `false` if the number of significant figures in `value` are

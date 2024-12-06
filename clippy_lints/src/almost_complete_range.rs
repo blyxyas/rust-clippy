@@ -1,12 +1,12 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::{trim_span, walk_span_to_context};
 use rustc_ast::ast::{Expr, ExprKind, LitKind, Pat, PatKind, RangeEnd, RangeLimits};
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass, LintContext};
 use rustc_middle::lint::in_external_macro;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 
 declare_clippy_lint! {
     /// ### What it does
@@ -29,18 +29,8 @@ declare_clippy_lint! {
     suspicious,
     "almost complete range"
 }
-impl_lint_pass!(AlmostCompleteRange => [ALMOST_COMPLETE_RANGE]);
+declare_lint_pass!(AlmostCompleteRange => [ALMOST_COMPLETE_RANGE]);
 
-pub struct AlmostCompleteRange {
-    msrv: Msrv,
-}
-impl AlmostCompleteRange {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
 impl EarlyLintPass for AlmostCompleteRange {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, e: &Expr) {
         if let ExprKind::Range(Some(start), Some(end), RangeLimits::HalfOpen) = &e.kind
@@ -56,7 +46,8 @@ impl EarlyLintPass for AlmostCompleteRange {
                     let ctxt = e.span.ctxt();
                     if let Some(start) = walk_span_to_context(start.span, ctxt)
                         && let Some(end) = walk_span_to_context(end.span, ctxt)
-                        && self.msrv.meets(msrvs::RANGE_INCLUSIVE)
+                        && let msrv = &*MSRV.lock().unwrap()
+                        && msrv.meets(msrvs::RANGE_INCLUSIVE)
                     {
                         diag.span_suggestion(
                             trim_span(cx.sess().source_map(), start.between(end)),
@@ -85,7 +76,7 @@ impl EarlyLintPass for AlmostCompleteRange {
                     diag.span_suggestion(
                         kind.span,
                         "use an inclusive range",
-                        if self.msrv.meets(msrvs::RANGE_INCLUSIVE) {
+                        if let msrv = &*MSRV.lock().unwrap() && msrv.meets(msrvs::RANGE_INCLUSIVE) {
                             "..=".to_owned()
                         } else {
                             "...".to_owned()
@@ -96,8 +87,6 @@ impl EarlyLintPass for AlmostCompleteRange {
             );
         }
     }
-
-    extract_msrv_attr!(EarlyContext);
 }
 
 fn is_incomplete_range(start: &Expr, end: &Expr) -> bool {

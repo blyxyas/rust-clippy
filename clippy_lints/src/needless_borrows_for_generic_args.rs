@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::mir::{PossibleBorrowerMap, enclosing_mir, expr_local, local_assignments, used_exactly_once};
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::ty::{implements_trait, is_copy};
 use clippy_utils::{DefinedTy, ExprUseNode, expr_use_ctxt, peel_n_hir_expr_refs};
@@ -62,9 +62,6 @@ pub struct NeedlessBorrowsForGenericArgs<'tcx> {
     /// `needless_borrow_impl_arg_position` to determine when a borrowed expression can instead
     /// be moved.
     possible_borrowers: Vec<(LocalDefId, PossibleBorrowerMap<'tcx, 'tcx>)>,
-
-    // `IntoIterator` for arrays requires Rust 1.53.
-    msrv: Msrv,
 }
 impl_lint_pass!(NeedlessBorrowsForGenericArgs<'_> => [NEEDLESS_BORROWS_FOR_GENERIC_ARGS]);
 
@@ -72,7 +69,6 @@ impl NeedlessBorrowsForGenericArgs<'_> {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
             possible_borrowers: Vec::new(),
-            msrv: conf.msrv.clone(),
         }
     }
 }
@@ -106,6 +102,7 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessBorrowsForGenericArgs<'tcx> {
                 },
                 _ => None,
             }
+            && let msrv = &*MSRV.lock().unwrap()
             && let count = needless_borrow_count(
                 cx,
                 &mut self.possible_borrowers,
@@ -114,7 +111,7 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessBorrowsForGenericArgs<'tcx> {
                 i,
                 param_ty,
                 expr,
-                &self.msrv,
+                msrv,
             )
             && count != 0
         {
@@ -143,7 +140,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessBorrowsForGenericArgs<'tcx> {
         }
     }
 
-    extract_msrv_attr!(LateContext);
 }
 
 fn path_has_args(p: &QPath<'_>) -> bool {

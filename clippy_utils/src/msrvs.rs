@@ -5,6 +5,9 @@ use rustc_span::{Symbol, sym};
 use serde::Deserialize;
 use smallvec::{SmallVec, smallvec};
 use std::fmt;
+use std::sync::{LazyLock, Mutex};
+
+pub static MSRV: LazyLock<Mutex<Msrv>> = LazyLock::new(|| Mutex::new(Msrv::empty()));
 
 macro_rules! msrv_aliases {
     ($($major:literal,$minor:literal,$patch:literal {
@@ -112,7 +115,7 @@ impl Msrv {
                     ));
                 }
             },
-            _ => {},
+         _ => {},
         }
     }
 
@@ -150,16 +153,18 @@ impl Msrv {
 
         None
     }
+}
 
-    pub fn check_attributes(&mut self, sess: &Session, attrs: &[Attribute]) {
-        if let Some(version) = Self::parse_attr(sess, attrs) {
-            self.stack.push(version);
-        }
+pub fn msrv_check_attributes(sess: &Session, attrs: &[Attribute]) {
+    if let Some(version) = Msrv::parse_attr(sess, attrs) {
+            let mut msrv = MSRV.lock().expect("Could not lock");
+            msrv.stack.push(version);
     }
+}
 
-    pub fn check_attributes_post(&mut self, sess: &Session, attrs: &[Attribute]) {
-        if Self::parse_attr(sess, attrs).is_some() {
-            self.stack.pop();
-        }
+pub fn msrv_check_attributes_post(sess: &Session, attrs: &[Attribute]) {
+    if Msrv::parse_attr(sess, attrs).is_some() {
+            let mut msrv = MSRV.lock().expect("Could not lock");
+            msrv.stack.pop();
     }
 }

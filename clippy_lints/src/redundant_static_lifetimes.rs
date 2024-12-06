@@ -1,11 +1,11 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::snippet;
 use rustc_ast::ast::{ConstItem, Item, ItemKind, StaticItem, Ty, TyKind};
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass};
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::symbol::kw;
 
 declare_clippy_lint! {
@@ -34,19 +34,7 @@ declare_clippy_lint! {
     "Using explicit `'static` lifetime for constants or statics when elision rules would allow omitting them."
 }
 
-pub struct RedundantStaticLifetimes {
-    msrv: Msrv,
-}
-
-impl RedundantStaticLifetimes {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(RedundantStaticLifetimes => [REDUNDANT_STATIC_LIFETIMES]);
+declare_lint_pass!(RedundantStaticLifetimes => [REDUNDANT_STATIC_LIFETIMES]);
 
 impl RedundantStaticLifetimes {
     // Recursively visit types
@@ -98,7 +86,8 @@ impl RedundantStaticLifetimes {
 
 impl EarlyLintPass for RedundantStaticLifetimes {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
-        if !self.msrv.meets(msrvs::STATIC_IN_CONST) {
+        let msrv = &*MSRV.lock().unwrap();
+        if !msrv.meets(msrvs::STATIC_IN_CONST) {
             return;
         }
 
@@ -114,6 +103,4 @@ impl EarlyLintPass for RedundantStaticLifetimes {
             }
         }
     }
-
-    extract_msrv_attr!(EarlyContext);
 }

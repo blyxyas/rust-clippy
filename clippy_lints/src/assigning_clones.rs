@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::mir::{PossibleBorrowerMap, enclosing_mir};
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::{is_diag_trait_item, is_in_test, last_path_segment, local_is_initialized, path_to_local};
 use rustc_errors::Applicability;
@@ -9,7 +9,7 @@ use rustc_hir::{self as hir, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::mir;
 use rustc_middle::ty::{self, Instance, Mutability};
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::symbol::sym;
 use rustc_span::{Span, SyntaxContext};
 
@@ -53,19 +53,7 @@ declare_clippy_lint! {
     "assigning the result of cloning may be inefficient"
 }
 
-pub struct AssigningClones {
-    msrv: Msrv,
-}
-
-impl AssigningClones {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(AssigningClones => [ASSIGNING_CLONES]);
+declare_lint_pass!(AssigningClones => [ASSIGNING_CLONES]);
 
 impl<'tcx> LateLintPass<'tcx> for AssigningClones {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
@@ -90,7 +78,8 @@ impl<'tcx> LateLintPass<'tcx> for AssigningClones {
                 sym::clone if is_diag_trait_item(cx, fn_id, sym::Clone) => CloneTrait::Clone,
                 _ if fn_name.as_str() == "to_owned"
                     && is_diag_trait_item(cx, fn_id, sym::ToOwned)
-                    && self.msrv.meets(msrvs::CLONE_INTO) =>
+                    && let msrv = &*MSRV.lock().unwrap()
+                    && msrv.meets(msrvs::CLONE_INTO) =>
                 {
                     CloneTrait::ToOwned
                 },
@@ -143,8 +132,6 @@ impl<'tcx> LateLintPass<'tcx> for AssigningClones {
             );
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 /// Checks if the data being cloned borrows from the place that is being assigned to:

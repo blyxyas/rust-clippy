@@ -3,7 +3,6 @@ use crate::question_mark_used::QUESTION_MARK_USED;
 use clippy_config::Conf;
 use clippy_config::types::MatchLintBehaviour;
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::msrvs::Msrv;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::{implements_trait, is_type_diagnostic_item};
 use clippy_utils::{
@@ -50,7 +49,6 @@ declare_clippy_lint! {
 }
 
 pub struct QuestionMark {
-    pub(crate) msrv: Msrv,
     pub(crate) matches_behaviour: MatchLintBehaviour,
     /// Keeps track of how many try blocks we are in at any point during linting.
     /// This allows us to answer the question "are we inside of a try block"
@@ -68,7 +66,6 @@ impl_lint_pass!(QuestionMark => [QUESTION_MARK, MANUAL_LET_ELSE]);
 impl QuestionMark {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
-            msrv: conf.msrv.clone(),
             matches_behaviour: conf.matches_for_let_else,
             try_block_depth_stack: Vec::new(),
             inferred_ret_closure_stack: 0,
@@ -543,5 +540,4 @@ impl<'tcx> LateLintPass<'tcx> for QuestionMark {
                 .expect("blocks are always part of bodies and must have a depth") -= 1;
         }
     }
-    extract_msrv_attr!(LateContext);
 }

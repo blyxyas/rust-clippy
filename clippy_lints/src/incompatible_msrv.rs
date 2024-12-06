@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::is_in_test;
-use clippy_utils::msrvs::Msrv;
+use clippy_utils::msrvs::{Msrv, MSRV};
 use rustc_attr::{StabilityLevel, StableSince};
 use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::{Expr, ExprKind, HirId};
@@ -40,16 +40,14 @@ declare_clippy_lint! {
 }
 
 pub struct IncompatibleMsrv {
-    msrv: Msrv,
     is_above_msrv: FxHashMap<DefId, RustcVersion>,
 }
 
 impl_lint_pass!(IncompatibleMsrv => [INCOMPATIBLE_MSRV]);
 
 impl IncompatibleMsrv {
-    pub fn new(conf: &'static Conf) -> Self {
+    pub fn new() -> Self {
         Self {
-            msrv: conf.msrv.clone(),
             is_above_msrv: FxHashMap::default(),
         }
     }
@@ -81,13 +79,13 @@ impl IncompatibleMsrv {
         version
     }
 
-    fn emit_lint_if_under_msrv(&mut self, cx: &LateContext<'_>, def_id: DefId, node: HirId, span: Span) {
+    fn emit_lint_if_under_msrv(&mut self, cx: &LateContext<'_>, def_id: DefId, node: HirId, span: Span, msrv: &Msrv) {
         if def_id.is_local() {
             // We don't check local items since their MSRV is supposed to always be valid.
             return;
         }
         let version = self.get_def_id_version(cx.tcx, def_id);
-        if self.msrv.meets(version) || is_in_test(cx.tcx, node) {
+        if msrv.meets(version) || is_in_test(cx.tcx, node) {
             return;
         }
         if let ExpnKind::AstPass(_) | ExpnKind::Desugaring(_) = span.ctxt().outer_expn_data().kind {
@@ -95,41 +93,40 @@ impl IncompatibleMsrv {
             // Intentionally not using `.from_expansion()`, since we do still care about macro expansions
             return;
         }
-        self.emit_lint_for(cx, span, version);
+        self.emit_lint_for(cx, span, version, msrv);
     }
 
-    fn emit_lint_for(&self, cx: &LateContext<'_>, span: Span, version: RustcVersion) {
+    fn emit_lint_for(&self, cx: &LateContext<'_>, span: Span, version: RustcVersion, msrv: &Msrv) {
         span_lint(
             cx,
             INCOMPATIBLE_MSRV,
             span,
             format!(
                 "current MSRV (Minimum Supported Rust Version) is `{}` but this item is stable since `{version}`",
-                self.msrv
+                msrv
             ),
         );
     }
 }
 
 impl<'tcx> LateLintPass<'tcx> for IncompatibleMsrv {
-    extract_msrv_attr!(LateContext);
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
-        if self.msrv.current().is_none() {
+        let msrv = &*MSRV.lock().unwrap();
+        if msrv.current().is_none() {
             // If there is no MSRV, then no need to check anything...
             return;
         }
         match expr.kind {
             ExprKind::MethodCall(_, _, _, span) => {
                 if let Some(method_did) = cx.typeck_results().type_dependent_def_id(expr.hir_id) {
-                    self.emit_lint_if_under_msrv(cx, method_did, expr.hir_id, span);
+                    self.emit_lint_if_under_msrv(cx, method_did, expr.hir_id, span, msrv);
                 }
             },
             ExprKind::Call(call, [_]) => {
                 if let ExprKind::Path(qpath) = call.kind
                     && let Some(path_def_id) = cx.qpath_res(&qpath, call.hir_id).opt_def_id()
                 {
-                    self.emit_lint_if_under_msrv(cx, path_def_id, expr.hir_id, call.span);
+                    self.emit_lint_if_under_msrv(cx, path_def_id, expr.hir_id, call.span, msrv);
                 }
             },
             _ => {},

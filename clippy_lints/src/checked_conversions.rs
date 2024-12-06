@@ -1,13 +1,14 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::{SpanlessEq, is_in_const_context, is_integer_literal};
 use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Expr, ExprKind, QPath, TyKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::lint::in_external_macro;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
+use rustc_lint::{LintVec, LintPass};
 
 declare_clippy_lint! {
     /// ### What it does
@@ -34,39 +35,28 @@ declare_clippy_lint! {
     "`try_from` could replace manual bounds checking when casting"
 }
 
-pub struct CheckedConversions {
-    msrv: Msrv,
-}
-
-impl CheckedConversions {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(CheckedConversions => [CHECKED_CONVERSIONS]);
+declare_lint_pass!(CheckedConversions => [CHECKED_CONVERSIONS]);
 
 impl LateLintPass<'_> for CheckedConversions {
     fn check_expr(&mut self, cx: &LateContext<'_>, item: &Expr<'_>) {
         if let ExprKind::Binary(op, lhs, rhs) = item.kind
-            && let (lt1, gt1, op2) = match op.node {
-                BinOpKind::Le => (lhs, rhs, None),
-                BinOpKind::Ge => (rhs, lhs, None),
-                BinOpKind::And
-                    if let ExprKind::Binary(op1, lhs1, rhs1) = lhs.kind
-                        && let ExprKind::Binary(op2, lhs2, rhs2) = rhs.kind
+        && let (lt1, gt1, op2) = match op.node {
+            BinOpKind::Le => (lhs, rhs, None),
+            BinOpKind::Ge => (rhs, lhs, None),
+            BinOpKind::And
+            if let ExprKind::Binary(op1, lhs1, rhs1) = lhs.kind
+            && let ExprKind::Binary(op2, lhs2, rhs2) = rhs.kind
                         && let Some((lt1, gt1)) = read_le_ge(op1.node, lhs1, rhs1)
                         && let Some((lt2, gt2)) = read_le_ge(op2.node, lhs2, rhs2) =>
-                {
-                    (lt1, gt1, Some((lt2, gt2)))
-                },
-                _ => return,
-            }
-            && !in_external_macro(cx.sess(), item.span)
-            && !is_in_const_context(cx)
-            && self.msrv.meets(msrvs::TRY_FROM)
+                        {
+                            (lt1, gt1, Some((lt2, gt2)))
+                        },
+                        _ => return,
+                    }
+                    && !in_external_macro(cx.sess(), item.span)
+                    && !is_in_const_context(cx)
+            && let msrv = &*MSRV.lock().unwrap()
+            && msrv.meets(msrvs::TRY_FROM)
             && let Some(cv) = match op2 {
                 // todo: check for case signed -> larger unsigned == only x >= 0
                 None => check_upper_bound(lt1, gt1).filter(|cv| cv.cvt == ConversionType::FromUnsigned),
@@ -95,7 +85,6 @@ impl LateLintPass<'_> for CheckedConversions {
         }
     }
 
-    extract_msrv_attr!(LateContext);
 }
 
 /// Contains the result of a tried conversion check

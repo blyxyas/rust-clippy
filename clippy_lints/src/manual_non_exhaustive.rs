@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_then, span_lint_hir_and_then};
 use clippy_utils::is_doc_hidden;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::snippet_indent;
 use itertools::Itertools;
 use rustc_ast::attr;
@@ -63,7 +63,6 @@ declare_clippy_lint! {
 }
 
 pub struct ManualNonExhaustive {
-    msrv: Msrv,
     constructed_enum_variants: FxHashSet<LocalDefId>,
     potential_enums: Vec<(LocalDefId, LocalDefId, Span, Span)>,
 }
@@ -71,7 +70,6 @@ pub struct ManualNonExhaustive {
 impl ManualNonExhaustive {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
-            msrv: conf.msrv.clone(),
             constructed_enum_variants: FxHashSet::default(),
             potential_enums: Vec::new(),
         }
@@ -82,7 +80,8 @@ impl_lint_pass!(ManualNonExhaustive => [MANUAL_NON_EXHAUSTIVE]);
 
 impl<'tcx> LateLintPass<'tcx> for ManualNonExhaustive {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
-        if !self.msrv.meets(msrvs::NON_EXHAUSTIVE) || !cx.effective_visibilities.is_exported(item.owner_id.def_id) {
+        let msrv = &*MSRV.lock().unwrap();
+        if !msrv.meets(msrvs::NON_EXHAUSTIVE) || !cx.effective_visibilities.is_exported(item.owner_id.def_id) {
             return;
         }
 
@@ -171,6 +170,4 @@ impl<'tcx> LateLintPass<'tcx> for ManualNonExhaustive {
             );
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }

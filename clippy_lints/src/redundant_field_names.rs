@@ -1,11 +1,11 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use rustc_ast::ast::{Expr, ExprKind};
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass, LintContext};
 use rustc_middle::lint::in_external_macro;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 
 declare_clippy_lint! {
     /// ### What it does
@@ -36,23 +36,12 @@ declare_clippy_lint! {
     "checks for fields in struct literals where shorthands could be used"
 }
 
-pub struct RedundantFieldNames {
-    msrv: Msrv,
-}
-
-impl RedundantFieldNames {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(RedundantFieldNames => [REDUNDANT_FIELD_NAMES]);
+declare_lint_pass!(RedundantFieldNames => [REDUNDANT_FIELD_NAMES]);
 
 impl EarlyLintPass for RedundantFieldNames {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
-        if !self.msrv.meets(msrvs::FIELD_INIT_SHORTHAND) {
+        let msrv = &*MSRV.lock().unwrap();
+        if !msrv.meets(msrvs::FIELD_INIT_SHORTHAND) {
             return;
         }
 
@@ -81,5 +70,4 @@ impl EarlyLintPass for RedundantFieldNames {
             }
         }
     }
-    extract_msrv_attr!(EarlyContext);
 }

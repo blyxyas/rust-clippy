@@ -3,7 +3,7 @@
 use clippy_config::Conf;
 use clippy_utils::ast_utils::{eq_field_pat, eq_id, eq_maybe_qself, eq_pat, eq_path};
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::over;
 use rustc_ast::PatKind::*;
 use rustc_ast::mut_visit::*;
@@ -12,7 +12,7 @@ use rustc_ast::{self as ast, DUMMY_NODE_ID, Mutability, Pat, PatKind};
 use rustc_ast_pretty::pprust;
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass};
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::DUMMY_SP;
 use std::cell::Cell;
 use std::mem;
@@ -47,29 +47,19 @@ declare_clippy_lint! {
     "unnested or-patterns, e.g., `Foo(Bar) | Foo(Baz) instead of `Foo(Bar | Baz)`"
 }
 
-pub struct UnnestedOrPatterns {
-    msrv: Msrv,
-}
-
-impl UnnestedOrPatterns {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(UnnestedOrPatterns => [UNNESTED_OR_PATTERNS]);
+declare_lint_pass!(UnnestedOrPatterns => [UNNESTED_OR_PATTERNS]);
 
 impl EarlyLintPass for UnnestedOrPatterns {
     fn check_arm(&mut self, cx: &EarlyContext<'_>, a: &ast::Arm) {
-        if self.msrv.meets(msrvs::OR_PATTERNS) {
+        let msrv = &*MSRV.lock().unwrap();
+        if msrv.meets(msrvs::OR_PATTERNS) {
             lint_unnested_or_patterns(cx, &a.pat);
         }
     }
 
     fn check_expr(&mut self, cx: &EarlyContext<'_>, e: &ast::Expr) {
-        if self.msrv.meets(msrvs::OR_PATTERNS) {
+        let msrv = &*MSRV.lock().unwrap();
+        if msrv.meets(msrvs::OR_PATTERNS) {
             if let ast::ExprKind::Let(pat, _, _, _) = &e.kind {
                 lint_unnested_or_patterns(cx, pat);
             }
@@ -77,18 +67,18 @@ impl EarlyLintPass for UnnestedOrPatterns {
     }
 
     fn check_param(&mut self, cx: &EarlyContext<'_>, p: &ast::Param) {
-        if self.msrv.meets(msrvs::OR_PATTERNS) {
+        let msrv = &*MSRV.lock().unwrap();
+        if msrv.meets(msrvs::OR_PATTERNS) {
             lint_unnested_or_patterns(cx, &p.pat);
         }
     }
 
     fn check_local(&mut self, cx: &EarlyContext<'_>, l: &ast::Local) {
-        if self.msrv.meets(msrvs::OR_PATTERNS) {
+        let msrv = &*MSRV.lock().unwrap();
+        if msrv.meets(msrvs::OR_PATTERNS) {
             lint_unnested_or_patterns(cx, &l.pat);
         }
     }
-
-    extract_msrv_attr!(EarlyContext);
 }
 
 fn lint_unnested_or_patterns(cx: &EarlyContext<'_>, pat: &Pat) {

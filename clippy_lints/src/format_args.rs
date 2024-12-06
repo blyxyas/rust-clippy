@@ -7,7 +7,7 @@ use clippy_utils::macros::{
     format_placeholder_format_span, is_assert_macro, is_format_macro, is_panic, matching_root_macro_call,
     root_macro_call_first_node,
 };
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::ty::{implements_trait, is_type_lang_item};
 use itertools::Itertools;
@@ -172,7 +172,6 @@ impl_lint_pass!(FormatArgs => [
 #[allow(clippy::struct_field_names)]
 pub struct FormatArgs {
     format_args: FormatArgsStorage,
-    msrv: Msrv,
     ignore_mixed: bool,
 }
 
@@ -180,7 +179,6 @@ impl FormatArgs {
     pub fn new(conf: &'static Conf, format_args: FormatArgsStorage) -> Self {
         Self {
             format_args,
-            msrv: conf.msrv.clone(),
             ignore_mixed: conf.allow_mixed_uninlined_format_args,
         }
     }
@@ -202,13 +200,13 @@ impl<'tcx> LateLintPass<'tcx> for FormatArgs {
 
             linter.check_templates();
 
-            if self.msrv.meets(msrvs::FORMAT_ARGS_CAPTURE) {
+            let msrv = &*MSRV.lock().unwrap();
+            if msrv.meets(msrvs::FORMAT_ARGS_CAPTURE) {
                 linter.check_uninlined_args();
             }
         }
     }
 
-    extract_msrv_attr!(LateContext);
 }
 
 struct FormatArgsExpr<'a, 'tcx> {

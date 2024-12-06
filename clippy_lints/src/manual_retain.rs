@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::SpanlessEq;
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::snippet;
 use clippy_utils::ty::{get_type_diagnostic_name, is_type_lang_item};
 use rustc_errors::Applicability;
@@ -9,7 +9,7 @@ use rustc_hir as hir;
 use rustc_hir::ExprKind::Assign;
 use rustc_hir::def_id::DefId;
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::symbol::{Symbol, sym};
 
@@ -44,19 +44,7 @@ declare_clippy_lint! {
     "`retain()` is simpler and the same functionalities"
 }
 
-pub struct ManualRetain {
-    msrv: Msrv,
-}
-
-impl ManualRetain {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(ManualRetain => [MANUAL_RETAIN]);
+declare_lint_pass!(ManualRetain => [MANUAL_RETAIN]);
 
 impl<'tcx> LateLintPass<'tcx> for ManualRetain {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) {
@@ -66,13 +54,13 @@ impl<'tcx> LateLintPass<'tcx> for ManualRetain {
             && let Some(collect_def_id) = cx.typeck_results().type_dependent_def_id(collect_expr.hir_id)
             && cx.tcx.is_diagnostic_item(sym::iterator_collect_fn, collect_def_id)
         {
-            check_into_iter(cx, left_expr, target_expr, expr.span, &self.msrv);
-            check_iter(cx, left_expr, target_expr, expr.span, &self.msrv);
-            check_to_owned(cx, left_expr, target_expr, expr.span, &self.msrv);
+            let msrv = &*MSRV.lock().unwrap();
+            check_into_iter(cx, left_expr, target_expr, expr.span, msrv);
+            check_iter(cx, left_expr, target_expr, expr.span, msrv);
+            check_to_owned(cx, left_expr, target_expr, expr.span, msrv);
         }
     }
 
-    extract_msrv_attr!(LateContext);
 }
 
 fn check_into_iter(

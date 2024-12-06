@@ -25,7 +25,7 @@ mod try_err;
 mod wild_in_or_pats;
 
 use clippy_config::Conf;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::walk_span_to_context;
 use clippy_utils::{higher, is_direct_expn_of, is_in_const_context, is_span_match, span_contains_cfg};
 use rustc_hir::{Arm, Expr, ExprKind, LetStmt, MatchSource, Pat, PatKind};
@@ -976,14 +976,12 @@ declare_clippy_lint! {
 }
 
 pub struct Matches {
-    msrv: Msrv,
     infallible_destructuring_match_linted: bool,
 }
 
 impl Matches {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
-            msrv: conf.msrv.clone(),
             infallible_destructuring_match_linted: false,
         }
     }
@@ -1025,6 +1023,7 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
             return;
         }
         let from_expansion = expr.span.from_expansion();
+        let msrv = &*MSRV.lock().unwrap();
 
         if let ExprKind::Match(ex, arms, source) = expr.kind {
             if is_direct_expn_of(expr.span, "matches").is_some()
@@ -1041,7 +1040,7 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
                 significant_drop_in_scrutinee::check_match(cx, expr, ex, arms, source);
             }
 
-            collapsible_match::check_match(cx, arms, &self.msrv);
+            collapsible_match::check_match(cx, arms, msrv);
             if !from_expansion {
                 // These don't depend on a relationship between multiple arms
                 match_wild_err_arm::check(cx, ex, arms);
@@ -1054,7 +1053,7 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
 
             if !from_expansion && !contains_cfg_arm(cx, expr, ex, arms) {
                 if source == MatchSource::Normal {
-                    if !(self.msrv.meets(msrvs::MATCHES_MACRO) && match_like_matches::check_match(cx, expr, ex, arms)) {
+                    if !(msrv.meets(msrvs::MATCHES_MACRO) && match_like_matches::check_match(cx, expr, ex, arms)) {
                         match_same_arms::check(cx, arms);
                     }
 
@@ -1067,7 +1066,7 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
                     needless_match::check_match(cx, ex, arms, expr);
                     match_on_vec_items::check(cx, ex);
                     match_str_case_mismatch::check(cx, ex, arms);
-                    redundant_guards::check(cx, arms, &self.msrv);
+                    redundant_guards::check(cx, arms, msrv);
 
                     if !is_in_const_context(cx) {
                         manual_unwrap_or::check_match(cx, expr, ex, arms);
@@ -1084,11 +1083,11 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
                 match_ref_pats::check(cx, ex, arms.iter().map(|el| el.pat), expr);
             }
         } else if let Some(if_let) = higher::IfLet::hir(cx, expr) {
-            collapsible_match::check_if_let(cx, if_let.let_pat, if_let.if_then, if_let.if_else, &self.msrv);
+            collapsible_match::check_if_let(cx, if_let.let_pat, if_let.if_then, if_let.if_else, msrv);
             significant_drop_in_scrutinee::check_if_let(cx, expr, if_let.let_expr, if_let.if_then, if_let.if_else);
             if !from_expansion {
                 if let Some(else_expr) = if_let.if_else {
-                    if self.msrv.meets(msrvs::MATCHES_MACRO) {
+                    if msrv.meets(msrvs::MATCHES_MACRO) {
                         match_like_matches::check_if_let(
                             cx,
                             expr,
@@ -1146,8 +1145,6 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
     fn check_pat(&mut self, cx: &LateContext<'tcx>, pat: &'tcx Pat<'_>) {
         rest_pat_in_fully_bound_struct::check(cx, pat);
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 /// Checks if there are any arms with a `#[cfg(..)]` attribute.

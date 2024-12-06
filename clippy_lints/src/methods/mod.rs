@@ -140,7 +140,7 @@ use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint, span_lint_and_help};
 use clippy_utils::macros::FormatArgsStorage;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::ty::{contains_ty_adt_constructor_opaque, implements_trait, is_copy, is_type_diagnostic_item};
 use clippy_utils::{contains_return, is_bool, is_trait_method, iter_input_pats, peel_blocks, return_ty};
 pub use path_ends_with_ext::DEFAULT_ALLOWED_DOTFILES;
@@ -4291,7 +4291,6 @@ declare_clippy_lint! {
 
 pub struct Methods {
     avoid_breaking_exported_api: bool,
-    msrv: Msrv,
     allow_expect_in_tests: bool,
     allow_unwrap_in_tests: bool,
     allowed_dotfiles: FxHashSet<&'static str>,
@@ -4305,7 +4304,6 @@ impl Methods {
 
         Self {
             avoid_breaking_exported_api: conf.avoid_breaking_exported_api,
-            msrv: conf.msrv.clone(),
             allow_expect_in_tests: conf.allow_expect_in_tests,
             allow_unwrap_in_tests: conf.allow_unwrap_in_tests,
             allowed_dotfiles,
@@ -4474,14 +4472,15 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
         if expr.span.from_expansion() {
             return;
         }
-
-        self.check_methods(cx, expr);
+        
+        let msrv = &*MSRV.lock().unwrap();
+        self.check_methods(cx, expr, msrv);
 
         match expr.kind {
             ExprKind::Call(func, args) => {
                 from_iter_instead_of_collect::check(cx, expr, args, func);
                 unnecessary_fallible_conversions::check_function(cx, expr, func);
-                manual_c_str_literals::check(cx, expr, func, args, &self.msrv);
+                manual_c_str_literals::check(cx, expr, func, args, msrv);
             },
             ExprKind::MethodCall(method_call, receiver, args, _) => {
                 let method_span = method_call.ident.span;
@@ -4500,7 +4499,7 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
                 inefficient_to_string::check(cx, expr, method_call.ident.name, receiver, args);
                 single_char_add_str::check(cx, expr, receiver, args);
                 into_iter_on_ref::check(cx, expr, method_span, method_call.ident.name, receiver);
-                unnecessary_to_owned::check(cx, expr, method_call.ident.name, receiver, args, &self.msrv);
+                unnecessary_to_owned::check(cx, expr, method_call.ident.name, receiver, args, msrv);
             },
             ExprKind::Binary(op, lhs, rhs) if op.node == hir::BinOpKind::Eq || op.node == hir::BinOpKind::Ne => {
                 let mut info = BinaryExprInfo {
@@ -4646,13 +4645,11 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
             );
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 impl Methods {
     #[allow(clippy::too_many_lines)]
-    fn check_methods<'tcx>(&self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
+    fn check_methods<'tcx>(&self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, msrv: &Msrv) {
         if let Some((name, recv, args, span, call_span)) = method_call(expr) {
             match (name, args) {
                 ("add" | "offset" | "sub" | "wrapping_offset" | "wrapping_add" | "wrapping_sub", [_arg]) => {
@@ -4702,7 +4699,7 @@ impl Methods {
                                 && let body = cx.tcx.hir().body(arg.body)
                                 && let [param] = body.params =>
                         {
-                            string_lit_chars_any::check(cx, expr, recv, param, peel_blocks(body.value), &self.msrv);
+                            string_lit_chars_any::check(cx, expr, recv, param, peel_blocks(body.value), msrv);
                         },
                         Some(("map", _, [map_arg], _, map_call_span)) => {
                             map_all_any_identity::check(cx, expr, recv, map_call_span, map_arg, call_span, arg, "any");
@@ -4722,11 +4719,11 @@ impl Methods {
                     }
                 },
                 ("as_mut", []) => useless_asref::check(cx, expr, "as_mut", recv),
-                ("as_ptr", []) => manual_c_str_literals::check_as_ptr(cx, expr, recv, &self.msrv),
+                ("as_ptr", []) => manual_c_str_literals::check_as_ptr(cx, expr, recv, msrv),
                 ("as_ref", []) => useless_asref::check(cx, expr, "as_ref", recv),
                 ("assume_init", []) => uninit_assumed_init::check(cx, expr, recv),
                 ("cloned", []) => {
-                    cloned_instead_of_copied::check(cx, expr, recv, span, &self.msrv);
+                    cloned_instead_of_copied::check(cx, expr, recv, span, msrv);
                     option_as_ref_cloned::check(cx, recv, span);
                 },
                 ("collect", []) if is_trait_method(cx, expr, sym::Iterator) => {
@@ -4740,7 +4737,7 @@ impl Methods {
                             format_collect::check(cx, expr, m_arg, m_ident_span);
                         },
                         Some(("take", take_self_arg, [take_arg], _, _)) => {
-                            if self.msrv.meets(msrvs::STR_REPEAT) {
+                            if msrv.meets(msrvs::STR_REPEAT) {
                                 manual_str_repeat::check(cx, expr, recv, take_self_arg, take_arg);
                             }
                         },
@@ -4779,13 +4776,13 @@ impl Methods {
                     if let ExprKind::MethodCall(.., span) = expr.kind {
                         case_sensitive_file_extension_comparisons::check(cx, expr, span, recv, arg);
                     }
-                    path_ends_with_ext::check(cx, recv, arg, expr, &self.msrv, &self.allowed_dotfiles);
+                    path_ends_with_ext::check(cx, recv, arg, expr, msrv, &self.allowed_dotfiles);
                 },
                 ("expect", [_]) => {
                     match method_call(recv) {
                         Some(("ok", recv, [], _, _)) => ok_expect::check(cx, expr, recv),
                         Some(("err", recv, [], err_span, _)) => {
-                            err_expect::check(cx, expr, recv, span, err_span, &self.msrv);
+                            err_expect::check(cx, expr, recv, span, err_span, msrv);
                         },
                         _ => unwrap_expect_used::check(
                             cx,
@@ -4825,7 +4822,7 @@ impl Methods {
                             false,
                         );
                     }
-                    if self.msrv.meets(msrvs::ITER_FLATTEN) {
+                    if msrv.meets(msrvs::ITER_FLATTEN) {
                         // use the sourcemap to get the span of the closure
                         iter_filter::check(cx, expr, arg, span);
                     }
@@ -4873,7 +4870,7 @@ impl Methods {
                     _ => {},
                 },
                 ("fold", [init, acc]) => {
-                    manual_try_fold::check(cx, expr, init, acc, call_span, &self.msrv);
+                    manual_try_fold::check(cx, expr, init, acc, call_span, msrv);
                     unnecessary_fold::check(cx, expr, init, acc, span);
                 },
                 ("for_each", [arg]) => {
@@ -4912,7 +4909,7 @@ impl Methods {
                     is_empty::check(cx, expr, recv);
                 },
                 ("is_file", []) => filetype_is_file::check(cx, expr, recv),
-                ("is_digit", [radix]) => is_digit_ascii_radix::check(cx, expr, recv, radix, &self.msrv),
+                ("is_digit", [radix]) => is_digit_ascii_radix::check(cx, expr, recv, radix, msrv),
                 ("is_none", []) => check_is_some_is_none(cx, expr, recv, call_span, false),
                 ("is_some", []) => check_is_some_is_none(cx, expr, recv, call_span, true),
                 ("iter" | "iter_mut" | "into_iter", []) => {
@@ -4948,11 +4945,11 @@ impl Methods {
                 (name @ ("map" | "map_err"), [m_arg]) => {
                     if name == "map" {
                         unused_enumerate_index::check(cx, expr, recv, m_arg);
-                        map_clone::check(cx, expr, recv, m_arg, &self.msrv);
-                        map_with_unused_argument_over_ranges::check(cx, expr, recv, m_arg, &self.msrv, span);
+                        map_clone::check(cx, expr, recv, m_arg, msrv);
+                        map_with_unused_argument_over_ranges::check(cx, expr, recv, m_arg, msrv, span);
                         match method_call(recv) {
                             Some((map_name @ ("iter" | "into_iter"), recv2, _, _, _)) => {
-                                iter_kv_map::check(cx, map_name, expr, recv2, m_arg, &self.msrv);
+                                iter_kv_map::check(cx, map_name, expr, recv2, m_arg, msrv);
                             },
                             Some(("cloned", recv2, [], _, _)) => iter_overeager_cloned::check(
                                 cx,
@@ -4969,8 +4966,8 @@ impl Methods {
                     }
                     if let Some((name, recv2, args, span2, _)) = method_call(recv) {
                         match (name, args) {
-                            ("as_mut", []) => option_as_ref_deref::check(cx, expr, recv2, m_arg, true, &self.msrv),
-                            ("as_ref", []) => option_as_ref_deref::check(cx, expr, recv2, m_arg, false, &self.msrv),
+                            ("as_mut", []) => option_as_ref_deref::check(cx, expr, recv2, m_arg, true, msrv),
+                            ("as_ref", []) => option_as_ref_deref::check(cx, expr, recv2, m_arg, false, msrv),
                             ("filter", [f_arg]) => {
                                 filter_map::check(cx, expr, recv2, f_arg, span2, recv, m_arg, span, false);
                             },
@@ -4981,7 +4978,7 @@ impl Methods {
                         }
                     }
                     map_identity::check(cx, expr, recv, m_arg, name, span);
-                    manual_inspect::check(cx, expr, m_arg, name, span, &self.msrv);
+                    manual_inspect::check(cx, expr, m_arg, name, span, msrv);
                     crate::useless_conversion::check_function_application(cx, expr, recv, m_arg);
                 },
                 ("map_break" | "map_continue", [m_arg]) => {
@@ -4991,7 +4988,7 @@ impl Methods {
                     option_map_or_none::check(cx, expr, recv, def, map);
                     manual_ok_or::check(cx, expr, recv, def, map);
                     option_map_or_err_ok::check(cx, expr, recv, def, map);
-                    unnecessary_map_or::check(cx, expr, recv, def, map, &self.msrv);
+                    unnecessary_map_or::check(cx, expr, recv, def, map, msrv);
                 },
                 ("map_or_else", [def, map]) => {
                     result_map_or_else_none::check(cx, expr, recv, def, map);
@@ -5009,7 +5006,7 @@ impl Methods {
                                 false,
                             ),
                             ("filter", [arg]) => filter_next::check(cx, expr, recv2, arg),
-                            ("filter_map", [arg]) => filter_map_next::check(cx, expr, recv2, arg, &self.msrv),
+                            ("filter_map", [arg]) => filter_map_next::check(cx, expr, recv2, arg, msrv),
                             ("iter", []) => iter_next_slice::check(cx, expr, recv2),
                             ("skip", [arg]) => iter_skip_next::check(cx, expr, recv2, arg),
                             ("skip_while", [_]) => skip_while_next::check(cx, expr),
@@ -5063,7 +5060,7 @@ impl Methods {
                     no_effect_replace::check(cx, expr, arg1, arg2);
 
                     // Check for repeated `str::replace` calls to perform `collapsible_str_replace` lint
-                    if self.msrv.meets(msrvs::PATTERN_TRAIT_CHAR_ARRAY)
+                    if msrv.meets(msrvs::PATTERN_TRAIT_CHAR_ARRAY)
                         && name == "replace"
                         && let Some(("replace", ..)) = method_call(recv)
                     {
@@ -5074,10 +5071,10 @@ impl Methods {
                     vec_resize_to_zero::check(cx, expr, count_arg, default_arg, span);
                 },
                 ("seek", [arg]) => {
-                    if self.msrv.meets(msrvs::SEEK_FROM_CURRENT) {
+                    if msrv.meets(msrvs::SEEK_FROM_CURRENT) {
                         seek_from_current::check(cx, expr, recv, arg);
                     }
-                    if self.msrv.meets(msrvs::SEEK_REWIND) {
+                    if msrv.meets(msrvs::SEEK_REWIND) {
                         seek_to_start_instead_of_rewind::check(cx, expr, recv, arg, span);
                     }
                 },
@@ -5111,7 +5108,7 @@ impl Methods {
                 ("splitn" | "rsplitn", [count_arg, pat_arg]) => {
                     if let Some(Constant::Int(count)) = ConstEvalCtxt::new(cx).eval(count_arg) {
                         suspicious_splitn::check(cx, name, expr, recv, count);
-                        str_splitn::check(cx, name, expr, recv, pat_arg, count, &self.msrv);
+                        str_splitn::check(cx, name, expr, recv, pat_arg, count, msrv);
                     }
                 },
                 ("splitn_mut" | "rsplitn_mut", [count_arg, _]) => {
@@ -5135,7 +5132,7 @@ impl Methods {
                 },
                 ("take", []) => needless_option_take::check(cx, expr, recv),
                 ("then", [arg]) => {
-                    if !self.msrv.meets(msrvs::BOOL_THEN_SOME) {
+                    if !msrv.meets(msrvs::BOOL_THEN_SOME) {
                         return;
                     }
                     unnecessary_lazy_eval::check(cx, expr, recv, arg, "then_some");
@@ -5194,7 +5191,7 @@ impl Methods {
                             manual_saturating_arithmetic::check(cx, expr, lhs, rhs, u_arg, &arith["checked_".len()..]);
                         },
                         Some(("map", m_recv, [m_arg], span, _)) => {
-                            option_map_unwrap_or::check(cx, expr, m_recv, m_arg, recv, u_arg, span, &self.msrv);
+                            option_map_unwrap_or::check(cx, expr, m_recv, m_arg, recv, u_arg, span, msrv);
                         },
                         Some(("then_some", t_recv, [t_arg], _, _)) => {
                             obfuscated_if_else::check(cx, expr, t_recv, t_arg, u_arg);
@@ -5205,7 +5202,7 @@ impl Methods {
                 },
                 ("unwrap_or_default", []) => {
                     if let Some(("map", m_recv, [arg], span, _)) = method_call(recv) {
-                        manual_is_variant_and::check(cx, expr, m_recv, arg, span, &self.msrv);
+                        manual_is_variant_and::check(cx, expr, m_recv, arg, span, msrv);
                     }
                     unnecessary_literal_unwrap::check(cx, expr, recv, name, args);
                 },
@@ -5215,7 +5212,7 @@ impl Methods {
                 ("unwrap_or_else", [u_arg]) => {
                     match method_call(recv) {
                         Some(("map", recv, [map_arg], _, _))
-                            if map_unwrap_or::check(cx, expr, recv, map_arg, u_arg, &self.msrv) => {},
+                            if map_unwrap_or::check(cx, expr, recv, map_arg, u_arg, msrv) => {},
                         _ => {
                             unnecessary_lazy_eval::check(cx, expr, recv, u_arg, "unwrap_or");
                         },

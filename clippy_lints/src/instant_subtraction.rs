@@ -1,13 +1,13 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty;
 use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::source_map::Spanned;
 use rustc_span::sym;
 
@@ -64,19 +64,7 @@ declare_clippy_lint! {
     "finds unchecked subtraction of a 'Duration' from an 'Instant'"
 }
 
-pub struct InstantSubtraction {
-    msrv: Msrv,
-}
-
-impl InstantSubtraction {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(InstantSubtraction => [MANUAL_INSTANT_ELAPSED, UNCHECKED_DURATION_SUBTRACTION]);
+declare_lint_pass!(InstantSubtraction => [MANUAL_INSTANT_ELAPSED, UNCHECKED_DURATION_SUBTRACTION]);
 
 impl LateLintPass<'_> for InstantSubtraction {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &'_ Expr<'_>) {
@@ -99,14 +87,13 @@ impl LateLintPass<'_> for InstantSubtraction {
                 print_manual_instant_elapsed_sugg(cx, expr, sugg);
             } else if ty::is_type_diagnostic_item(cx, rhs_ty, sym::Duration)
                 && !expr.span.from_expansion()
-                && self.msrv.meets(msrvs::TRY_FROM)
+                && let msrv = &*MSRV.lock().unwrap()
+                && msrv.meets(msrvs::TRY_FROM)
             {
                 print_unchecked_duration_subtraction_sugg(cx, lhs, rhs, expr);
             }
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 fn is_instant_now_call(cx: &LateContext<'_>, expr_block: &'_ Expr<'_>) -> bool {

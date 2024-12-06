@@ -1,13 +1,13 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::{is_trait_method, peel_hir_expr_refs};
 use rustc_errors::Applicability;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::{Expr, ExprKind, Mutability, QPath};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::sym;
 
 declare_clippy_lint! {
@@ -33,19 +33,7 @@ declare_clippy_lint! {
     "`&std::path::MAIN_SEPARATOR.to_string()` can be replaced by `std::path::MAIN_SEPARATOR_STR`"
 }
 
-pub struct ManualMainSeparatorStr {
-    msrv: Msrv,
-}
-
-impl ManualMainSeparatorStr {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(ManualMainSeparatorStr => [MANUAL_MAIN_SEPARATOR_STR]);
+declare_lint_pass!(ManualMainSeparatorStr => [MANUAL_MAIN_SEPARATOR_STR]);
 
 impl LateLintPass<'_> for ManualMainSeparatorStr {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
@@ -55,7 +43,8 @@ impl LateLintPass<'_> for ManualMainSeparatorStr {
             && let ExprKind::Path(QPath::Resolved(None, path)) = receiver.kind
             && let Res::Def(DefKind::Const, receiver_def_id) = path.res
             && is_trait_method(cx, target, sym::ToString)
-            && self.msrv.meets(msrvs::PATH_MAIN_SEPARATOR_STR)
+            && let msrv = &*MSRV.lock().unwrap()
+            && msrv.meets(msrvs::PATH_MAIN_SEPARATOR_STR)
             && cx.tcx.is_diagnostic_item(sym::path_main_separator, receiver_def_id)
             && let ty::Ref(_, ty, Mutability::Not) = cx.typeck_results().expr_ty_adjusted(expr).kind()
             && ty.is_str()
@@ -71,6 +60,4 @@ impl LateLintPass<'_> for ManualMainSeparatorStr {
             );
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }

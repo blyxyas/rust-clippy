@@ -1,14 +1,14 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::macros::macro_backtrace;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::qualify_min_const_fn::is_min_const_fn;
 use clippy_utils::source::snippet;
 use clippy_utils::{fn_has_unsatisfiable_preds, peel_blocks};
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, intravisit};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::sym::{self, thread_local_macro};
 
 declare_clippy_lint! {
@@ -45,19 +45,7 @@ declare_clippy_lint! {
     "suggest using `const` in `thread_local!` macro"
 }
 
-pub struct MissingConstForThreadLocal {
-    msrv: Msrv,
-}
-
-impl MissingConstForThreadLocal {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(MissingConstForThreadLocal => [MISSING_CONST_FOR_THREAD_LOCAL]);
+declare_lint_pass!(MissingConstForThreadLocal => [MISSING_CONST_FOR_THREAD_LOCAL]);
 
 #[inline]
 fn is_thread_local_initializer(
@@ -115,7 +103,8 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForThreadLocal {
         local_defid: rustc_span::def_id::LocalDefId,
     ) {
         let defid = local_defid.to_def_id();
-        if self.msrv.meets(msrvs::THREAD_LOCAL_CONST_INIT)
+        let msrv = &*MSRV.lock().unwrap();
+        if msrv.meets(msrvs::THREAD_LOCAL_CONST_INIT)
             && is_thread_local_initializer(cx, fn_kind, span).unwrap_or(false)
             // Some implementations of `thread_local!` include an initializer fn.
             // In the case of a const initializer, the init fn is also const,
@@ -133,7 +122,7 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForThreadLocal {
             // https://github.com/rust-lang/rust-clippy/issues/12637
             // we ensure that this is reachable before we check in mir
             && !is_unreachable(cx, ret_expr)
-            && initializer_can_be_made_const(cx, defid, &self.msrv)
+            && initializer_can_be_made_const(cx, defid, &msrv)
             // we know that the function is const-qualifiable, so now
             // we need only to get the initializer expression to span-lint it.
             && let initializer_snippet = snippet(cx, ret_expr.span, "thread_local! { ... }")
@@ -151,5 +140,4 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForThreadLocal {
         }
     }
 
-    extract_msrv_attr!(LateContext);
 }

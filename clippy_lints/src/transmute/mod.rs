@@ -21,10 +21,10 @@ mod wrong_transmute;
 
 use clippy_config::Conf;
 use clippy_utils::is_in_const_context;
-use clippy_utils::msrvs::Msrv;
+use clippy_utils::msrvs::{Msrv, MSRV};
 use rustc_hir::{Expr, ExprKind, QPath};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::symbol::sym;
 
 declare_clippy_lint! {
@@ -573,10 +573,7 @@ declare_clippy_lint! {
     "warns if a transmute call doesn't have all generics specified"
 }
 
-pub struct Transmute {
-    msrv: Msrv,
-}
-impl_lint_pass!(Transmute => [
+declare_lint_pass!(Transmute => [
     CROSSPOINTER_TRANSMUTE,
     TRANSMUTE_PTR_TO_REF,
     TRANSMUTE_PTR_TO_PTR,
@@ -597,13 +594,7 @@ impl_lint_pass!(Transmute => [
     EAGER_TRANSMUTE,
     MISSING_TRANSMUTE_ANNOTATIONS,
 ]);
-impl Transmute {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
+
 impl<'tcx> LateLintPass<'tcx> for Transmute {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         if let ExprKind::Call(path_expr, [arg]) = e.kind
@@ -611,6 +602,7 @@ impl<'tcx> LateLintPass<'tcx> for Transmute {
             && let Some(def_id) = path.res.opt_def_id()
             && cx.tcx.is_diagnostic_item(sym::transmute, def_id)
         {
+            let msrv = &*MSRV.lock().unwrap();
             // Avoid suggesting non-const operations in const contexts:
             // - from/to bits (https://github.com/rust-lang/rust/issues/73736)
             // - dereferencing raw pointers (https://github.com/rust-lang/rust/issues/51911)
@@ -633,16 +625,16 @@ impl<'tcx> LateLintPass<'tcx> for Transmute {
                 | crosspointer_transmute::check(cx, e, from_ty, to_ty)
                 | transmuting_null::check(cx, e, arg, to_ty)
                 | transmute_null_to_fn::check(cx, e, arg, to_ty)
-                | transmute_ptr_to_ref::check(cx, e, from_ty, to_ty, arg, path, &self.msrv)
+                | transmute_ptr_to_ref::check(cx, e, from_ty, to_ty, arg, path, msrv)
                 | missing_transmute_annotations::check(cx, path, from_ty, to_ty, e.hir_id)
                 | transmute_int_to_char::check(cx, e, from_ty, to_ty, arg, const_context)
                 | transmute_ref_to_ref::check(cx, e, from_ty, to_ty, arg, const_context)
-                | transmute_ptr_to_ptr::check(cx, e, from_ty, to_ty, arg, &self.msrv)
+                | transmute_ptr_to_ptr::check(cx, e, from_ty, to_ty, arg, msrv)
                 | transmute_int_to_bool::check(cx, e, from_ty, to_ty, arg)
-                | transmute_int_to_float::check(cx, e, from_ty, to_ty, arg, const_context, &self.msrv)
+                | transmute_int_to_float::check(cx, e, from_ty, to_ty, arg, const_context, msrv)
                 | transmute_int_to_non_zero::check(cx, e, from_ty, to_ty, arg)
-                | transmute_float_to_int::check(cx, e, from_ty, to_ty, arg, const_context, &self.msrv)
-                | transmute_num_to_bytes::check(cx, e, from_ty, to_ty, arg, const_context, &self.msrv)
+                | transmute_float_to_int::check(cx, e, from_ty, to_ty, arg, const_context, msrv)
+                | transmute_num_to_bytes::check(cx, e, from_ty, to_ty, arg, const_context, msrv)
                 | (unsound_collection_transmute::check(cx, e, from_ty, to_ty)
                     || transmute_undefined_repr::check(cx, e, from_ty, to_ty))
                 | (eager_transmute::check(cx, e, arg, from_ty, to_ty));
@@ -652,6 +644,4 @@ impl<'tcx> LateLintPass<'tcx> for Transmute {
             }
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }

@@ -13,11 +13,11 @@ mod useless_attribute;
 mod utils;
 
 use clippy_config::Conf;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use rustc_ast::{self as ast, Attribute, MetaItemInner, MetaItemKind};
 use rustc_hir::{ImplItem, Item, TraitItem};
 use rustc_lint::{EarlyContext, EarlyLintPass, LateContext, LateLintPass};
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::sym;
 use utils::{is_lint_level, is_relevant_impl, is_relevant_item, is_relevant_trait};
 
@@ -409,21 +409,9 @@ declare_clippy_lint! {
     "duplicated attribute"
 }
 
-pub struct Attributes {
-    msrv: Msrv,
-}
-
-impl_lint_pass!(Attributes => [
+declare_lint_pass!(Attributes => [
     INLINE_ALWAYS,
 ]);
-
-impl Attributes {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
 
 impl<'tcx> LateLintPass<'tcx> for Attributes {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
@@ -444,23 +432,9 @@ impl<'tcx> LateLintPass<'tcx> for Attributes {
             inline_always::check(cx, item.span, item.ident.name, cx.tcx.hir().attrs(item.hir_id()));
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
-pub struct EarlyAttributes {
-    msrv: Msrv,
-}
-
-impl EarlyAttributes {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(EarlyAttributes => [
+declare_lint_pass!(EarlyAttributes => [
     DEPRECATED_CFG_ATTR,
     NON_MINIMAL_CFG,
     DEPRECATED_CLIPPY_CFG_ATTR,
@@ -469,27 +443,15 @@ impl_lint_pass!(EarlyAttributes => [
 
 impl EarlyLintPass for EarlyAttributes {
     fn check_attribute(&mut self, cx: &EarlyContext<'_>, attr: &Attribute) {
-        deprecated_cfg_attr::check(cx, attr, &self.msrv);
+        let msrv = &*MSRV.lock().unwrap();
+        deprecated_cfg_attr::check(cx, attr, msrv);
         deprecated_cfg_attr::check_clippy(cx, attr);
         non_minimal_cfg::check(cx, attr);
     }
 
-    extract_msrv_attr!(EarlyContext);
 }
 
-pub struct PostExpansionEarlyAttributes {
-    msrv: Msrv,
-}
-
-impl PostExpansionEarlyAttributes {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(PostExpansionEarlyAttributes => [
+declare_lint_pass!(PostExpansionEarlyAttributes => [
     ALLOW_ATTRIBUTES,
     ALLOW_ATTRIBUTES_WITHOUT_REASON,
     DEPRECATED_SEMVER,
@@ -509,10 +471,11 @@ impl EarlyLintPass for PostExpansionEarlyAttributes {
     fn check_attribute(&mut self, cx: &EarlyContext<'_>, attr: &Attribute) {
         if let Some(items) = &attr.meta_item_list() {
             if let Some(ident) = attr.ident() {
-                if matches!(ident.name, sym::allow) && self.msrv.meets(msrvs::LINT_REASONS_STABILIZATION) {
+                let msrv = &*MSRV.lock().unwrap();
+                if matches!(ident.name, sym::allow) && msrv.meets(msrvs::LINT_REASONS_STABILIZATION) {
                     allow_attributes::check(cx, attr);
                 }
-                if matches!(ident.name, sym::allow | sym::expect) && self.msrv.meets(msrvs::LINT_REASONS_STABILIZATION)
+                if matches!(ident.name, sym::allow | sym::expect) && msrv.meets(msrvs::LINT_REASONS_STABILIZATION)
                 {
                     allow_attributes_without_reason::check(cx, ident.name, items, attr);
                 }
@@ -547,6 +510,4 @@ impl EarlyLintPass for PostExpansionEarlyAttributes {
         mixed_attributes_style::check(cx, item.span, &item.attrs);
         duplicated_attributes::check(cx, &item.attrs);
     }
-
-    extract_msrv_attr!(EarlyContext);
 }

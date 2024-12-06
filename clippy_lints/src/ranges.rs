@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg, span_lint_and_then};
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::{SpanRangeExt, snippet, snippet_with_applicability};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::{get_parent_expr, higher, is_in_const_context, is_integer_const, path_to_local};
@@ -10,7 +10,7 @@ use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Expr, ExprKind, HirId};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::source_map::Spanned;
 use std::cmp::Ordering;
@@ -160,19 +160,7 @@ declare_clippy_lint! {
     "manually reimplementing {`Range`, `RangeInclusive`}`::contains`"
 }
 
-pub struct Ranges {
-    msrv: Msrv,
-}
-
-impl Ranges {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(Ranges => [
+declare_lint_pass!(Ranges => [
     RANGE_PLUS_ONE,
     RANGE_MINUS_ONE,
     REVERSED_EMPTY_RANGES,
@@ -182,7 +170,8 @@ impl_lint_pass!(Ranges => [
 impl<'tcx> LateLintPass<'tcx> for Ranges {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Binary(ref op, l, r) = expr.kind {
-            if self.msrv.meets(msrvs::RANGE_CONTAINS) {
+            let msrv = &*MSRV.lock().unwrap();
+            if msrv.meets(msrvs::RANGE_CONTAINS) {
                 check_possible_range_contains(cx, op.node, l, r, expr, expr.span);
             }
         }
@@ -191,7 +180,6 @@ impl<'tcx> LateLintPass<'tcx> for Ranges {
         check_inclusive_range_minus_one(cx, expr);
         check_reversed_empty_range(cx, expr);
     }
-    extract_msrv_attr!(LateContext);
 }
 
 fn check_possible_range_contains(

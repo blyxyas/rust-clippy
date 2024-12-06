@@ -4,7 +4,7 @@ use crate::types::{
     SourceItemOrderingCategory, SourceItemOrderingModuleItemGroupings, SourceItemOrderingModuleItemKind,
     SourceItemOrderingTraitAssocItemKind, SourceItemOrderingTraitAssocItemKinds,
 };
-use clippy_utils::msrvs::Msrv;
+use clippy_utils::msrvs::{Msrv, MSRV};
 use rustc_errors::Applicability;
 use rustc_session::Session;
 use rustc_span::edit_distance::edit_distance;
@@ -625,7 +625,7 @@ define_Conf! {
         unused_trait_names,
         use_self,
     )]
-    msrv: Msrv = Msrv::empty(),
+    msrv: Msrv = Msrv::empty(), // Goes unused
     /// The minimum size (in bytes) to consider a type for passing by reference instead of by value.
     #[lints(large_types_passed_by_value)]
     pass_by_value_size_limit: u64 = 256,

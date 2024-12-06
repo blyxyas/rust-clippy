@@ -1,14 +1,14 @@
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, FullInt};
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::{is_in_const_context, path_to_local};
 use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Expr, ExprKind, Node, TyKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::lint::in_external_macro;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 
 declare_clippy_lint! {
     /// ### What it does
@@ -34,19 +34,7 @@ declare_clippy_lint! {
     "manually reimplementing `rem_euclid`"
 }
 
-pub struct ManualRemEuclid {
-    msrv: Msrv,
-}
-
-impl ManualRemEuclid {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(ManualRemEuclid => [MANUAL_REM_EUCLID]);
+declare_lint_pass!(ManualRemEuclid => [MANUAL_REM_EUCLID]);
 
 impl<'tcx> LateLintPass<'tcx> for ManualRemEuclid {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
@@ -61,8 +49,9 @@ impl<'tcx> LateLintPass<'tcx> for ManualRemEuclid {
             && add_lhs.span.ctxt() == ctxt
             && add_rhs.span.ctxt() == ctxt
             && !in_external_macro(cx.sess(), expr.span)
-            && self.msrv.meets(msrvs::REM_EUCLID)
-            && (self.msrv.meets(msrvs::REM_EUCLID_CONST) || !is_in_const_context(cx))
+            && let msrv = &*MSRV.lock().unwrap()
+            && msrv.meets(msrvs::REM_EUCLID)
+            && (msrv.meets(msrvs::REM_EUCLID_CONST) || !is_in_const_context(cx))
             && let Some(const1) = check_for_unsigned_int_constant(cx, rem_rhs)
             && let Some((const2, add_other)) = check_for_either_unsigned_int_constant(cx, add_lhs, add_rhs)
             && let ExprKind::Binary(rem2_op, rem2_lhs, rem2_rhs) = add_other.kind
@@ -100,8 +89,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualRemEuclid {
             );
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 // Checks if either the left or right expressions can be an unsigned int constant and returns that

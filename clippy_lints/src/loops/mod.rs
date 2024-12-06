@@ -23,8 +23,7 @@ mod while_let_loop;
 mod while_let_on_iterator;
 
 use clippy_config::Conf;
-use clippy_utils::higher;
-use clippy_utils::msrvs::Msrv;
+use clippy_utils::{higher, msrvs::MSRV};
 use rustc_ast::Label;
 use rustc_hir::{Expr, ExprKind, LoopSource, Pat};
 use rustc_lint::{LateContext, LateLintPass};
@@ -715,13 +714,11 @@ declare_clippy_lint! {
 }
 
 pub struct Loops {
-    msrv: Msrv,
     enforce_iter_loop_reborrow: bool,
 }
 impl Loops {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
-            msrv: conf.msrv.clone(),
             enforce_iter_loop_reborrow: conf.enforce_iter_loop_reborrow,
         }
     }
@@ -805,8 +802,6 @@ impl<'tcx> LateLintPass<'tcx> for Loops {
             manual_while_let_some::check(cx, condition, body, span);
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 impl Loops {
@@ -840,7 +835,8 @@ impl Loops {
         if let ExprKind::MethodCall(method, self_arg, [], _) = arg.kind {
             match method.ident.as_str() {
                 "iter" | "iter_mut" => {
-                    explicit_iter_loop::check(cx, self_arg, arg, &self.msrv, self.enforce_iter_loop_reborrow);
+                    let msrv = &*MSRV.lock().unwrap();
+                    explicit_iter_loop::check(cx, self_arg, arg, &msrv, self.enforce_iter_loop_reborrow);
                 },
                 "into_iter" => {
                     explicit_into_iter_loop::check(cx, self_arg, arg);

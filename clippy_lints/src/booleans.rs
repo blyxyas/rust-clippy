@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_hir_and_then};
 use clippy_utils::eq_expr_value;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::ty::{implements_trait, is_type_diagnostic_item};
 use rustc_ast::ast::LitKind;
@@ -9,7 +9,7 @@ use rustc_errors::Applicability;
 use rustc_hir::intravisit::{FnKind, Visitor, walk_expr};
 use rustc_hir::{BinOpKind, Body, Expr, ExprKind, FnDecl, UnOp};
 use rustc_lint::{LateContext, LateLintPass, Level};
-use rustc_session::{RustcVersion, impl_lint_pass};
+use rustc_session::{RustcVersion, declare_lint_pass};
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, sym};
 
@@ -77,19 +77,7 @@ const METHODS_WITH_NEGATION: [(Option<RustcVersion>, &str, &str); 3] = [
     (Some(msrvs::IS_NONE_OR), "is_some_and", "is_none_or"),
 ];
 
-pub struct NonminimalBool {
-    msrv: Msrv,
-}
-
-impl NonminimalBool {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(NonminimalBool => [NONMINIMAL_BOOL, OVERLY_COMPLEX_BOOL_EXPR]);
+declare_lint_pass!(NonminimalBool => [NONMINIMAL_BOOL, OVERLY_COMPLEX_BOOL_EXPR]);
 
 impl<'tcx> LateLintPass<'tcx> for NonminimalBool {
     fn check_fn(
@@ -101,7 +89,8 @@ impl<'tcx> LateLintPass<'tcx> for NonminimalBool {
         _: Span,
         _: LocalDefId,
     ) {
-        NonminimalBoolVisitor { cx, msrv: &self.msrv }.visit_body(body);
+        let msrv = &*MSRV.lock().unwrap();
+        NonminimalBoolVisitor { cx, msrv }.visit_body(body);
     }
 
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
@@ -118,8 +107,6 @@ impl<'tcx> LateLintPass<'tcx> for NonminimalBool {
             _ => {},
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 fn inverted_bin_op_eq_str(op: BinOpKind) -> Option<&'static str> {
@@ -232,7 +219,7 @@ fn check_simplify_not(cx: &LateContext<'_>, msrv: &Msrv, expr: &Expr<'_>) {
 
 struct NonminimalBoolVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
-    msrv: &'a Msrv,
+    msrv: &'a Msrv
 }
 
 use quine_mc_cluskey::Bool;
@@ -539,6 +526,7 @@ impl<'tcx> NonminimalBoolVisitor<'_, 'tcx> {
             cx: self.cx,
         };
         if let Ok(expr) = h2q.run(e) {
+            let msrv = &*MSRV.lock().unwrap();
             let stats = terminal_stats(&expr);
             if stats.ops > 7 {
                 // QMC has exponentially slow behavior as the number of ops increases.
@@ -583,7 +571,7 @@ impl<'tcx> NonminimalBoolVisitor<'_, 'tcx> {
                                 diag.span_suggestion(
                                     e.span,
                                     "it would look like the following",
-                                    suggest(self.cx, self.msrv, suggestion, &h2q.terminals),
+                                    suggest(self.cx, msrv, suggestion, &h2q.terminals),
                                     // nonminimal_bool can produce minimal but
                                     // not human readable expressions (#3141)
                                     Applicability::Unspecified,
@@ -626,12 +614,12 @@ impl<'tcx> NonminimalBoolVisitor<'_, 'tcx> {
                 }
             };
             if improvements.is_empty() {
-                check_simplify_not(self.cx, self.msrv, e);
+                check_simplify_not(self.cx, msrv, e);
             } else {
                 nonminimal_bool_lint(
                     improvements
                         .into_iter()
-                        .map(|suggestion| suggest(self.cx, self.msrv, suggestion, &h2q.terminals))
+                        .map(|suggestion| suggest(self.cx, msrv, suggestion, &h2q.terminals))
                         .collect(),
                 );
             }

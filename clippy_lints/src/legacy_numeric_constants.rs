@@ -1,6 +1,6 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_then, span_lint_hir_and_then};
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::{get_parent_expr, is_from_proc_macro};
 use hir::def_id::DefId;
 use rustc_errors::Applicability;
@@ -8,7 +8,7 @@ use rustc_hir as hir;
 use rustc_hir::{ExprKind, Item, ItemKind, QPath, UseKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::lint::in_external_macro;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::symbol::kw;
 use rustc_span::{Symbol, sym};
 
@@ -34,26 +34,16 @@ declare_clippy_lint! {
     style,
     "checks for usage of legacy std numeric constants and methods"
 }
-pub struct LegacyNumericConstants {
-    msrv: Msrv,
-}
 
-impl LegacyNumericConstants {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(LegacyNumericConstants => [LEGACY_NUMERIC_CONSTANTS]);
+declare_lint_pass!(LegacyNumericConstants => [LEGACY_NUMERIC_CONSTANTS]);
 
 impl<'tcx> LateLintPass<'tcx> for LegacyNumericConstants {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         // Integer modules are "TBD" deprecated, and the contents are too,
         // so lint on the `use` statement directly.
         if let ItemKind::Use(path, kind @ (UseKind::Single | UseKind::Glob)) = item.kind
-            && self.msrv.meets(msrvs::NUMERIC_ASSOCIATED_CONSTANTS)
+            && let msrv = &*MSRV.lock().unwrap()
+            && msrv.meets(msrvs::NUMERIC_ASSOCIATED_CONSTANTS)
             && !in_external_macro(cx.sess(), item.span)
             && let Some(def_id) = path.res[0].opt_def_id()
         {
@@ -137,8 +127,8 @@ impl<'tcx> LateLintPass<'tcx> for LegacyNumericConstants {
         } else {
             return;
         };
-
-        if self.msrv.meets(msrvs::NUMERIC_ASSOCIATED_CONSTANTS)
+        let msrv = &*MSRV.lock().unwrap();
+        if msrv.meets(msrvs::NUMERIC_ASSOCIATED_CONSTANTS)
             && !in_external_macro(cx.sess(), expr.span)
             && !is_from_proc_macro(cx, expr)
         {
@@ -152,8 +142,6 @@ impl<'tcx> LateLintPass<'tcx> for LegacyNumericConstants {
             });
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
 
 fn is_integer_module(cx: &LateContext<'_>, did: DefId) -> bool {

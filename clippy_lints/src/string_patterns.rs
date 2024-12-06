@@ -4,7 +4,7 @@ use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::eager_or_lazy::switch_to_eager_eval;
 use clippy_utils::macros::matching_root_macro_call;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MSRV};
 use clippy_utils::path_to_local_id;
 use clippy_utils::source::{snippet, str_literal_to_char_literal};
 use clippy_utils::visitors::{Descend, for_each_expr};
@@ -14,7 +14,7 @@ use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, PatKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
-use rustc_session::impl_lint_pass;
+use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
 
 declare_clippy_lint! {
@@ -71,19 +71,7 @@ declare_clippy_lint! {
     "using a single-character str where a char could be used, e.g., `_.split(\"x\")`"
 }
 
-pub struct StringPatterns {
-    msrv: Msrv,
-}
-
-impl StringPatterns {
-    pub fn new(conf: &'static Conf) -> Self {
-        Self {
-            msrv: conf.msrv.clone(),
-        }
-    }
-}
-
-impl_lint_pass!(StringPatterns => [MANUAL_PATTERN_CHAR_COMPARISON, SINGLE_CHAR_PATTERN]);
+declare_lint_pass!(StringPatterns => [MANUAL_PATTERN_CHAR_COMPARISON, SINGLE_CHAR_PATTERN]);
 
 const PATTERN_METHODS: [(&str, usize); 22] = [
     ("contains", 0),
@@ -238,9 +226,8 @@ impl<'tcx> LateLintPass<'tcx> for StringPatterns {
         {
             check_single_char_pattern_lint(cx, arg);
 
-            check_manual_pattern_char_comparison(cx, arg, &self.msrv);
+            let msrv = &*MSRV.lock().unwrap();
+            check_manual_pattern_char_comparison(cx, arg, msrv);
         }
     }
-
-    extract_msrv_attr!(LateContext);
 }
