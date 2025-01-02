@@ -29,7 +29,7 @@ use rustc_span::{Span, Symbol};
 use rustc_target::spec::abi::Abi;
 
 /// The search pattern to look for. Used by `span_matches_pat`
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Pat {
     /// A single string.
     Str(&'static str),
@@ -122,6 +122,7 @@ fn qpath_search_pat(path: &QPath<'_>) -> (Pat, Pat) {
 }
 
 fn path_search_pat(path: &Path<'_>) -> (Pat, Pat) {
+    dbg!(&path);
     let (head, tail) = match path.segments {
         [] => return (Pat::Str(""), Pat::Str("")),
         [p] => (Pat::Sym(p.ident.name), p),
@@ -459,6 +460,7 @@ impl<'cx> WithSearchPat<'cx> for (&FnKind<'cx>, &Body<'cx>, HirId, Span) {
 /// it is significantly slower than both of those.
 pub fn is_from_proc_macro<'cx, T: WithSearchPat<'cx>>(cx: &T::Context, item: &T) -> bool {
     let (start_pat, end_pat) = item.search_pat(cx);
+    dbg!(&start_pat, &end_pat);
     !span_matches_pat(cx.sess(), item.span(), start_pat, end_pat)
 }
 
