@@ -38,7 +38,7 @@ jobs:
     - name: Set tag name
       if: startswith(github.ref, 'refs/tags/')
       run: |
-        TAG=$(basename ${TAGNAME})
+        TAG=$(basename "${TAGNAME}")
         echo "TAG_NAME=$TAG" >> $GITHUB_ENV
       env:
         # Make sure that the reference gets expanded before injecting it
