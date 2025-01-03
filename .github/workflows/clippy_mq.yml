@@ -24,7 +24,7 @@ jobs:
       with:
         ref: ${{ github.ref }}
         # Unsetting this would make so that any malicious package could get our Github Token
-        persist-credentials: false
+        
 
     # Run
     - name: Check Changelog
@@ -65,8 +65,7 @@ jobs:
     # Setup
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        persist-credentials: false
+        
 
     - name: Install i686 dependencies
       if: matrix.host == 'i686-unknown-linux-gnu'
@@ -125,8 +124,7 @@ jobs:
      # Setup
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        persist-credentials: false
+        
 
     - name: Install toolchain
       run: rustup show active-toolchain
@@ -142,8 +140,7 @@ jobs:
     # Setup
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        persist-credentials: false
+        
 
     - name: Install toolchain
       run: rustup show active-toolchain
@@ -196,8 +193,7 @@ jobs:
     # Setup
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        persist-credentials: false
+        
 
     - name: Install toolchain
       run: rustup show active-toolchain
