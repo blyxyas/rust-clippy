@@ -14,7 +14,7 @@ mod useless_attribute;
 mod utils;
 
 use clippy_config::Conf;
-use clippy_utils::msrvs::{self, Msrv, MsrvStack};
+use clippy_utils::msrvs::{self, Msrv};
 use rustc_ast::{self as ast, Attribute, MetaItemInner, MetaItemKind};
 use rustc_hir::{ImplItem, Item, TraitItem};
 use rustc_lint::{EarlyContext, EarlyLintPass, LateContext, LateLintPass};
@@ -459,7 +459,9 @@ impl_lint_pass!(Attributes => [
 
 impl Attributes {
     pub fn new(conf: &'static Conf) -> Self {
-        Self { msrv: conf.msrv }
+        Self {
+            msrv: conf.msrv.clone(),
+        }
     }
 }
 
@@ -469,7 +471,7 @@ impl<'tcx> LateLintPass<'tcx> for Attributes {
         if is_relevant_item(cx, item) {
             inline_always::check(cx, item.span, item.ident.name, attrs);
         }
-        repr_attributes::check(cx, item.span, attrs, self.msrv);
+        repr_attributes::check(cx, item.span, attrs, &self.msrv);
     }
 
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx ImplItem<'_>) {
@@ -483,16 +485,18 @@ impl<'tcx> LateLintPass<'tcx> for Attributes {
             inline_always::check(cx, item.span, item.ident.name, cx.tcx.hir().attrs(item.hir_id()));
         }
     }
+
+    extract_msrv_attr!(LateContext);
 }
 
 pub struct EarlyAttributes {
-    msrv: MsrvStack,
+    msrv: Msrv,
 }
 
 impl EarlyAttributes {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
-            msrv: MsrvStack::new(conf.msrv),
+            msrv: conf.msrv.clone(),
         }
     }
 }
@@ -511,17 +515,17 @@ impl EarlyLintPass for EarlyAttributes {
         non_minimal_cfg::check(cx, attr);
     }
 
-    extract_msrv_attr!();
+    extract_msrv_attr!(EarlyContext);
 }
 
 pub struct PostExpansionEarlyAttributes {
-    msrv: MsrvStack,
+    msrv: Msrv,
 }
 
 impl PostExpansionEarlyAttributes {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
-            msrv: MsrvStack::new(conf.msrv),
+            msrv: conf.msrv.clone(),
         }
     }
 }
@@ -585,5 +589,5 @@ impl EarlyLintPass for PostExpansionEarlyAttributes {
         duplicated_attributes::check(cx, &item.attrs);
     }
 
-    extract_msrv_attr!();
+    extract_msrv_attr!(EarlyContext);
 }

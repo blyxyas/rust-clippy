@@ -55,7 +55,9 @@ pub struct IfThenSomeElseNone {
 
 impl IfThenSomeElseNone {
     pub fn new(conf: &'static Conf) -> Self {
-        Self { msrv: conf.msrv }
+        Self {
+            msrv: conf.msrv.clone(),
+        }
     }
 }
 
@@ -78,10 +80,10 @@ impl<'tcx> LateLintPass<'tcx> for IfThenSomeElseNone {
             && !is_else_clause(cx.tcx, expr)
             && !is_in_const_context(cx)
             && !in_external_macro(cx.sess(), expr.span)
-            && self.msrv.meets(cx, msrvs::BOOL_THEN)
+            && self.msrv.meets(msrvs::BOOL_THEN)
             && !contains_return(then_block.stmts)
         {
-            let method_name = if switch_to_eager_eval(cx, expr) && self.msrv.meets(cx, msrvs::BOOL_THEN_SOME) {
+            let method_name = if switch_to_eager_eval(cx, expr) && self.msrv.meets(msrvs::BOOL_THEN_SOME) {
                 "then_some"
             } else {
                 "then"
@@ -119,4 +121,6 @@ impl<'tcx> LateLintPass<'tcx> for IfThenSomeElseNone {
             );
         }
     }
+
+    extract_msrv_attr!(LateContext);
 }

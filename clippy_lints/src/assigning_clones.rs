@@ -59,7 +59,9 @@ pub struct AssigningClones {
 
 impl AssigningClones {
     pub fn new(conf: &'static Conf) -> Self {
-        Self { msrv: conf.msrv }
+        Self {
+            msrv: conf.msrv.clone(),
+        }
     }
 }
 
@@ -88,7 +90,7 @@ impl<'tcx> LateLintPass<'tcx> for AssigningClones {
                 sym::clone if is_diag_trait_item(cx, fn_id, sym::Clone) => CloneTrait::Clone,
                 _ if fn_name.as_str() == "to_owned"
                     && is_diag_trait_item(cx, fn_id, sym::ToOwned)
-                    && self.msrv.meets(cx, msrvs::CLONE_INTO) =>
+                    && self.msrv.meets(msrvs::CLONE_INTO) =>
                 {
                     CloneTrait::ToOwned
                 },
@@ -141,6 +143,8 @@ impl<'tcx> LateLintPass<'tcx> for AssigningClones {
             );
         }
     }
+
+    extract_msrv_attr!(LateContext);
 }
 
 /// Checks if the data being cloned borrows from the place that is being assigned to:

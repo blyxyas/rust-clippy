@@ -77,7 +77,9 @@ pub struct StringPatterns {
 
 impl StringPatterns {
     pub fn new(conf: &'static Conf) -> Self {
-        Self { msrv: conf.msrv }
+        Self {
+            msrv: conf.msrv.clone(),
+        }
     }
 }
 
@@ -134,7 +136,7 @@ fn get_char_span<'tcx>(cx: &'_ LateContext<'tcx>, expr: &'tcx Expr<'_>) -> Optio
     }
 }
 
-fn check_manual_pattern_char_comparison(cx: &LateContext<'_>, method_arg: &Expr<'_>, msrv: Msrv) {
+fn check_manual_pattern_char_comparison(cx: &LateContext<'_>, method_arg: &Expr<'_>, msrv: &Msrv) {
     if let ExprKind::Closure(closure) = method_arg.kind
         && let body = cx.tcx.hir().body(closure.body)
         && let Some(PatKind::Binding(_, binding, ..)) = body.params.first().map(|p| p.pat.kind)
@@ -190,7 +192,7 @@ fn check_manual_pattern_char_comparison(cx: &LateContext<'_>, method_arg: &Expr<
         {
             return;
         }
-        if set_char_spans.len() > 1 && !msrv.meets(cx, msrvs::PATTERN_TRAIT_CHAR_ARRAY) {
+        if set_char_spans.len() > 1 && !msrv.meets(msrvs::PATTERN_TRAIT_CHAR_ARRAY) {
             return;
         }
         span_lint_and_then(
@@ -236,7 +238,9 @@ impl<'tcx> LateLintPass<'tcx> for StringPatterns {
         {
             check_single_char_pattern_lint(cx, arg);
 
-            check_manual_pattern_char_comparison(cx, arg, self.msrv);
+            check_manual_pattern_char_comparison(cx, arg, &self.msrv);
         }
     }
+
+    extract_msrv_attr!(LateContext);
 }

@@ -99,7 +99,9 @@ pub struct ManualClamp {
 
 impl ManualClamp {
     pub fn new(conf: &'static Conf) -> Self {
-        Self { msrv: conf.msrv }
+        Self {
+            msrv: conf.msrv.clone(),
+        }
     }
 }
 
@@ -142,28 +144,30 @@ struct InputMinMax<'tcx> {
 
 impl<'tcx> LateLintPass<'tcx> for ManualClamp {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
+        if !self.msrv.meets(msrvs::CLAMP) {
+            return;
+        }
         if !expr.span.from_expansion() && !is_in_const_context(cx) {
             let suggestion = is_if_elseif_else_pattern(cx, expr)
                 .or_else(|| is_max_min_pattern(cx, expr))
                 .or_else(|| is_call_max_min_pattern(cx, expr))
                 .or_else(|| is_match_pattern(cx, expr))
                 .or_else(|| is_if_elseif_pattern(cx, expr));
-            if let Some(suggestion) = suggestion
-                && self.msrv.meets(cx, msrvs::CLAMP)
-            {
+            if let Some(suggestion) = suggestion {
                 maybe_emit_suggestion(cx, &suggestion);
             }
         }
     }
 
     fn check_block(&mut self, cx: &LateContext<'tcx>, block: &'tcx Block<'tcx>) {
-        if is_in_const_context(cx) || !self.msrv.meets(cx, msrvs::CLAMP) {
+        if !self.msrv.meets(msrvs::CLAMP) || is_in_const_context(cx) {
             return;
         }
         for suggestion in is_two_if_pattern(cx, block) {
             maybe_emit_suggestion(cx, &suggestion);
         }
     }
+    extract_msrv_attr!(LateContext);
 }
 
 fn maybe_emit_suggestion<'tcx>(cx: &LateContext<'tcx>, suggestion: &ClampSuggestion<'tcx>) {

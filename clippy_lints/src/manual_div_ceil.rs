@@ -49,7 +49,9 @@ pub struct ManualDivCeil {
 impl ManualDivCeil {
     #[must_use]
     pub fn new(conf: &'static Conf) -> Self {
-        Self { msrv: conf.msrv }
+        Self {
+            msrv: conf.msrv.clone(),
+        }
     }
 }
 
@@ -57,6 +59,10 @@ impl_lint_pass!(ManualDivCeil => [MANUAL_DIV_CEIL]);
 
 impl<'tcx> LateLintPass<'tcx> for ManualDivCeil {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'_>) {
+        if !self.msrv.meets(msrvs::MANUAL_DIV_CEIL) {
+            return;
+        }
+
         let mut applicability = Applicability::MachineApplicable;
 
         if let ExprKind::Binary(div_op, div_lhs, div_rhs) = expr.kind
@@ -64,7 +70,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualDivCeil {
             && check_int_ty_and_feature(cx, div_lhs)
             && check_int_ty_and_feature(cx, div_rhs)
             && let ExprKind::Binary(inner_op, inner_lhs, inner_rhs) = div_lhs.kind
-            && self.msrv.meets(cx, msrvs::MANUAL_DIV_CEIL)
         {
             // (x + (y - 1)) / y
             if let ExprKind::Binary(sub_op, sub_lhs, sub_rhs) = inner_rhs.kind
@@ -117,6 +122,8 @@ impl<'tcx> LateLintPass<'tcx> for ManualDivCeil {
             }
         }
     }
+
+    extract_msrv_attr!(LateContext);
 }
 
 /// Checks if two expressions represent non-zero integer literals such that `small_expr + 1 ==

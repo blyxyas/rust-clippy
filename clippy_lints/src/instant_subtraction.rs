@@ -70,7 +70,9 @@ pub struct InstantSubtraction {
 
 impl InstantSubtraction {
     pub fn new(conf: &'static Conf) -> Self {
-        Self { msrv: conf.msrv }
+        Self {
+            msrv: conf.msrv.clone(),
+        }
     }
 }
 
@@ -97,12 +99,14 @@ impl LateLintPass<'_> for InstantSubtraction {
                 print_manual_instant_elapsed_sugg(cx, expr, sugg);
             } else if ty::is_type_diagnostic_item(cx, rhs_ty, sym::Duration)
                 && !expr.span.from_expansion()
-                && self.msrv.meets(cx, msrvs::TRY_FROM)
+                && self.msrv.meets(msrvs::TRY_FROM)
             {
                 print_unchecked_duration_subtraction_sugg(cx, lhs, rhs, expr);
             }
         }
     }
+
+    extract_msrv_attr!(LateContext);
 }
 
 fn is_instant_now_call(cx: &LateContext<'_>, expr_block: &'_ Expr<'_>) -> bool {
