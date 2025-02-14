@@ -224,7 +224,7 @@ fn check_into_iter_call_arg(
             return true;
         }
 
-        let cloned_or_copied = if is_copy(cx, item_ty) && msrv.meets(msrvs::ITERATOR_COPIED) {
+        let cloned_or_copied = if is_copy(cx, item_ty) && msrv.meets(cx, msrvs::ITERATOR_COPIED) {
             "copied"
         } else {
             "cloned"

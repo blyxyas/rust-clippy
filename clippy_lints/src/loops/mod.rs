@@ -806,7 +806,7 @@ impl<'tcx> LateLintPass<'tcx> for Loops {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 impl Loops {

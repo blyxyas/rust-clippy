@@ -543,5 +543,5 @@ impl<'tcx> LateLintPass<'tcx> for QuestionMark {
                 .expect("blocks are always part of bodies and must have a depth") -= 1;
         }
     }
-    extract_msrv_attr!(LateContext);
+    
 }

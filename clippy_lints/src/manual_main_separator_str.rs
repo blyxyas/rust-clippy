@@ -51,11 +51,11 @@ impl LateLintPass<'_> for ManualMainSeparatorStr {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         let (target, _) = peel_hir_expr_refs(expr);
         if let ExprKind::MethodCall(path, receiver, &[], _) = target.kind
+            && self.msrv.meets(cx, msrvs::PATH_MAIN_SEPARATOR_STR)
             && path.ident.name == sym::to_string
             && let ExprKind::Path(QPath::Resolved(None, path)) = receiver.kind
             && let Res::Def(DefKind::Const, receiver_def_id) = path.res
             && is_trait_method(cx, target, sym::ToString)
-            && self.msrv.meets(msrvs::PATH_MAIN_SEPARATOR_STR)
             && cx.tcx.is_diagnostic_item(sym::path_main_separator, receiver_def_id)
             && let ty::Ref(_, ty, Mutability::Not) = cx.typeck_results().expr_ty_adjusted(expr).kind()
             && ty.is_str()
@@ -72,5 +72,5 @@ impl LateLintPass<'_> for ManualMainSeparatorStr {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }

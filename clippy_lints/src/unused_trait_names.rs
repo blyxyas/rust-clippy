@@ -62,7 +62,7 @@ impl_lint_pass!(UnusedTraitNames => [UNUSED_TRAIT_NAMES]);
 
 impl<'tcx> LateLintPass<'tcx> for UnusedTraitNames {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
-        if self.msrv.meets(msrvs::UNDERSCORE_IMPORTS)
+        if self.msrv.meets(cx, msrvs::UNDERSCORE_IMPORTS)
             && !in_external_macro(cx.sess(), item.span)
             && let ItemKind::Use(path, UseKind::Single) = item.kind
             // Ignore imports that already use Underscore
@@ -90,5 +90,5 @@ impl<'tcx> LateLintPass<'tcx> for UnusedTraitNames {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }

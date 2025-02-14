@@ -143,7 +143,7 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessBorrowsForGenericArgs<'tcx> {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 fn path_has_args(p: &QPath<'_>) -> bool {
@@ -273,7 +273,7 @@ fn needless_borrow_count<'tcx>(
                 && let ty::Param(param_ty) = trait_predicate.self_ty().kind()
                 && let GenericArgKind::Type(ty) = args_with_referent_ty[param_ty.index as usize].unpack()
                 && ty.is_array()
-                && !msrv.meets(msrvs::ARRAY_INTO_ITERATOR)
+                && !msrv.meets(cx, msrvs::ARRAY_INTO_ITERATOR)
             {
                 return false;
             }

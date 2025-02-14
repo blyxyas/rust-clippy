@@ -71,6 +71,7 @@ impl<'tcx> LateLintPass<'tcx> for IfThenSomeElseNone {
             r#else: Some(els),
         }) = higher::If::hir(expr)
             && let ExprKind::Block(then_block, _) = then.kind
+            && self.msrv.meets(cx, msrvs::BOOL_THEN)
             && let Some(then_expr) = then_block.expr
             && let ExprKind::Call(then_call, [then_arg]) = then_expr.kind
             && let ctxt = expr.span.ctxt()
@@ -80,10 +81,9 @@ impl<'tcx> LateLintPass<'tcx> for IfThenSomeElseNone {
             && !is_else_clause(cx.tcx, expr)
             && !is_in_const_context(cx)
             && !in_external_macro(cx.sess(), expr.span)
-            && self.msrv.meets(msrvs::BOOL_THEN)
             && !contains_return(then_block.stmts)
         {
-            let method_name = if switch_to_eager_eval(cx, expr) && self.msrv.meets(msrvs::BOOL_THEN_SOME) {
+            let method_name = if switch_to_eager_eval(cx, expr) && self.msrv.meets(cx, msrvs::BOOL_THEN_SOME) {
                 "then_some"
             } else {
                 "then"
@@ -122,5 +122,5 @@ impl<'tcx> LateLintPass<'tcx> for IfThenSomeElseNone {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }

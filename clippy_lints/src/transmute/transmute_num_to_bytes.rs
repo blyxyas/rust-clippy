@@ -23,7 +23,7 @@ pub(super) fn check<'tcx>(
             if !matches!(arr_ty.kind(), ty::Uint(UintTy::U8)) {
                 return false;
             }
-            if matches!(from_ty.kind(), ty::Float(_)) && const_context && !msrv.meets(msrvs::CONST_FLOAT_BITS_CONV) {
+            if matches!(from_ty.kind(), ty::Float(_)) && const_context && !msrv.meets(cx, msrvs::CONST_FLOAT_BITS_CONV) {
                 return false;
             }
 

@@ -34,7 +34,7 @@ pub(super) fn check<'tcx>(
             return false;
         }
 
-        let (suggestion, span) = if msrv.meets(msrvs::RAW_REF_OP) {
+        let (suggestion, span) = if msrv.meets(cx, msrvs::RAW_REF_OP) {
             let operator_kind = match mutability {
                 Mutability::Not => "const",
                 Mutability::Mut => "mut",

@@ -155,7 +155,7 @@ impl<'tcx> LateLintPass<'tcx> for StdReexports {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 /// Returns the first named segment of a [`Path`].
@@ -184,8 +184,8 @@ fn is_stable(cx: &LateContext<'_>, mut def_id: DefId, msrv: &Msrv) -> bool {
             } = stability.level
         {
             let stable = match since {
-                StableSince::Version(v) => msrv.meets(v),
-                StableSince::Current => msrv.current().is_none(),
+                StableSince::Version(v) => msrv.meets(cx, v),
+                StableSince::Current => msrv.current(cx).is_none(),
                 StableSince::Err => false,
             };
 

@@ -21,7 +21,7 @@ pub(super) fn check<'tcx>(
 ) -> bool {
     match (&from_ty.kind(), &to_ty.kind()) {
         (ty::Float(float_ty), ty::Int(_) | ty::Uint(_))
-            if !const_context || msrv.meets(msrvs::CONST_FLOAT_BITS_CONV) =>
+            if !const_context || msrv.meets(cx, msrvs::CONST_FLOAT_BITS_CONV) =>
         {
             span_lint_and_then(
                 cx,

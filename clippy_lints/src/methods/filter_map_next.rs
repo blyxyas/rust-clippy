@@ -16,10 +16,11 @@ pub(super) fn check<'tcx>(
     arg: &'tcx hir::Expr<'_>,
     msrv: &Msrv,
 ) {
+    if !msrv.meets(cx, msrvs::ITERATOR_FIND_MAP) {
+        return;
+    }
+    
     if is_trait_method(cx, expr, sym::Iterator) {
-        if !msrv.meets(msrvs::ITERATOR_FIND_MAP) {
-            return;
-        }
 
         let msg = "called `filter_map(..).next()` on an `Iterator`. This is more succinctly expressed by calling \
                    `.find_map(..)` instead";

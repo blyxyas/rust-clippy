@@ -95,7 +95,7 @@ fn initializer_can_be_made_const(cx: &LateContext<'_>, defid: rustc_span::def_id
     // Building MIR for `fn`s with unsatisfiable preds results in ICE.
     if !fn_has_unsatisfiable_preds(cx, defid)
         && let mir = cx.tcx.optimized_mir(defid)
-        && let Ok(()) = is_min_const_fn(cx.tcx, mir, msrv)
+        && let Ok(()) = is_min_const_fn(cx, mir, *msrv)
     {
         return true;
     }
@@ -113,7 +113,7 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForThreadLocal {
         local_defid: rustc_span::def_id::LocalDefId,
     ) {
         let defid = local_defid.to_def_id();
-        if self.msrv.meets(msrvs::THREAD_LOCAL_CONST_INIT)
+        if self.msrv.meets(cx, msrvs::THREAD_LOCAL_CONST_INIT)
             && is_thread_local_initializer(cx, fn_kind, span).unwrap_or(false)
             // Some implementations of `thread_local!` include an initializer fn.
             // In the case of a const initializer, the init fn is also const,
@@ -149,5 +149,5 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForThreadLocal {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }

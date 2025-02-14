@@ -11,7 +11,7 @@ use rustc_span::sym;
 use super::USELESS_NONZERO_NEW_UNCHECKED;
 
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>, func: &Expr<'tcx>, args: &[Expr<'_>], msrv: &Msrv) {
-    if msrv.meets(msrvs::CONST_UNWRAP)
+    if msrv.meets(cx, msrvs::CONST_UNWRAP)
         && let ExprKind::Path(QPath::TypeRelative(ty, segment)) = func.kind
         && segment.ident.name == sym::new_unchecked
         && let [init_arg] = args

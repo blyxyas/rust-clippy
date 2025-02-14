@@ -1087,7 +1087,7 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
 
             if !from_expansion && !contains_cfg_arm(cx, expr, ex, arms) {
                 if source == MatchSource::Normal {
-                    if !(self.msrv.meets(msrvs::MATCHES_MACRO) && match_like_matches::check_match(cx, expr, ex, arms)) {
+                    if !(self.msrv.meets(cx, msrvs::MATCHES_MACRO) && match_like_matches::check_match(cx, expr, ex, arms)) {
                         match_same_arms::check(cx, arms);
                     }
 
@@ -1143,7 +1143,7 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
             significant_drop_in_scrutinee::check_if_let(cx, expr, if_let.let_expr, if_let.if_then, if_let.if_else);
             if !from_expansion {
                 if let Some(else_expr) = if_let.if_else {
-                    if self.msrv.meets(msrvs::MATCHES_MACRO) {
+                    if self.msrv.meets(cx, msrvs::MATCHES_MACRO) {
                         match_like_matches::check_if_let(
                             cx,
                             expr,
@@ -1210,7 +1210,7 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
         rest_pat_in_fully_bound_struct::check(cx, pat);
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 /// Checks if there are any arms with a `#[cfg(..)]` attribute.
@@ -1275,8 +1275,8 @@ fn contains_cfg_arm(cx: &LateContext<'_>, e: &Expr<'_>, scrutinee: &Expr<'_>, ar
 }
 
 /// Checks if `pat` contains OR patterns that cannot be nested due to a too low MSRV.
-fn pat_contains_disallowed_or(pat: &Pat<'_>, msrv: &Msrv) -> bool {
-    if msrv.meets(msrvs::OR_PATTERNS) {
+fn pat_contains_disallowed_or(cx: &LateContext<'_>, pat: &Pat<'_>, msrv: &Msrv) -> bool {
+    if msrv.meets(cx, msrvs::OR_PATTERNS) {
         return false;
     }
 

@@ -188,6 +188,10 @@ impl FormatArgs {
 
 impl<'tcx> LateLintPass<'tcx> for FormatArgs {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
+        if !self.msrv.meets(cx, msrvs::FORMAT_ARGS_CAPTURE) {
+            return;
+        }
+
         if let Some(macro_call) = root_macro_call_first_node(cx, expr)
             && is_format_macro(cx, macro_call.def_id)
             && let Some(format_args) = self.format_args.get(cx, expr, macro_call.expn)
@@ -202,13 +206,11 @@ impl<'tcx> LateLintPass<'tcx> for FormatArgs {
 
             linter.check_templates();
 
-            if self.msrv.meets(msrvs::FORMAT_ARGS_CAPTURE) {
-                linter.check_uninlined_args();
-            }
+            linter.check_uninlined_args();
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 struct FormatArgsExpr<'a, 'tcx> {

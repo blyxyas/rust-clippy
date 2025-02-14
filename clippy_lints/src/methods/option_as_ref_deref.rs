@@ -20,7 +20,7 @@ pub(super) fn check(
     is_mut: bool,
     msrv: &Msrv,
 ) {
-    if !msrv.meets(msrvs::OPTION_AS_DEREF) {
+    if !msrv.meets(cx, msrvs::OPTION_AS_DEREF) {
         return;
     }
 

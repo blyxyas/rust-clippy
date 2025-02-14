@@ -4700,7 +4700,7 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 impl Methods {
@@ -4793,7 +4793,7 @@ impl Methods {
                             format_collect::check(cx, expr, m_arg, m_ident_span);
                         },
                         Some(("take", take_self_arg, [take_arg], _, _)) => {
-                            if self.msrv.meets(msrvs::STR_REPEAT) {
+                            if self.msrv.meets(cx, msrvs::STR_REPEAT) {
                                 manual_str_repeat::check(cx, expr, recv, take_self_arg, take_arg);
                             }
                         },
@@ -4878,7 +4878,7 @@ impl Methods {
                             false,
                         );
                     }
-                    if self.msrv.meets(msrvs::ITER_FLATTEN) {
+                    if self.msrv.meets(cx, msrvs::ITER_FLATTEN) {
                         // use the sourcemap to get the span of the closure
                         iter_filter::check(cx, expr, arg, span);
                     }
@@ -5117,7 +5117,7 @@ impl Methods {
                     no_effect_replace::check(cx, expr, arg1, arg2);
 
                     // Check for repeated `str::replace` calls to perform `collapsible_str_replace` lint
-                    if self.msrv.meets(msrvs::PATTERN_TRAIT_CHAR_ARRAY)
+                    if self.msrv.meets(cx, msrvs::PATTERN_TRAIT_CHAR_ARRAY)
                         && name == "replace"
                         && let Some(("replace", ..)) = method_call(recv)
                     {
@@ -5128,10 +5128,10 @@ impl Methods {
                     vec_resize_to_zero::check(cx, expr, count_arg, default_arg, span);
                 },
                 ("seek", [arg]) => {
-                    if self.msrv.meets(msrvs::SEEK_FROM_CURRENT) {
+                    if self.msrv.meets(cx, msrvs::SEEK_FROM_CURRENT) {
                         seek_from_current::check(cx, expr, recv, arg);
                     }
-                    if self.msrv.meets(msrvs::SEEK_REWIND) {
+                    if self.msrv.meets(cx, msrvs::SEEK_REWIND) {
                         seek_to_start_instead_of_rewind::check(cx, expr, recv, arg, span);
                     }
                 },
@@ -5189,7 +5189,7 @@ impl Methods {
                 },
                 ("take", []) => needless_option_take::check(cx, expr, recv),
                 ("then", [arg]) => {
-                    if !self.msrv.meets(msrvs::BOOL_THEN_SOME) {
+                    if !self.msrv.meets(cx, msrvs::BOOL_THEN_SOME) {
                         return;
                     }
                     unnecessary_lazy_eval::check(cx, expr, recv, arg, "then_some");

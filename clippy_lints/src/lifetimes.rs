@@ -150,7 +150,7 @@ impl<'tcx> LateLintPass<'tcx> for Lifetimes {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -359,7 +359,7 @@ fn non_elidable_self_type<'tcx>(
     ident: Option<Ident>,
     msrv: &Msrv,
 ) -> bool {
-    if !msrv.meets(msrvs::EXPLICIT_SELF_TYPE_ELISION)
+    if !msrv.meets(cx, msrvs::EXPLICIT_SELF_TYPE_ELISION)
         && let Some(ident) = ident
         && ident.name == kw::SelfLower
         && !func.implicit_self.has_implicit_self()

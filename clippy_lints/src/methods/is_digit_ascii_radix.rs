@@ -14,7 +14,7 @@ pub(super) fn check<'tcx>(
     radix: &'tcx Expr<'_>,
     msrv: &Msrv,
 ) {
-    if !msrv.meets(msrvs::IS_ASCII_DIGIT) {
+    if !msrv.meets(cx, msrvs::IS_ASCII_DIGIT) {
         return;
     }
 

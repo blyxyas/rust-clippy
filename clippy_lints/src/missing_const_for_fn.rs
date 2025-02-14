@@ -102,7 +102,7 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
             return;
         }
 
-        if !self.msrv.meets(msrvs::CONST_IF_MATCH) {
+        if !self.msrv.meets(cx, msrvs::CONST_IF_MATCH) {
             return;
         }
 
@@ -124,7 +124,7 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
                     .iter()
                     .any(|param| matches!(param.kind, GenericParamKind::Const { .. }));
 
-                if already_const(header) || has_const_generic_params || !could_be_const_with_abi(&self.msrv, header.abi)
+                if already_const(header) || has_const_generic_params || !could_be_const_with_abi(cx, &self.msrv, header.abi)
                 {
                     return;
                 }
@@ -159,7 +159,7 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
 
         let mir = cx.tcx.optimized_mir(def_id);
 
-        if let Ok(()) = is_min_const_fn(cx.tcx, mir, &self.msrv)
+        if let Ok(()) = is_min_const_fn(mir, &self.msrv)
             && let hir::Node::Item(hir::Item { vis_span, .. }) | hir::Node::ImplItem(hir::ImplItem { vis_span, .. }) =
                 cx.tcx.hir_node_by_def_id(def_id)
         {
@@ -175,7 +175,7 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 // We don't have to lint on something that's already `const`
@@ -184,13 +184,13 @@ fn already_const(header: hir::FnHeader) -> bool {
     header.constness == Constness::Const
 }
 
-fn could_be_const_with_abi(msrv: &Msrv, abi: Abi) -> bool {
+fn could_be_const_with_abi(cx: &LateContext<'_>, msrv: &Msrv, abi: Abi) -> bool {
     match abi {
         Abi::Rust => true,
         // `const extern "C"` was stabilized after 1.62.0
-        Abi::C { unwind: false } => msrv.meets(msrvs::CONST_EXTERN_C_FN),
+        Abi::C { unwind: false } => msrv.meets(cx, msrvs::CONST_EXTERN_C_FN),
         // Rest ABIs are still unstable and need the `const_extern_fn` feature enabled.
-        _ => msrv.meets(msrvs::CONST_EXTERN_FN),
+        _ => msrv.meets(cx, msrvs::CONST_EXTERN_FN),
     }
 }
 

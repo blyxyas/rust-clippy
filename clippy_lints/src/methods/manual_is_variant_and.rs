@@ -36,7 +36,7 @@ pub(super) fn check<'tcx>(
     }
 
     // 4. msrv doesn't meet `OPTION_RESULT_IS_VARIANT_AND`
-    if !msrv.meets(msrvs::OPTION_RESULT_IS_VARIANT_AND) {
+    if !msrv.meets(cx, msrvs::OPTION_RESULT_IS_VARIANT_AND) {
         return;
     }
 

@@ -72,7 +72,7 @@ impl<'tcx> LateLintPass<'tcx> for ManualRetain {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 fn check_into_iter(
@@ -128,14 +128,14 @@ fn check_iter(
     if let hir::ExprKind::MethodCall(_, filter_expr, [], _) = &target_expr.kind
         && let Some(copied_def_id) = cx.typeck_results().type_dependent_def_id(target_expr.hir_id)
         && (cx.tcx.is_diagnostic_item(sym::iter_copied, copied_def_id)
-            || cx.tcx.is_diagnostic_item(sym::iter_cloned, copied_def_id))
+        || cx.tcx.is_diagnostic_item(sym::iter_cloned, copied_def_id))
         && let hir::ExprKind::MethodCall(_, iter_expr, [_], _) = &filter_expr.kind
+        && match_acceptable_type(cx, left_expr, msrv)
         && let Some(filter_def_id) = cx.typeck_results().type_dependent_def_id(filter_expr.hir_id)
         && cx.tcx.is_diagnostic_item(sym::iter_filter, filter_def_id)
         && let hir::ExprKind::MethodCall(_, struct_expr, [], _) = &iter_expr.kind
         && let Some(iter_expr_def_id) = cx.typeck_results().type_dependent_def_id(iter_expr.hir_id)
         && match_acceptable_sym(cx, iter_expr_def_id)
-        && match_acceptable_type(cx, left_expr, msrv)
         && SpanlessEq::new(cx).eq_expr(left_expr, struct_expr)
         && let hir::ExprKind::MethodCall(_, _, [closure_expr], _) = filter_expr.kind
         && let hir::ExprKind::Closure(closure) = closure_expr.kind
@@ -183,7 +183,7 @@ fn check_to_owned(
     parent_expr_span: Span,
     msrv: &Msrv,
 ) {
-    if msrv.meets(msrvs::STRING_RETAIN)
+    if msrv.meets(cx, msrvs::STRING_RETAIN)
         && let hir::ExprKind::MethodCall(_, filter_expr, [], _) = &target_expr.kind
         && let Some(to_owned_def_id) = cx.typeck_results().type_dependent_def_id(target_expr.hir_id)
         && cx.tcx.is_diagnostic_item(sym::to_owned_method, to_owned_def_id)
@@ -264,7 +264,7 @@ fn match_acceptable_type(cx: &LateContext<'_>, expr: &hir::Expr<'_>, msrv: &Msrv
         Some(sym::Vec | sym::VecDeque) => return true,
         _ => return false,
     };
-    msrv.meets(required)
+    msrv.meets(cx, required)
 }
 
 fn match_map_type(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> bool {

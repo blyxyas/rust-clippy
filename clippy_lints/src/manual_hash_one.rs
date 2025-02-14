@@ -67,6 +67,7 @@ impl LateLintPass<'_> for ManualHashOne {
         if let PatKind::Binding(BindingMode::MUT, hasher, _, None) = local.pat.kind
             && let Some(init) = local.init
             && !init.span.from_expansion()
+            && self.msrv.meets(cx, msrvs::BUILD_HASHER_HASH_ONE)
             && let ExprKind::MethodCall(seg, build_hasher, [], _) = init.kind
             && seg.ident.name.as_str() == "build_hasher"
 
@@ -98,7 +99,6 @@ impl LateLintPass<'_> for ManualHashOne {
             && let ExprKind::MethodCall(seg, _, [], _) = finish_expr.kind
             && seg.ident.name.as_str() == "finish"
 
-            && self.msrv.meets(msrvs::BUILD_HASHER_HASH_ONE)
         {
             span_lint_hir_and_then(
                 cx,
@@ -130,5 +130,5 @@ impl LateLintPass<'_> for ManualHashOne {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }

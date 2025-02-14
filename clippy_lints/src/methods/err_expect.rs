@@ -16,10 +16,12 @@ pub(super) fn check(
     err_span: Span,
     msrv: &Msrv,
 ) {
+    if msrv.meets(cx, msrvs::EXPECT_ERR) {
+        return;
+    }
     if is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(recv), sym::Result)
         // Test the version to make sure the lint can be showed (expect_err has been
         // introduced in rust 1.17.0 : https://github.com/rust-lang/rust/pull/38982)
-        && msrv.meets(msrvs::EXPECT_ERR)
 
         // Grabs the `Result<T, E>` type
         && let result_type = cx.typeck_results().expr_ty(recv)

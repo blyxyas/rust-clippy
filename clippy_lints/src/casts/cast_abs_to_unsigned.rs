@@ -16,7 +16,7 @@ pub(super) fn check(
     cast_to: Ty<'_>,
     msrv: &Msrv,
 ) {
-    if msrv.meets(msrvs::UNSIGNED_ABS)
+    if msrv.meets(cx, msrvs::UNSIGNED_ABS)
         && let ty::Int(from) = cast_from.kind()
         && let ty::Uint(to) = cast_to.kind()
         && let ExprKind::MethodCall(method_path, receiver, [], _) = cast_expr.kind

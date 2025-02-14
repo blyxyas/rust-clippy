@@ -113,7 +113,7 @@ impl<'tcx> LateLintPass<'tcx> for ImplicitSaturatingSub {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -258,7 +258,7 @@ fn check_subtraction(
             // if `snippet_opt` fails, it won't try the next conditions.
             if let Some(big_var_snippet) = snippet_opt(cx, big_var.span)
                 && let Some(little_var_snippet) = snippet_opt(cx, little_var.span)
-                && (!is_in_const_context(cx) || msrv.meets(msrvs::SATURATING_SUB_CONST))
+                && (!is_in_const_context(cx) || msrv.meets(cx, msrvs::SATURATING_SUB_CONST))
             {
                 let sugg = format!(
                     "{}{big_var_snippet}.saturating_sub({little_var_snippet}){}",

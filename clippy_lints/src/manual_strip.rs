@@ -71,9 +71,9 @@ enum StripKind {
 impl<'tcx> LateLintPass<'tcx> for ManualStrip {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let Some(higher::If { cond, then, .. }) = higher::If::hir(expr)
+            && self.msrv.meets(cx, msrvs::STR_STRIP_PREFIX)
             && let ExprKind::MethodCall(_, target_arg, [pattern], _) = cond.kind
             && let ExprKind::Path(target_path) = &target_arg.kind
-            && self.msrv.meets(msrvs::STR_STRIP_PREFIX)
             && let Some(method_def_id) = cx.typeck_results().type_dependent_def_id(cond.hir_id)
         {
             let strip_kind = if cx.tcx.is_diagnostic_item(sym::str_starts_with, method_def_id) {
@@ -130,7 +130,7 @@ impl<'tcx> LateLintPass<'tcx> for ManualStrip {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 // Returns `Some(arg)` if `expr` matches `arg.len()` and `None` otherwise.

@@ -60,7 +60,7 @@ fn check_arm<'tcx>(
         // match expression must be a local binding
         // match <local> { .. }
         && let Some(binding_id) = path_to_local(peel_ref_operators(cx, inner_scrutinee))
-        && !pat_contains_disallowed_or(inner_then_pat, msrv)
+        && !pat_contains_disallowed_or(cx, inner_then_pat, msrv)
         // the binding must come from the pattern of the containing match arm
         // ..<local>.. => match <local> { .. }
         && let (Some(binding_span), is_innermost_parent_pat_struct)

@@ -14,7 +14,7 @@ mod useless_attribute;
 mod utils;
 
 use clippy_config::Conf;
-use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::msrvs::{self, Msrv, MsrvStack};
 use rustc_ast::{self as ast, Attribute, MetaItemInner, MetaItemKind};
 use rustc_hir::{ImplItem, Item, TraitItem};
 use rustc_lint::{EarlyContext, EarlyLintPass, LateContext, LateLintPass};
@@ -486,17 +486,17 @@ impl<'tcx> LateLintPass<'tcx> for Attributes {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 pub struct EarlyAttributes {
-    msrv: Msrv,
+    msrv: MsrvStack,
 }
 
 impl EarlyAttributes {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
-            msrv: conf.msrv.clone(),
+            msrv: MsrvStack::new(conf.msrv),
         }
     }
 }
@@ -515,17 +515,17 @@ impl EarlyLintPass for EarlyAttributes {
         non_minimal_cfg::check(cx, attr);
     }
 
-    extract_msrv_attr!(EarlyContext);
+    extract_msrv_attr!();
 }
 
 pub struct PostExpansionEarlyAttributes {
-    msrv: Msrv,
+    msrv: MsrvStack,
 }
 
 impl PostExpansionEarlyAttributes {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
-            msrv: conf.msrv.clone(),
+            msrv: MsrvStack::new(conf.msrv),
         }
     }
 }
@@ -588,6 +588,4 @@ impl EarlyLintPass for PostExpansionEarlyAttributes {
         mixed_attributes_style::check(cx, item.span, &item.attrs);
         duplicated_attributes::check(cx, &item.attrs);
     }
-
-    extract_msrv_attr!(EarlyContext);
 }

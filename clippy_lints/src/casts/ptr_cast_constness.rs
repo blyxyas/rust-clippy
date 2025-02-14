@@ -52,7 +52,7 @@ pub(super) fn check<'tcx>(
             return;
         }
 
-        if msrv.meets(msrvs::POINTER_CAST_CONSTNESS) {
+        if msrv.meets(cx, msrvs::POINTER_CAST_CONSTNESS) {
             let sugg = Sugg::hir(cx, cast_expr, "_");
             let constness = match *to_mutbl {
                 Mutability::Not => "const",

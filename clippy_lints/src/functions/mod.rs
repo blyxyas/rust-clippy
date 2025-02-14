@@ -540,5 +540,5 @@ impl<'tcx> LateLintPass<'tcx> for Functions {
         ref_option::check_trait_item(cx, item, self.avoid_breaking_exported_api);
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }

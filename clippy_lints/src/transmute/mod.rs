@@ -653,5 +653,5 @@ impl<'tcx> LateLintPass<'tcx> for Transmute {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }

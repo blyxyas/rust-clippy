@@ -8,7 +8,7 @@ use clippy_utils::msrvs;
 use super::REPR_PACKED_WITHOUT_ABI;
 
 pub(super) fn check(cx: &LateContext<'_>, item_span: Span, attrs: &[Attribute], msrv: &msrvs::Msrv) {
-    if msrv.meets(msrvs::REPR_RUST) {
+    if msrv.meets(cx, msrvs::REPR_RUST) {
         check_packed(cx, item_span, attrs);
     }
 }

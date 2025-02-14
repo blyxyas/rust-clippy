@@ -116,7 +116,7 @@ pub(super) fn check<'a>(
 
         (sugg, "a standard comparison", app)
     } else if !def_bool
-        && msrv.meets(msrvs::OPTION_RESULT_IS_VARIANT_AND)
+        && msrv.meets(cx, msrvs::OPTION_RESULT_IS_VARIANT_AND)
         && let Some(recv_callsite) = snippet_opt(cx, recv.span.source_callsite())
         && let Some(span_callsite) = snippet_opt(cx, map.span.source_callsite())
     {
@@ -128,7 +128,7 @@ pub(super) fn check<'a>(
         )
     } else if def_bool
         && matches!(variant, Variant::Some)
-        && msrv.meets(msrvs::IS_NONE_OR)
+        && msrv.meets(cx, msrvs::IS_NONE_OR)
         && let Some(recv_callsite) = snippet_opt(cx, recv.span.source_callsite())
         && let Some(span_callsite) = snippet_opt(cx, map.span.source_callsite())
     {

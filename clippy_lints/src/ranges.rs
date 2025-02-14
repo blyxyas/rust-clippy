@@ -182,7 +182,7 @@ impl_lint_pass!(Ranges => [
 impl<'tcx> LateLintPass<'tcx> for Ranges {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Binary(ref op, l, r) = expr.kind {
-            if self.msrv.meets(msrvs::RANGE_CONTAINS) {
+            if self.msrv.meets(cx, msrvs::RANGE_CONTAINS) {
                 check_possible_range_contains(cx, op.node, l, r, expr, expr.span);
             }
         }
@@ -191,7 +191,7 @@ impl<'tcx> LateLintPass<'tcx> for Ranges {
         check_inclusive_range_minus_one(cx, expr);
         check_reversed_empty_range(cx, expr);
     }
-    extract_msrv_attr!(LateContext);
+    
 }
 
 fn check_possible_range_contains(

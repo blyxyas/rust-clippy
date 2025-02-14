@@ -96,7 +96,7 @@ fn should_lint(cx: &LateContext<'_>, cast_from: Ty<'_>, cast_to: Ty<'_>, msrv: &
             };
             !is_isize_or_usize(cast_from) && from_nbits < to_nbits
         },
-        (false, true) if matches!(cast_from.kind(), ty::Bool) && msrv.meets(msrvs::FROM_BOOL) => true,
+        (false, true) if matches!(cast_from.kind(), ty::Bool) && msrv.meets(cx, msrvs::FROM_BOOL) => true,
         (_, _) => {
             matches!(cast_from.kind(), ty::Float(FloatTy::F32)) && matches!(cast_to.kind(), ty::Float(FloatTy::F64))
         },

@@ -27,7 +27,7 @@ impl OmitFollowedCastReason<'_> {
 }
 
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, msrv: &Msrv) {
-    if !msrv.meets(msrvs::POINTER_CAST) {
+    if !msrv.meets(cx, msrvs::POINTER_CAST) {
         return;
     }
 

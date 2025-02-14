@@ -192,7 +192,7 @@ fn check_manual_pattern_char_comparison(cx: &LateContext<'_>, method_arg: &Expr<
         {
             return;
         }
-        if set_char_spans.len() > 1 && !msrv.meets(msrvs::PATTERN_TRAIT_CHAR_ARRAY) {
+        if set_char_spans.len() > 1 && !msrv.meets(cx, msrvs::PATTERN_TRAIT_CHAR_ARRAY) {
             return;
         }
         span_lint_and_then(
@@ -242,5 +242,5 @@ impl<'tcx> LateLintPass<'tcx> for StringPatterns {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }

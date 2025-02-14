@@ -59,7 +59,7 @@ impl_lint_pass!(ManualDivCeil => [MANUAL_DIV_CEIL]);
 
 impl<'tcx> LateLintPass<'tcx> for ManualDivCeil {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'_>) {
-        if !self.msrv.meets(msrvs::MANUAL_DIV_CEIL) {
+        if !self.msrv.meets(cx, msrvs::MANUAL_DIV_CEIL) {
             return;
         }
 
@@ -123,7 +123,7 @@ impl<'tcx> LateLintPass<'tcx> for ManualDivCeil {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 /// Checks if two expressions represent non-zero integer literals such that `small_expr + 1 ==

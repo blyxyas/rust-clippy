@@ -120,7 +120,7 @@ impl<'tcx> LateLintPass<'tcx> for NonminimalBool {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 fn inverted_bin_op_eq_str(op: BinOpKind) -> Option<&'static str> {
@@ -438,7 +438,7 @@ fn simplify_not(cx: &LateContext<'_>, curr_msrv: &Msrv, expr: &Expr<'_>) -> Opti
                 .iter()
                 .copied()
                 .flat_map(|(msrv, a, b)| vec![(msrv, a, b), (msrv, b, a)])
-                .find(|&(msrv, a, _)| msrv.is_none_or(|msrv| curr_msrv.meets(msrv)) && a == path.ident.name.as_str())
+                .find(|&(msrv, a, _)| msrv.is_none_or(|msrv| curr_msrv.meets(cx, msrv)) && a == path.ident.name.as_str())
                 .and_then(|(_, _, neg_method)| {
                     let negated_args = args
                         .iter()

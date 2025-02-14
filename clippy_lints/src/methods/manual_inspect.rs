@@ -20,7 +20,7 @@ pub(crate) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, arg: &Expr<'_>, name:
         && let typeck = cx.typeck_results()
         && let Some(fn_id) = typeck.type_dependent_def_id(expr.hir_id)
         && (is_diag_trait_item(cx, fn_id, sym::Iterator)
-            || (msrv.meets(msrvs::OPTION_RESULT_INSPECT)
+            || (msrv.meets(cx, msrvs::OPTION_RESULT_INSPECT)
                 && (is_diag_item_method(cx, fn_id, sym::Option) || is_diag_item_method(cx, fn_id, sym::Result))))
         && let body = cx.tcx.hir().body(c.body)
         && let [param] = body.params

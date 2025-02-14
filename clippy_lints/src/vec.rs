@@ -111,7 +111,7 @@ impl<'tcx> LateLintPass<'tcx> for UselessVec {
             },
             // search for `for _ in vec![...]`
             Node::Expr(Expr { span, .. })
-                if span.is_desugaring(DesugaringKind::ForLoop) && self.msrv.meets(msrvs::ARRAY_INTO_ITERATOR) =>
+                if span.is_desugaring(DesugaringKind::ForLoop) && self.msrv.meets(cx, msrvs::ARRAY_INTO_ITERATOR) =>
             {
                 let suggest_slice = suggest_type(expr);
                 self.check_vec_macro(cx, &vec_args, callsite, expr.hir_id, suggest_slice);
@@ -150,7 +150,7 @@ impl<'tcx> LateLintPass<'tcx> for UselessVec {
         }
     }
 
-    extract_msrv_attr!(LateContext);
+    
 }
 
 impl UselessVec {

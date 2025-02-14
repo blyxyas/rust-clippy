@@ -50,11 +50,11 @@ impl<'tcx> QuestionMark {
     pub(crate) fn check_manual_let_else(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'tcx>) {
         if let StmtKind::Let(local) = stmt.kind
             && let Some(init) = local.init
+            && self.msrv.meets(cx, msrvs::LET_ELSE)
             && local.els.is_none()
             && local.ty.is_none()
             && init.span.eq_ctxt(stmt.span)
             && let Some(if_let_or_match) = IfLetOrMatch::parse(cx, init)
-            && self.msrv.meets(msrvs::LET_ELSE)
             && !in_external_macro(cx.sess(), stmt.span)
         {
             match if_let_or_match {

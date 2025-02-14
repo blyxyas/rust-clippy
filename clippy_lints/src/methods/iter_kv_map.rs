@@ -22,7 +22,7 @@ pub(super) fn check<'tcx>(
     m_arg: &'tcx Expr<'tcx>, // |(_, v)| v
     msrv: &Msrv,
 ) {
-    if map_type == "into_iter" && !msrv.meets(msrvs::INTO_KEYS) {
+    if map_type == "into_iter" && !msrv.meets(cx, msrvs::INTO_KEYS) {
         return;
     }
     if !expr.span.from_expansion()

@@ -25,14 +25,14 @@ pub(super) fn check_as_ptr<'tcx>(
     msrv: &Msrv,
 ) {
     if let ExprKind::Lit(lit) = receiver.kind
-        && let LitKind::ByteStr(_, StrStyle::Cooked) | LitKind::Str(_, StrStyle::Cooked) = lit.node
+    && let LitKind::ByteStr(_, StrStyle::Cooked) | LitKind::Str(_, StrStyle::Cooked) = lit.node
+        && msrv.meets(cx,msrvs::C_STR_LITERALS)
         && cx.tcx.sess.edition() >= Edition2021
         && let casts_removed = peel_ptr_cast_ancestors(cx, expr)
         && !get_parent_expr(cx, casts_removed).is_some_and(
             |parent| matches!(parent.kind, ExprKind::Call(func, _) if is_c_str_function(cx, func).is_some()),
         )
         && let Some(sugg) = rewrite_as_cstr(cx, lit.span)
-        && msrv.meets(msrvs::C_STR_LITERALS)
     {
         span_lint_and_sugg(
             cx,
@@ -69,7 +69,7 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, func: &Expr<'_>, args
     if let Some(fn_name) = is_c_str_function(cx, func)
         && let [arg] = args
         && cx.tcx.sess.edition() >= Edition2021
-        && msrv.meets(msrvs::C_STR_LITERALS)
+        && msrv.meets(cx, msrvs::C_STR_LITERALS)
     {
         match fn_name.as_str() {
             name @ ("from_bytes_with_nul" | "from_bytes_with_nul_unchecked")

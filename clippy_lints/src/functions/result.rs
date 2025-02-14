@@ -84,7 +84,7 @@ pub(super) fn check_trait_item<'tcx>(
 }
 
 fn check_result_unit_err(cx: &LateContext<'_>, err_ty: Ty<'_>, fn_header_span: Span, msrv: &Msrv) {
-    if err_ty.is_unit() && (!is_no_std_crate(cx) || msrv.meets(msrvs::ERROR_IN_CORE)) {
+    if err_ty.is_unit() && (!is_no_std_crate(cx) || msrv.meets(cx, msrvs::ERROR_IN_CORE)) {
         span_lint_and_help(
             cx,
             RESULT_UNIT_ERR,

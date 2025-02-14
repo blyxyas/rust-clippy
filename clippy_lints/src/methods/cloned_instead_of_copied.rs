@@ -15,11 +15,11 @@ pub fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, span: Span,
     let inner_ty = match recv_ty.kind() {
         // `Option<T>` -> `T`
         ty::Adt(adt, subst)
-            if cx.tcx.is_diagnostic_item(sym::Option, adt.did()) && msrv.meets(msrvs::OPTION_COPIED) =>
+            if cx.tcx.is_diagnostic_item(sym::Option, adt.did()) && msrv.meets(cx, msrvs::OPTION_COPIED) =>
         {
             subst.type_at(0)
         },
-        _ if is_trait_method(cx, expr, sym::Iterator) && msrv.meets(msrvs::ITERATOR_COPIED) => {
+        _ if is_trait_method(cx, expr, sym::Iterator) && msrv.meets(cx, msrvs::ITERATOR_COPIED) => {
             match get_iterator_item_ty(cx, recv_ty) {
                 // <T as Iterator>::Item
                 Some(ty) => ty,
