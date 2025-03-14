@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_then, span_lint_hir_and_then};
 use clippy_utils::msrvs::{self, Msrv};
@@ -10,7 +12,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::kw;
 use rustc_span::{Symbol, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `<integer>::max_value()`, `std::<integer>::MAX`,
@@ -36,15 +37,12 @@ declare_clippy_lint! {
 pub struct LegacyNumericConstants {
     msrv: Msrv,
 }
-
 impl LegacyNumericConstants {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(LegacyNumericConstants => [LEGACY_NUMERIC_CONSTANTS]);
-
 impl<'tcx> LateLintPass<'tcx> for LegacyNumericConstants {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         // Integer modules are "TBD" deprecated, and the contents are too,
@@ -61,7 +59,6 @@ impl<'tcx> LateLintPass<'tcx> for LegacyNumericConstants {
             } else {
                 return;
             };
-
             span_lint_and_then(
                 cx,
                 LEGACY_NUMERIC_CONSTANTS,
@@ -76,9 +73,7 @@ impl<'tcx> LateLintPass<'tcx> for LegacyNumericConstants {
                         diag.help("remove this import");
                         return;
                     }
-
                     let def_path = cx.get_def_path(def_id);
-
                     if module && let [.., module_name] = &*def_path {
                         if kind == UseKind::Glob {
                             diag.help(format!("remove this import and use associated constants `{module_name}::<CONST>` from the primitive type instead"));
@@ -96,12 +91,10 @@ impl<'tcx> LateLintPass<'tcx> for LegacyNumericConstants {
             );
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx rustc_hir::Expr<'tcx>) {
         let ExprKind::Path(qpath) = &expr.kind else {
             return;
         };
-
         // `std::<integer>::<CONST>` check
         let (span, sugg, msg) = if let QPath::Resolved(None, path) = qpath
             && let Some(def_id) = path.res.opt_def_id()
@@ -125,7 +118,6 @@ impl<'tcx> LateLintPass<'tcx> for LegacyNumericConstants {
             && is_integer_method(cx, def_id)
         {
             let name = last_segment.ident.name.as_str();
-
             (
                 last_segment.ident.span.with_hi(par_expr.span.hi()),
                 name[..=2].to_ascii_uppercase(),
@@ -134,7 +126,6 @@ impl<'tcx> LateLintPass<'tcx> for LegacyNumericConstants {
         } else {
             return;
         };
-
         if !expr.span.in_external_macro(cx.sess().source_map())
             && self.msrv.meets(cx, msrvs::NUMERIC_ASSOCIATED_CONSTANTS)
             && !is_from_proc_macro(cx, expr)
@@ -150,7 +141,6 @@ impl<'tcx> LateLintPass<'tcx> for LegacyNumericConstants {
         }
     }
 }
-
 fn is_integer_module(cx: &LateContext<'_>, did: DefId) -> bool {
     matches!(
         cx.tcx.get_diagnostic_name(did),
@@ -170,7 +160,6 @@ fn is_integer_module(cx: &LateContext<'_>, did: DefId) -> bool {
         )
     )
 }
-
 fn is_numeric_const(cx: &LateContext<'_>, did: DefId) -> bool {
     matches!(
         cx.tcx.get_diagnostic_name(did),
@@ -230,7 +219,6 @@ fn is_numeric_const(cx: &LateContext<'_>, did: DefId) -> bool {
         )
     )
 }
-
 // Whether path expression looks like `i32::MAX`
 fn is_numeric_const_path_canonical(expr_path: &hir::Path<'_>, [mod_name, name]: [Symbol; 2]) -> bool {
     let [
@@ -244,10 +232,8 @@ fn is_numeric_const_path_canonical(expr_path: &hir::Path<'_>, [mod_name, name]: 
     else {
         return false;
     };
-
     one.name == mod_name && two.name == name
 }
-
 fn is_integer_method(cx: &LateContext<'_>, did: DefId) -> bool {
     matches!(
         cx.tcx.get_diagnostic_name(did),

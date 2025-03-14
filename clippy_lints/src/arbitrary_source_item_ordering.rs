@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_config::types::{
     SourceItemOrderingCategory, SourceItemOrderingModuleItemGroupings, SourceItemOrderingModuleItemKind,
@@ -11,7 +13,6 @@ use rustc_hir::{
 };
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -154,9 +155,7 @@ declare_clippy_lint! {
     restriction,
     "arbitrary source item ordering"
 }
-
 impl_lint_pass!(ArbitrarySourceItemOrdering => [ARBITRARY_SOURCE_ITEM_ORDERING]);
-
 #[derive(Debug)]
 #[allow(clippy::struct_excessive_bools)] // Bools are cached feature flags.
 pub struct ArbitrarySourceItemOrdering {
@@ -169,7 +168,6 @@ pub struct ArbitrarySourceItemOrdering {
     module_item_order_groupings: SourceItemOrderingModuleItemGroupings,
     module_items_ordered_within_groupings: SourceItemOrderingWithinModuleItemGroupings,
 }
-
 impl ArbitrarySourceItemOrdering {
     pub fn new(conf: &'static Conf) -> Self {
         #[allow(clippy::enum_glob_use)] // Very local glob use for legibility.
@@ -185,7 +183,6 @@ impl ArbitrarySourceItemOrdering {
             module_items_ordered_within_groupings: conf.module_items_ordered_within_groupings.clone(),
         }
     }
-
     /// Produces a linting warning for incorrectly ordered impl items.
     fn lint_impl_item<T: LintContext>(&self, cx: &T, item: &ImplItemRef, before_item: &ImplItemRef) {
         span_lint_and_note(
@@ -200,7 +197,6 @@ impl ArbitrarySourceItemOrdering {
             format!("should be placed before `{}`", before_item.ident.as_str(),),
         );
     }
-
     /// Produces a linting warning for incorrectly ordered item members.
     fn lint_member_name<T: LintContext>(
         cx: &T,
@@ -216,14 +212,12 @@ impl ArbitrarySourceItemOrdering {
             format!("should be placed before `{}`", before_ident.as_str(),),
         );
     }
-
     fn lint_member_item<T: LintContext>(cx: &T, item: &Item<'_>, before_item: &Item<'_>, msg: &'static str) {
         let span = if item.ident.as_str().is_empty() {
             &item.span
         } else {
             &item.ident.span
         };
-
         let (before_span, note) = if before_item.ident.as_str().is_empty() {
             (
                 &before_item.span,
@@ -235,15 +229,12 @@ impl ArbitrarySourceItemOrdering {
                 format!("should be placed before `{}`", before_item.ident.as_str(),),
             )
         };
-
         // This catches false positives where generated code gets linted.
         if span == before_span {
             return;
         }
-
         span_lint_and_note(cx, ARBITRARY_SOURCE_ITEM_ORDERING, *span, msg, Some(*before_span), note);
     }
-
     /// Produces a linting warning for incorrectly ordered trait items.
     fn lint_trait_item<T: LintContext>(&self, cx: &T, item: &TraitItemRef, before_item: &TraitItemRef) {
         span_lint_and_note(
@@ -259,7 +250,6 @@ impl ArbitrarySourceItemOrdering {
         );
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         match &item.kind {
@@ -269,7 +259,6 @@ impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
                     if variant.span.in_external_macro(cx.sess().source_map()) {
                         continue;
                     }
-
                     if let Some(cur_v) = cur_v {
                         if cur_v.ident.name.as_str() > variant.ident.name.as_str() && cur_v.span != variant.span {
                             Self::lint_member_name(cx, &variant.ident, &cur_v.ident);
@@ -284,7 +273,6 @@ impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
                     if field.span.in_external_macro(cx.sess().source_map()) {
                         continue;
                     }
-
                     if let Some(cur_f) = cur_f {
                         if cur_f.ident.name.as_str() > field.ident.name.as_str() && cur_f.span != field.span {
                             Self::lint_member_name(cx, &field.ident, &cur_f.ident);
@@ -297,18 +285,15 @@ impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
                 if self.enable_ordering_for_trait && *is_auto == IsAuto::No =>
             {
                 let mut cur_t: Option<&TraitItemRef> = None;
-
                 for item in *item_ref {
                     if item.span.in_external_macro(cx.sess().source_map()) {
                         continue;
                     }
-
                     if let Some(cur_t) = cur_t {
                         let cur_t_kind = convert_assoc_item_kind(cur_t.kind);
                         let cur_t_kind_index = self.assoc_types_order.index_of(&cur_t_kind);
                         let item_kind = convert_assoc_item_kind(item.kind);
                         let item_kind_index = self.assoc_types_order.index_of(&item_kind);
-
                         if cur_t_kind == item_kind && cur_t.ident.name.as_str() > item.ident.name.as_str() {
                             Self::lint_member_name(cx, &item.ident, &cur_t.ident);
                         } else if cur_t_kind_index > item_kind_index {
@@ -320,18 +305,15 @@ impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
             },
             ItemKind::Impl(trait_impl) if self.enable_ordering_for_impl => {
                 let mut cur_t: Option<&ImplItemRef> = None;
-
                 for item in trait_impl.items {
                     if item.span.in_external_macro(cx.sess().source_map()) {
                         continue;
                     }
-
                     if let Some(cur_t) = cur_t {
                         let cur_t_kind = convert_assoc_item_kind(cur_t.kind);
                         let cur_t_kind_index = self.assoc_types_order.index_of(&cur_t_kind);
                         let item_kind = convert_assoc_item_kind(item.kind);
                         let item_kind_index = self.assoc_types_order.index_of(&item_kind);
-
                         if cur_t_kind == item_kind && cur_t.ident.name.as_str() > item.ident.name.as_str() {
                             Self::lint_member_name(cx, &item.ident, &cur_t.ident);
                         } else if cur_t_kind_index > item_kind_index {
@@ -344,7 +326,6 @@ impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
             _ => {}, // Catch-all for `ItemKinds` that don't have fields.
         }
     }
-
     fn check_mod(&mut self, cx: &LateContext<'tcx>, module: &'tcx Mod<'tcx>, _: HirId) {
         struct CurItem<'a> {
             item: &'a Item<'a>,
@@ -352,13 +333,10 @@ impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
             name: String,
         }
         let mut cur_t: Option<CurItem<'_>> = None;
-
         if !self.enable_ordering_for_module {
             return;
         }
-
         let items = module.item_ids.iter().map(|&id| cx.tcx.hir_item(id));
-
         // Iterates over the items within a module.
         //
         // As of 2023-05-09, the Rust compiler will hold the entries in the same
@@ -369,7 +347,6 @@ impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
             if item.span.in_external_macro(cx.sess().source_map()) {
                 continue;
             }
-
             // The following exceptions (skipping with `continue;`) may not be
             // complete, edge cases have not been explored further than what
             // appears in the existing code base.
@@ -405,13 +382,11 @@ impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
                     continue;
                 }
             }
-
             if item.ident.name.as_str().starts_with('_') {
                 // Filters out unnamed macro-like impls for various derives,
                 // e.g. serde::Serialize or num_derive::FromPrimitive.
                 continue;
             }
-
             if item.ident.name == rustc_span::sym::std && item.span.is_dummy() {
                 if let ItemKind::ExternCrate(None) = item.kind {
                     // Filters the auto-included Rust standard library.
@@ -419,14 +394,12 @@ impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
                 }
                 println!("Unknown item: {item:?}");
             }
-
             let item_kind = convert_module_item_kind(&item.kind);
             let grouping_name = self.module_item_order_groupings.grouping_name_of(&item_kind);
             let module_level_order = self
                 .module_item_order_groupings
                 .module_level_order_of(&item_kind)
                 .unwrap_or_default();
-
             if let Some(cur_t) = cur_t.as_ref() {
                 use std::cmp::Ordering; // Better legibility.
                 match module_level_order.cmp(&cur_t.order) {
@@ -458,7 +431,6 @@ impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
                     },
                 }
             }
-
             // Makes a note of the current item for comparison with the next.
             cur_t = Some(CurItem {
                 item,
@@ -468,7 +440,6 @@ impl<'tcx> LateLintPass<'tcx> for ArbitrarySourceItemOrdering {
         }
     }
 }
-
 /// Converts a [`rustc_hir::AssocItemKind`] to a
 /// [`SourceItemOrderingTraitAssocItemKind`].
 ///
@@ -483,7 +454,6 @@ fn convert_assoc_item_kind(value: AssocItemKind) -> SourceItemOrderingTraitAssoc
         AssocItemKind::Fn { .. } => Fn,
     }
 }
-
 /// Converts a [`rustc_hir::ItemKind`] to a
 /// [`SourceItemOrderingModuleItemKind`].
 ///
@@ -511,7 +481,6 @@ fn convert_module_item_kind(value: &ItemKind<'_>) -> SourceItemOrderingModuleIte
         ItemKind::Impl(..) => Impl,
     }
 }
-
 /// Gets the item name for sorting purposes, which in the general case is
 /// `item.ident.name`.
 ///
@@ -533,10 +502,9 @@ fn get_item_name(item: &Item<'_>) -> String {
                 match path {
                     QPath::Resolved(_, path) => {
                         let segs = path.segments.iter();
-                        let mut segs: Vec<String> = segs.map(|s| s.ident.name.as_str().to_owned()).collect();
-
+                        let mut segs: HVec<String> = segs.map(|s| s.ident.name.as_str().to_owned()).collect();
                         if let Some(of_trait) = im.of_trait {
-                            let mut trait_segs: Vec<String> = of_trait
+                            let mut trait_segs: HVec<String> = of_trait
                                 .path
                                 .segments
                                 .iter()
@@ -544,7 +512,6 @@ fn get_item_name(item: &Item<'_>) -> String {
                                 .collect();
                             segs.append(&mut trait_segs);
                         }
-
                         segs.push(String::new());
                         segs.join("!!")
                     },

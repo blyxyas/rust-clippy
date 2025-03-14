@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::higher::VecArgs;
 use clippy_utils::source::snippet;
@@ -10,7 +12,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::Ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for array or vec initializations which call a function or method,
@@ -42,9 +43,7 @@ declare_clippy_lint! {
     suspicious,
     "usage of zero-sized initializations of arrays or vecs causing side effects"
 }
-
 declare_lint_pass!(ZeroRepeatSideEffects => [ZERO_REPEAT_SIDE_EFFECTS]);
-
 impl LateLintPass<'_> for ZeroRepeatSideEffects {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &rustc_hir::Expr<'_>) {
         if let Some(args) = VecArgs::hir(cx, expr)
@@ -70,7 +69,6 @@ impl LateLintPass<'_> for ZeroRepeatSideEffects {
         }
     }
 }
-
 fn inner_check(cx: &LateContext<'_>, expr: &'_ rustc_hir::Expr<'_>, inner_expr: &'_ rustc_hir::Expr<'_>, is_vec: bool) {
     // check if expr is a call or has a call inside it
     if for_each_expr_without_closures(inner_expr, |x| {
@@ -84,7 +82,6 @@ fn inner_check(cx: &LateContext<'_>, expr: &'_ rustc_hir::Expr<'_>, inner_expr: 
     {
         let parent_hir_node = cx.tcx.parent_hir_node(expr.hir_id);
         let return_type = cx.typeck_results().expr_ty(expr);
-
         if let Node::LetStmt(l) = parent_hir_node {
             array_span_lint(
                 cx,
@@ -116,7 +113,6 @@ fn inner_check(cx: &LateContext<'_>, expr: &'_ rustc_hir::Expr<'_>, inner_expr: 
         }
     }
 }
-
 fn array_span_lint(
     cx: &LateContext<'_>,
     expr_span: Span,
@@ -127,7 +123,6 @@ fn array_span_lint(
     is_assign: bool,
 ) {
     let has_ty = expr_ty.is_some();
-
     span_lint_and_sugg(
         cx,
         ZERO_REPEAT_SIDE_EFFECTS,

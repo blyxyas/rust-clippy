@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MAP_FLATTEN;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -8,14 +11,10 @@ use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::Span;
 use rustc_span::symbol::sym;
-
-use super::MAP_FLATTEN;
-
 /// lint use of `map().flatten()` for `Iterators` and 'Options'
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, map_arg: &Expr<'_>, map_span: Span) {
     if let Some((caller_ty_name, method_to_use)) = try_get_caller_ty_name_and_method_name(cx, expr, recv, map_arg) {
         let mut applicability = Applicability::MachineApplicable;
-
         let closure_snippet = snippet_with_applicability(cx, map_arg.span, "..", &mut applicability);
         let span = expr.span.with_lo(map_span.lo());
         // If the methods are separated with comments, we don't apply suggestion automatically.
@@ -33,7 +32,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, map_
         );
     }
 }
-
 fn try_get_caller_ty_name_and_method_name(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -59,7 +57,6 @@ fn try_get_caller_ty_name_and_method_name(
         None
     }
 }
-
 fn is_map_to_option(cx: &LateContext<'_>, map_arg: &Expr<'_>) -> bool {
     let map_closure_ty = cx.typeck_results().expr_ty(map_arg);
     match map_closure_ty.kind() {

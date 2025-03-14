@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::source::{indent_of, snippet, snippet_block};
 use rustc_ast::{Block, Label, ast};
 use rustc_lint::{EarlyContext, EarlyLintPass, LintContext};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// The lint checks for `if`-statements appearing in loops
@@ -124,9 +125,7 @@ declare_clippy_lint! {
     pedantic,
     "`continue` statements that can be replaced by a rearrangement of code"
 }
-
 declare_lint_pass!(NeedlessContinue => [NEEDLESS_CONTINUE]);
-
 impl EarlyLintPass for NeedlessContinue {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &ast::Expr) {
         if !expr.span.from_expansion() {
@@ -134,7 +133,6 @@ impl EarlyLintPass for NeedlessContinue {
         }
     }
 }
-
 /* This lint has to mainly deal with two cases of needless continue
  * statements. */
 // Case 1 [Continue inside else block]:
@@ -183,7 +181,6 @@ impl EarlyLintPass for NeedlessContinue {
 //       }
 //     }
 //
-
 /// Given an expression, returns true if either of the following is true
 ///
 /// - The expression is a `continue` node.
@@ -195,7 +192,6 @@ fn needless_continue_in_else(else_expr: &ast::Expr, label: Option<&Label>) -> bo
         _ => false,
     }
 }
-
 fn is_first_block_stmt_continue(block: &Block, label: Option<&Label>) -> bool {
     block.stmts.first().is_some_and(|stmt| match stmt.kind {
         ast::StmtKind::Semi(ref e) | ast::StmtKind::Expr(ref e) => {
@@ -208,7 +204,6 @@ fn is_first_block_stmt_continue(block: &Block, label: Option<&Label>) -> bool {
         _ => false,
     })
 }
-
 /// If the `continue` has a label, check it matches the label of the loop.
 fn compare_labels(loop_label: Option<&Label>, continue_label: Option<&Label>) -> bool {
     match (loop_label, continue_label) {
@@ -220,7 +215,6 @@ fn compare_labels(loop_label: Option<&Label>, continue_label: Option<&Label>) ->
         (Some(x), Some(y)) => x.ident == y.ident,
     }
 }
-
 /// If `expr` is a loop expression (while/while let/for/loop), calls `func` with
 /// the AST object representing the loop block of `expr`.
 fn with_loop_block<F>(expr: &ast::Expr, mut func: F)
@@ -238,7 +232,6 @@ where
         func(loop_block, label.as_ref());
     }
 }
-
 /// If `stmt` is an if expression node with an `else` branch, calls func with
 /// the
 /// following:
@@ -260,14 +253,12 @@ where
         _ => {},
     }
 }
-
 /// A type to distinguish between the two distinct cases this lint handles.
 #[derive(Copy, Clone, Debug)]
 enum LintType {
     ContinueInsideElseBlock,
     ContinueInsideThenBlock,
 }
-
 /// Data we pass around for construction of help messages.
 struct LintData<'a> {
     /// The `if` expression encountered in the above loop.
@@ -284,21 +275,14 @@ struct LintData<'a> {
     /// The statements of the loop block.
     loop_block: &'a Block,
 }
-
 const MSG_REDUNDANT_CONTINUE_EXPRESSION: &str = "this `continue` expression is redundant";
-
 const MSG_REDUNDANT_ELSE_BLOCK: &str = "this `else` block is redundant";
-
 const MSG_ELSE_BLOCK_NOT_NEEDED: &str = "there is no need for an explicit `else` block for this `if` \
                                          expression";
-
 const DROP_ELSE_BLOCK_AND_MERGE_MSG: &str = "consider dropping the `else` clause and merging the code that \
                                              follows (in the loop) with the `if` block";
-
 const DROP_ELSE_BLOCK_MSG: &str = "consider dropping the `else` clause";
-
 const DROP_CONTINUE_EXPRESSION_MSG: &str = "consider dropping the `continue` expression";
-
 fn emit_warning(cx: &EarlyContext<'_>, data: &LintData<'_>, header: &str, typ: LintType) {
     // snip    is the whole *help* message that appears after the warning.
     // message is the warning message.
@@ -324,27 +308,20 @@ fn emit_warning(cx: &EarlyContext<'_>, data: &LintData<'_>, header: &str, typ: L
         format!("{header}\n{snip}"),
     );
 }
-
 fn suggestion_snippet_for_continue_inside_if(cx: &EarlyContext<'_>, data: &LintData<'_>) -> String {
     let cond_code = snippet(cx, data.if_cond.span, "..");
-
     let continue_code = snippet_block(cx, data.if_block.span, "..", Some(data.if_expr.span));
-
     let else_code = snippet_block(cx, data.else_expr.span, "..", Some(data.if_expr.span));
-
     let indent_if = indent_of(cx, data.if_expr.span).unwrap_or(0);
     format!(
         "{indent}if {cond_code} {continue_code}\n{indent}{else_code}",
         indent = " ".repeat(indent_if),
     )
 }
-
 fn suggestion_snippet_for_continue_inside_else(cx: &EarlyContext<'_>, data: &LintData<'_>) -> String {
     let cond_code = snippet(cx, data.if_cond.span, "..");
-
     // Region B
     let block_code = erode_from_back(&snippet_block(cx, data.if_block.span, "..", Some(data.if_expr.span)));
-
     // Region C
     // These is the code in the loop block that follows the if/else construction
     // we are complaining about. We want to pull all of this code into the
@@ -364,7 +341,6 @@ fn suggestion_snippet_for_continue_inside_else(cx: &EarlyContext<'_>, data: &Lin
         })
         .collect::<Vec<_>>()
         .join("\n");
-
     let indent_if = indent_of(cx, data.if_expr.span).unwrap_or(0);
     format!(
         "{indent_if}if {cond_code} {block_code}\n{indent}// merged code follows:\n{to_annex}\n{indent_if}}}",
@@ -372,7 +348,6 @@ fn suggestion_snippet_for_continue_inside_else(cx: &EarlyContext<'_>, data: &Lin
         indent_if = " ".repeat(indent_if),
     )
 }
-
 fn check_last_stmt_in_expr<F>(inner_expr: &ast::Expr, func: &F)
 where
     F: Fn(Option<&Label>, Span),
@@ -400,7 +375,6 @@ where
         _ => {},
     }
 }
-
 fn check_last_stmt_in_block<F>(b: &Block, func: &F)
 where
     F: Fn(Option<&Label>, Span),
@@ -411,7 +385,6 @@ where
         check_last_stmt_in_expr(inner_expr, func);
     }
 }
-
 fn check_and_warn(cx: &EarlyContext<'_>, expr: &ast::Expr) {
     with_loop_block(expr, |loop_block, label| {
         let p = |continue_label: Option<&Label>, span: Span| {
@@ -426,7 +399,6 @@ fn check_and_warn(cx: &EarlyContext<'_>, expr: &ast::Expr) {
                 );
             }
         };
-
         let stmts = &loop_block.stmts;
         for (i, stmt) in stmts.iter().enumerate() {
             let mut maybe_emitted_in_if = false;
@@ -439,7 +411,6 @@ fn check_and_warn(cx: &EarlyContext<'_>, expr: &ast::Expr) {
                     stmt_idx: i,
                     loop_block,
                 };
-
                 maybe_emitted_in_if = true;
                 if needless_continue_in_else(else_expr, label) {
                     emit_warning(
@@ -454,14 +425,12 @@ fn check_and_warn(cx: &EarlyContext<'_>, expr: &ast::Expr) {
                     maybe_emitted_in_if = false;
                 }
             });
-
             if i == stmts.len() - 1 && !maybe_emitted_in_if {
                 check_last_stmt_in_block(loop_block, &p);
             }
         }
     });
 }
-
 /// Eats at `s` from the end till a closing brace `}` is encountered, and then continues eating
 /// till a non-whitespace character is found.  e.g., the string. If no closing `}` is present, the
 /// string will be preserved.
@@ -490,15 +459,12 @@ fn erode_from_back(s: &str) -> String {
     }
     if ret.is_empty() { s.to_string() } else { ret }
 }
-
 fn span_of_first_expr_in_block(block: &Block) -> Option<Span> {
     block.stmts.first().map(|stmt| stmt.span)
 }
-
 #[cfg(test)]
 mod test {
     use super::erode_from_back;
-
     #[test]
     #[rustfmt::skip]
     fn test_erode_from_back() {
@@ -507,16 +473,13 @@ mod test {
     let x = 5;
     let y = format!(\"{}\", 42);
 }";
-
         let expected = "\
 {
     let x = 5;
     let y = format!(\"{}\", 42);";
-
         let got = erode_from_back(input);
         assert_eq!(expected, got);
     }
-
     #[test]
     #[rustfmt::skip]
     fn test_erode_from_back_no_brace() {

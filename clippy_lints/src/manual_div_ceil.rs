@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use clippy_config::Conf;
 use clippy_utils::SpanlessEq;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
@@ -12,9 +15,6 @@ use rustc_middle::ty::{self};
 use rustc_session::impl_lint_pass;
 use rustc_span::source_map::Spanned;
 use rustc_span::symbol::Symbol;
-
-use clippy_config::Conf;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for an expression like `(x + (y - 1)) / y` which is a common manual reimplementation
@@ -41,24 +41,19 @@ declare_clippy_lint! {
     complexity,
     "manually reimplementing `div_ceil`"
 }
-
 pub struct ManualDivCeil {
     msrv: Msrv,
 }
-
 impl ManualDivCeil {
     #[must_use]
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(ManualDivCeil => [MANUAL_DIV_CEIL]);
-
 impl<'tcx> LateLintPass<'tcx> for ManualDivCeil {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'_>) {
         let mut applicability = Applicability::MachineApplicable;
-
         if let ExprKind::Binary(div_op, div_lhs, div_rhs) = expr.kind
             && div_op.node == BinOpKind::Div
             && check_int_ty_and_feature(cx, div_lhs)
@@ -76,7 +71,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualDivCeil {
                 build_suggestion(cx, expr, inner_lhs, div_rhs, &mut applicability);
                 return;
             }
-
             // ((y - 1) + x) / y
             if let ExprKind::Binary(sub_op, sub_lhs, sub_rhs) = inner_lhs.kind
                 && inner_op.node == BinOpKind::Add
@@ -87,7 +81,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualDivCeil {
                 build_suggestion(cx, expr, inner_rhs, div_rhs, &mut applicability);
                 return;
             }
-
             // (x + y - 1) / y
             if let ExprKind::Binary(add_op, add_lhs, add_rhs) = inner_lhs.kind
                 && inner_op.node == BinOpKind::Sub
@@ -97,17 +90,14 @@ impl<'tcx> LateLintPass<'tcx> for ManualDivCeil {
             {
                 build_suggestion(cx, expr, add_lhs, div_rhs, &mut applicability);
             }
-
             // (x + (Y - 1)) / Y
             if inner_op.node == BinOpKind::Add && differ_by_one(inner_rhs, div_rhs) {
                 build_suggestion(cx, expr, inner_lhs, div_rhs, &mut applicability);
             }
-
             // ((Y - 1) + x) / Y
             if inner_op.node == BinOpKind::Add && differ_by_one(inner_lhs, div_rhs) {
                 build_suggestion(cx, expr, inner_rhs, div_rhs, &mut applicability);
             }
-
             // (x - (-Y - 1)) / Y
             if inner_op.node == BinOpKind::Sub
                 && let ExprKind::Unary(UnOp::Neg, abs_div_rhs) = div_rhs.kind
@@ -118,7 +108,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualDivCeil {
         }
     }
 }
-
 /// Checks if two expressions represent non-zero integer literals such that `small_expr + 1 ==
 /// large_expr`.
 fn differ_by_one(small_expr: &Expr<'_>, large_expr: &Expr<'_>) -> bool {
@@ -136,17 +125,14 @@ fn differ_by_one(small_expr: &Expr<'_>, large_expr: &Expr<'_>) -> bool {
         false
     }
 }
-
 fn check_int_ty_and_feature(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     let expr_ty = cx.typeck_results().expr_ty(expr);
     match expr_ty.peel_refs().kind() {
         ty::Uint(_) => true,
         ty::Int(_) => cx.tcx.features().enabled(Symbol::intern("int_roundings")),
-
         _ => false,
     }
 }
-
 fn check_literal(expr: &Expr<'_>) -> bool {
     if let ExprKind::Lit(lit) = expr.kind
         && let LitKind::Int(Pu128(1), _) = lit.node
@@ -155,11 +141,9 @@ fn check_literal(expr: &Expr<'_>) -> bool {
     }
     false
 }
-
 fn check_eq_expr(cx: &LateContext<'_>, lhs: &Expr<'_>, rhs: &Expr<'_>) -> bool {
     SpanlessEq::new(cx).eq_expr(lhs, rhs)
 }
-
 fn build_suggestion(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -203,9 +187,7 @@ fn build_suggestion(
         format!("{dividend_sugg_str}{type_suffix}")
     };
     let divisor_snippet = snippet_with_applicability(cx, rhs.span.source_callsite(), "..", applicability);
-
     let sugg = format!("{suggestion_before_div_ceil}.div_ceil({divisor_snippet})");
-
     span_lint_and_sugg(
         cx,
         MANUAL_DIV_CEIL,

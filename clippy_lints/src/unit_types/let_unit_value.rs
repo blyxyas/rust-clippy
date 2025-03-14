@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::LET_UNIT_VALUE;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::visitors::{for_each_local_assignment, for_each_value_source};
@@ -8,9 +11,6 @@ use rustc_hir::intravisit::{Visitor, walk_body};
 use rustc_hir::{Expr, ExprKind, HirId, HirIdSet, LetStmt, MatchSource, Node, PatKind, QPath, TyKind};
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty;
-
-use super::LET_UNIT_VALUE;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, local: &'tcx LetStmt<'_>) {
     // skip `let () = { ... }`
     if let PatKind::Tuple(fields, ..) = local.pat.kind
@@ -18,7 +18,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, local: &'tcx LetStmt<'_>) {
     {
         return;
     }
-
     if let Some(init) = local.init
         && !local.pat.span.from_expansion()
         && !local.span.in_external_macro(cx.sess().source_map())
@@ -29,14 +28,12 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, local: &'tcx LetStmt<'_>) {
         if let ExprKind::Tup([]) = init.kind {
             return;
         }
-
         // skip `let _: () = { ... }`
         if let Some(ty) = local.ty
             && let TyKind::Tup([]) = ty.kind
         {
             return;
         }
-
         if (local.ty.is_some_and(|ty| !matches!(ty.kind, TyKind::Infer(())))
             || matches!(local.pat.kind, PatKind::Tuple([], ddpos) if ddpos.as_opt_usize().is_none()))
             && expr_needs_inferred_result(cx, init)
@@ -63,7 +60,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, local: &'tcx LetStmt<'_>) {
             if let ExprKind::Match(_, _, MatchSource::AwaitDesugar) = init.kind {
                 return;
             }
-
             span_lint_and_then(
                 cx,
                 LET_UNIT_VALUE,
@@ -71,29 +67,24 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, local: &'tcx LetStmt<'_>) {
                 "this let-binding has unit value",
                 |diag| {
                     let mut suggestions = Vec::new();
-
                     // Suggest omitting the `let` binding
                     if let Some(expr) = &local.init {
                         let mut app = Applicability::MachineApplicable;
                         let snip = snippet_with_context(cx, expr.span, local.span.ctxt(), "()", &mut app).0;
                         suggestions.push((local.span, format!("{snip};")));
                     }
-
                     // If this is a binding pattern, we need to add suggestions to remove any usages
                     // of the variable
                     if let PatKind::Binding(_, binding_hir_id, ..) = local.pat.kind
                         && let Some(body_id) = cx.enclosing_body.as_ref()
                     {
                         let body = cx.tcx.hir_body(*body_id);
-
                         // Collect variable usages
                         let mut visitor = UnitVariableCollector::new(binding_hir_id);
                         walk_body(&mut visitor, body);
-
                         // Add suggestions for replacing variable usages
                         suggestions.extend(visitor.spans.into_iter().map(|span| (span, "()".to_string())));
                     }
-
                     // Emit appropriate diagnostic based on whether there are usages of the let binding
                     if !suggestions.is_empty() {
                         let message = if suggestions.len() == 1 {
@@ -108,18 +99,15 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, local: &'tcx LetStmt<'_>) {
         }
     }
 }
-
 struct UnitVariableCollector {
     id: HirId,
     spans: Vec<rustc_span::Span>,
 }
-
 impl UnitVariableCollector {
     fn new(id: HirId) -> Self {
         Self { id, spans: vec![] }
     }
 }
-
 /**
  * Collect all instances where a variable is used based on its `HirId`.
  */
@@ -134,7 +122,6 @@ impl<'tcx> Visitor<'tcx> for UnitVariableCollector {
         rustc_hir::intravisit::walk_expr(self, ex);
     }
 }
-
 /// Checks sub-expressions which create the value returned by the given expression for whether
 /// return value inference is needed. This checks through locals to see if they also need inference
 /// at this point.
@@ -177,10 +164,8 @@ fn expr_needs_inferred_result<'tcx>(cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) -
             }
         }
     }
-
     true
 }
-
 fn each_value_source_needs_inference(
     cx: &LateContext<'_>,
     e: &Expr<'_>,
@@ -196,7 +181,6 @@ fn each_value_source_needs_inference(
     })
     .is_continue()
 }
-
 fn needs_inferred_result_ty(
     cx: &LateContext<'_>,
     e: &Expr<'_>,

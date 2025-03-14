@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::TRANSMUTE_NULL_TO_FN;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::{is_integer_literal, is_path_diagnostic_item};
@@ -5,9 +8,6 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::Ty;
 use rustc_span::symbol::sym;
-
-use super::TRANSMUTE_NULL_TO_FN;
-
 fn lint_expr(cx: &LateContext<'_>, expr: &Expr<'_>) {
     span_lint_and_then(
         cx,
@@ -22,12 +22,10 @@ fn lint_expr(cx: &LateContext<'_>, expr: &Expr<'_>) {
         },
     );
 }
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, arg: &'tcx Expr<'_>, to_ty: Ty<'tcx>) -> bool {
     if !to_ty.is_fn() {
         return false;
     }
-
     let casts_peeled = peel_casts(arg);
     match casts_peeled.kind {
         // Catching:
@@ -58,7 +56,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, arg: &'t
         },
     }
 }
-
 fn peel_casts<'tcx>(expr: &'tcx Expr<'tcx>) -> &'tcx Expr<'tcx> {
     match &expr.kind {
         ExprKind::Cast(inner_expr, _) => peel_casts(inner_expr),

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::TRANSMUTE_INT_TO_CHAR;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::{std_or_core, sugg};
@@ -6,7 +8,6 @@ use rustc_errors::Applicability;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
-
 /// Checks for `transmute_int_to_char` lint.
 /// Returns `true` if it's triggered, otherwise returns `false`.
 pub(super) fn check<'tcx>(

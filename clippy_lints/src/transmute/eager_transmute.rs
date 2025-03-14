@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::EAGER_TRANSMUTE;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::ty::is_normalizable;
 use clippy_utils::{eq_expr_value, path_to_local};
@@ -6,9 +9,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, Node};
 use rustc_lint::LateContext;
 use rustc_middle::ty::Ty;
-
-use super::EAGER_TRANSMUTE;
-
 fn peel_parent_unsafe_blocks<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> Option<&'tcx Expr<'tcx>> {
     for (_, parent) in cx.tcx.hir_parent_iter(expr.hir_id) {
         match parent {
@@ -20,11 +20,9 @@ fn peel_parent_unsafe_blocks<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx
     }
     None
 }
-
 fn range_fully_contained(from: WrappingRange, to: WrappingRange) -> bool {
     to.contains(from.start) && to.contains(from.end)
 }
-
 /// Checks if a given expression is a binary operation involving a local variable or is made up of
 /// other (nested) binary expressions involving the local. There must be at least one local
 /// reference that is the same as `local_expr`.
@@ -60,7 +58,6 @@ fn binops_with_local(cx: &LateContext<'_>, local_expr: &Expr<'_>, expr: &Expr<'_
         _ => eq_expr_value(cx, local_expr, expr),
     }
 }
-
 /// Checks if an expression is a path to a local variable (with optional projections), e.g.
 /// `x.field[0].field2` would return true.
 fn is_local_with_projections(expr: &Expr<'_>) -> bool {
@@ -70,7 +67,6 @@ fn is_local_with_projections(expr: &Expr<'_>) -> bool {
         _ => false,
     }
 }
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,

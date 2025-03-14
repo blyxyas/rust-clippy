@@ -1,4 +1,4 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_path_lang_item;
@@ -14,7 +14,7 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{Ty, TypeckResults};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, Symbol, sym};
-
+use std::ops::ControlFlow;
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for manual [`core::fmt::Debug`](https://doc.rust-lang.org/core/fmt/trait.Debug.html) implementations that do not use all fields.
@@ -79,7 +79,6 @@ declare_clippy_lint! {
     "missing fields in manual `Debug` implementation"
 }
 declare_lint_pass!(MissingFieldsInDebug => [MISSING_FIELDS_IN_DEBUG]);
-
 fn report_lints(cx: &LateContext<'_>, span: Span, span_notes: Vec<(Span, &'static str)>) {
     span_lint_and_then(
         cx,
@@ -95,7 +94,6 @@ fn report_lints(cx: &LateContext<'_>, span: Span, span_notes: Vec<(Span, &'stati
         },
     );
 }
-
 /// Checks if we should lint in a block of code
 ///
 /// The way we check for this condition is by checking if there is
@@ -109,11 +107,9 @@ fn should_lint<'tcx>(
     let mut has_finish_non_exhaustive = false;
     // Is there a call to `DebugStruct::debug_struct`? Do lint if there is.
     let mut has_debug_struct = false;
-
     for_each_expr(cx, block, |expr| {
         if let ExprKind::MethodCall(path, recv, ..) = &expr.kind {
             let recv_ty = typeck_results.expr_ty(recv).peel_refs();
-
             if path.ident.name == sym::debug_struct && is_type_diagnostic_item(cx, recv_ty, sym::Formatter) {
                 has_debug_struct = true;
             } else if path.ident.name.as_str() == "finish_non_exhaustive"
@@ -124,10 +120,8 @@ fn should_lint<'tcx>(
         }
         ControlFlow::<!, _>::Continue(())
     });
-
     !has_finish_non_exhaustive && has_debug_struct
 }
-
 /// Checks if the given expression is a call to `DebugStruct::field`
 /// and the first argument to it is a string literal and if so, returns it
 ///
@@ -149,7 +143,6 @@ fn as_field_call<'tcx>(
         None
     }
 }
-
 /// Attempts to find unused fields assuming that the item is a struct
 fn check_struct<'tcx>(
     cx: &LateContext<'tcx>,
@@ -164,7 +157,6 @@ fn check_struct<'tcx>(
     // a newtype struct and use fields from the wrapped type only.
     let mut has_direct_field_access = false;
     let mut field_accesses = FxHashSet::default();
-
     for_each_expr(cx, block, |expr| {
         if let ExprKind::Field(target, ident) = expr.kind
             && let target_ty = typeck_results.expr_ty_adjusted(target).peel_refs()
@@ -177,7 +169,6 @@ fn check_struct<'tcx>(
         }
         ControlFlow::<!, _>::Continue(())
     });
-
     let span_notes = data
         .fields()
         .iter()
@@ -189,14 +180,12 @@ fn check_struct<'tcx>(
             }
         })
         .collect::<Vec<_>>();
-
     // only lint if there's also at least one direct field access to allow patterns
     // where one might have a newtype struct and uses fields from the wrapped type
     if !span_notes.is_empty() && has_direct_field_access {
         report_lints(cx, item.span, span_notes);
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for MissingFieldsInDebug {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         // is this an `impl Debug for X` block?

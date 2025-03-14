@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::def::{DefKind, Res};
@@ -8,7 +10,6 @@ use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::symbol::Symbol;
 use std::collections::{BTreeMap, BTreeSet};
-
 declare_clippy_lint! {
     /// ### What it does
     /// It lints if a struct has two methods with the same name:
@@ -38,18 +39,14 @@ declare_clippy_lint! {
     restriction,
     "two method with same name"
 }
-
 declare_lint_pass!(SameNameMethod => [SAME_NAME_METHOD]);
-
 struct ExistingName {
     impl_methods: BTreeMap<Symbol, (Span, HirId)>,
     trait_methods: BTreeMap<Symbol, Vec<Span>>,
 }
-
 impl<'tcx> LateLintPass<'tcx> for SameNameMethod {
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
         let mut map = FxHashMap::<Res, ExistingName>::default();
-
         for id in cx.tcx.hir_free_items() {
             if matches!(cx.tcx.def_kind(id.owner_id), DefKind::Impl { .. })
                 && let item = cx.tcx.hir_item(id)
@@ -71,7 +68,6 @@ impl<'tcx> LateLintPass<'tcx> for SameNameMethod {
                     );
                 }
                 let existing_name = map.get_mut(res).unwrap();
-
                 match of_trait {
                     Some(trait_ref) => {
                         let mut methods_in_trait: BTreeSet<Symbol> = if let Node::TraitRef(TraitRef { path, .. }) =
@@ -91,7 +87,6 @@ impl<'tcx> LateLintPass<'tcx> for SameNameMethod {
                         } else {
                             BTreeSet::new()
                         };
-
                         let mut check_trait_method = |method_name: Symbol, trait_method_span: Span| {
                             if let Some((impl_span, hir_id)) = existing_name.impl_methods.get(&method_name) {
                                 span_lint_hir_and_then(
@@ -114,7 +109,6 @@ impl<'tcx> LateLintPass<'tcx> for SameNameMethod {
                                 existing_name.trait_methods.insert(method_name, vec![trait_method_span]);
                             }
                         };
-
                         for impl_item_ref in (*items)
                             .iter()
                             .filter(|impl_item_ref| matches!(impl_item_ref.kind, rustc_hir::AssocItemKind::Fn { .. }))
@@ -123,7 +117,6 @@ impl<'tcx> LateLintPass<'tcx> for SameNameMethod {
                             methods_in_trait.remove(&method_name);
                             check_trait_method(method_name, impl_item_ref.span);
                         }
-
                         for method_name in methods_in_trait {
                             check_trait_method(method_name, item.span);
                         }

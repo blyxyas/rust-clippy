@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::is_entrypoint_fn;
 use rustc_hir::{Expr, ExprKind, Item, ItemKind, OwnerNode};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects calls to the `exit()` function which terminates the program.
@@ -38,9 +39,7 @@ declare_clippy_lint! {
     restriction,
     "detects `std::process::exit` calls"
 }
-
 declare_lint_pass!(Exit => [EXIT]);
-
 impl<'tcx> LateLintPass<'tcx> for Exit {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         if let ExprKind::Call(path_expr, [_]) = e.kind

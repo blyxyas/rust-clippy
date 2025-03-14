@@ -1,13 +1,12 @@
+use crate::HVec;
+
+use super::UNNECESSARY_FIRST_THEN_CHECK;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::SpanRangeExt;
-
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_span::Span;
-
-use super::UNNECESSARY_FIRST_THEN_CHECK;
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     call_span: Span,
@@ -23,11 +22,9 @@ pub(super) fn check(
     {
         return;
     }
-
     let ExprKind::MethodCall(_, _, _, first_call_span) = first_call.kind else {
         return;
     };
-
     let both_calls_span = first_call_span.with_hi(call_span.hi());
     if let Some(both_calls_snippet) = both_calls_span.get_source_text(cx)
         && let Some(first_caller_snippet) = first_caller.span.get_source_text(cx)

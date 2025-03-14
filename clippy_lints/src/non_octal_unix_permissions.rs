@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::{SpanRangeExt, snippet_with_applicability};
 use rustc_errors::Applicability;
@@ -5,7 +7,6 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for non-octal values used to set Unix file permissions.
@@ -35,9 +36,7 @@ declare_clippy_lint! {
     correctness,
     "use of non-octal value to set unix file permissions, which will be translated into octal"
 }
-
 declare_lint_pass!(NonOctalUnixPermissions => [NON_OCTAL_UNIX_PERMISSIONS]);
-
 impl<'tcx> LateLintPass<'tcx> for NonOctalUnixPermissions {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         match &expr.kind {
@@ -76,7 +75,6 @@ impl<'tcx> LateLintPass<'tcx> for NonOctalUnixPermissions {
         }
     }
 }
-
 fn show_error(cx: &LateContext<'_>, param: &Expr<'_>) {
     let mut applicability = Applicability::MachineApplicable;
     span_lint_and_sugg(

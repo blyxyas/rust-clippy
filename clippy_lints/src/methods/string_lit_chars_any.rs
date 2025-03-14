@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::STRING_LIT_CHARS_ANY;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source::SpanRangeExt;
@@ -8,9 +11,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Expr, ExprKind, Param, PatKind};
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::STRING_LIT_CHARS_ANY;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -39,7 +39,6 @@ pub(super) fn check<'tcx>(
         // Normalize the char using `map` so `join` doesn't use `Display`, if we don't then
         // something like `r"\"` will become `'\'`, which is of course invalid
         let pat_snip = val.as_str().chars().map(|c| format!("{c:?}")).join(" | ");
-
         span_lint_and_then(
             cx,
             STRING_LIT_CHARS_ANY,

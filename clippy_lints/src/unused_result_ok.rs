@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -6,7 +8,6 @@ use rustc_hir::{ExprKind, Stmt, StmtKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `Result::ok()` without using the returned `Option`.
@@ -31,7 +32,6 @@ declare_clippy_lint! {
     "Use of `.ok()` to silence `Result`'s `#[must_use]` is misleading. Use `let _ =` instead."
 }
 declare_lint_pass!(UnusedResultOk => [UNUSED_RESULT_OK]);
-
 impl LateLintPass<'_> for UnusedResultOk {
     fn check_stmt(&mut self, cx: &LateContext<'_>, stmt: &Stmt<'_>) {
         if let StmtKind::Semi(expr) = stmt.kind

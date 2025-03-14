@@ -1,5 +1,4 @@
-use std::mem;
-use std::ops::ControlFlow;
+use crate::HVec;
 
 use clippy_utils::comparisons::{Rel, normalize_comparison};
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -15,7 +14,8 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::source_map::Spanned;
 use rustc_span::{Span, sym};
-
+use std::mem;
+use std::ops::ControlFlow;
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for repeated slice indexing without asserting beforehand that the length
@@ -64,7 +64,6 @@ declare_clippy_lint! {
     "indexing into a slice multiple times without an `assert`"
 }
 declare_lint_pass!(MissingAssertsForIndexing => [MISSING_ASSERTS_FOR_INDEXING]);
-
 fn report_lint<F>(cx: &LateContext<'_>, full_span: Span, msg: &'static str, indexes: &[Span], f: F)
 where
     F: FnOnce(&mut Diag<'_, ()>),
@@ -77,7 +76,6 @@ where
         diag.note("asserting the length before indexing will elide bounds checks");
     });
 }
-
 #[derive(Copy, Clone, Debug)]
 enum LengthComparison {
     /// `v.len() < 5`
@@ -92,7 +90,6 @@ enum LengthComparison {
     /// `v.len() == 5`
     LengthEqualInt,
 }
-
 /// Extracts parts out of a length comparison expression.
 ///
 /// E.g. for `v.len() > 5` this returns `Some((LengthComparison::IntLessThanLength, 5, v.len()))`
@@ -109,7 +106,6 @@ fn len_comparison<'hir>(
             })
         };
     }
-
     // normalize comparison, `v.len() > 4` becomes `4 < v.len()`
     // this simplifies the logic a bit
     let (op, left, right) = normalize_comparison(bin_op.node, left, right)?;
@@ -123,7 +119,6 @@ fn len_comparison<'hir>(
         _ => None,
     }
 }
-
 /// Attempts to extract parts out of an `assert!`-like expression
 /// in the form `assert!(some_slice.len() > 5)`.
 ///
@@ -137,12 +132,10 @@ fn assert_len_expr<'hir>(
     if let Some(higher::If { cond, then, .. }) = higher::If::hir(expr)
         && let ExprKind::Unary(UnOp::Not, condition) = &cond.kind
         && let ExprKind::Binary(bin_op, left, right) = &condition.kind
-
         && let Some((cmp, asserted_len, slice_len)) = len_comparison(*bin_op, left, right)
         && let ExprKind::MethodCall(method, recv, [], _) = &slice_len.kind
         && cx.typeck_results().expr_ty_adjusted(recv).peel_refs().is_slice()
         && method.ident.name == sym::len
-
         // check if `then` block has a never type expression
         && let ExprKind::Block(Block { expr: Some(then_expr), .. }, _) = then.kind
         && cx.typeck_results().expr_ty(then_expr).is_never()
@@ -152,7 +145,6 @@ fn assert_len_expr<'hir>(
         None
     }
 }
-
 #[derive(Debug)]
 enum IndexEntry<'hir> {
     /// `assert!` without any indexing (so far)
@@ -181,7 +173,6 @@ enum IndexEntry<'hir> {
         slice: &'hir Expr<'hir>,
     },
 }
-
 impl<'hir> IndexEntry<'hir> {
     pub fn slice(&self) -> &'hir Expr<'hir> {
         match self {
@@ -190,7 +181,6 @@ impl<'hir> IndexEntry<'hir> {
             | IndexEntry::IndexWithoutAssert { slice, .. } => slice,
         }
     }
-
     pub fn index_spans(&self) -> Option<&[Span]> {
         match self {
             IndexEntry::StrayAssert { .. } => None,
@@ -200,7 +190,6 @@ impl<'hir> IndexEntry<'hir> {
         }
     }
 }
-
 /// Extracts the upper index of a slice indexing expression.
 ///
 /// E.g. for `5` this returns `Some(5)`, for `..5` this returns `Some(4)`,
@@ -224,7 +213,6 @@ fn upper_index_expr(expr: &Expr<'_>) -> Option<usize> {
         None
     }
 }
-
 /// Checks if the expression is an index into a slice and adds it to `indexes`
 fn check_index<'hir>(cx: &LateContext<'_>, expr: &'hir Expr<'hir>, map: &mut UnindexMap<u64, Vec<IndexEntry<'hir>>>) {
     if let ExprKind::Index(slice, index_lit, _) = expr.kind
@@ -232,10 +220,8 @@ fn check_index<'hir>(cx: &LateContext<'_>, expr: &'hir Expr<'hir>, map: &mut Uni
         && let Some(index) = upper_index_expr(index_lit)
     {
         let hash = hash_expr(cx, slice);
-
         let indexes = map.entry(hash).or_default();
         let entry = indexes.iter_mut().find(|entry| eq_expr_value(cx, entry.slice(), slice));
-
         if let Some(entry) = entry {
             match entry {
                 IndexEntry::StrayAssert {
@@ -272,15 +258,12 @@ fn check_index<'hir>(cx: &LateContext<'_>, expr: &'hir Expr<'hir>, map: &mut Uni
         }
     }
 }
-
 /// Checks if the expression is an `assert!` expression and adds it to `asserts`
 fn check_assert<'hir>(cx: &LateContext<'_>, expr: &'hir Expr<'hir>, map: &mut UnindexMap<u64, Vec<IndexEntry<'hir>>>) {
     if let Some((comparison, asserted_len, slice)) = assert_len_expr(cx, expr) {
         let hash = hash_expr(cx, slice);
         let indexes = map.entry(hash).or_default();
-
         let entry = indexes.iter_mut().find(|entry| eq_expr_value(cx, entry.slice(), slice));
-
         if let Some(entry) = entry {
             if let IndexEntry::IndexWithoutAssert {
                 highest_index,
@@ -307,7 +290,6 @@ fn check_assert<'hir>(cx: &LateContext<'_>, expr: &'hir Expr<'hir>, map: &mut Un
         }
     }
 }
-
 /// Inspects indexes and reports lints.
 ///
 /// Called at the end of this lint after all indexing and `assert!` expressions have been collected.
@@ -321,7 +303,6 @@ fn report_indexes(cx: &LateContext<'_>, map: &UnindexMap<u64, Vec<IndexEntry<'_>
             else {
                 continue;
             };
-
             match *entry {
                 IndexEntry::AssertWithIndex {
                     highest_index,
@@ -357,7 +338,6 @@ fn report_indexes(cx: &LateContext<'_>, map: &UnindexMap<u64, Vec<IndexEntry<'_>
                         )),
                         _ => None,
                     };
-
                     if let Some(sugg) = sugg {
                         report_lint(
                             cx,
@@ -400,17 +380,14 @@ fn report_indexes(cx: &LateContext<'_>, map: &UnindexMap<u64, Vec<IndexEntry<'_>
         }
     }
 }
-
 impl LateLintPass<'_> for MissingAssertsForIndexing {
     fn check_body(&mut self, cx: &LateContext<'_>, body: &Body<'_>) {
         let mut map = UnindexMap::default();
-
         for_each_expr_without_closures(body.value, |expr| {
             check_index(cx, expr, &mut map);
             check_assert(cx, expr, &mut map);
             ControlFlow::<!, ()>::Continue(())
         });
-
         report_indexes(cx, &map);
     }
 }

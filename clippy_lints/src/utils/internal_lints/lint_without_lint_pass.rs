@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint, span_lint_and_help};
 use clippy_utils::macros::root_macro_call_first_node;
 use clippy_utils::{is_lint_allowed, match_def_path, paths};
@@ -14,7 +16,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::source_map::Spanned;
 use rustc_span::symbol::Symbol;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Ensures every lint is associated to a `LintPass`.
@@ -41,7 +42,6 @@ declare_clippy_lint! {
     internal,
     "declaring a lint without associating it in a LintPass"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for cases of an auto-generated lint without an updated description,
@@ -63,7 +63,6 @@ declare_clippy_lint! {
     internal,
     "found 'default lint description' in a lint declaration"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for invalid `clippy::version` attributes.
@@ -75,7 +74,6 @@ declare_clippy_lint! {
     internal,
     "found an invalid `clippy::version` attribute"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for declared clippy lints without the `clippy::version` attribute.
@@ -84,30 +82,25 @@ declare_clippy_lint! {
     internal,
     "found clippy lint without `clippy::version` attribute"
 }
-
 #[derive(Clone, Debug, Default)]
 pub struct LintWithoutLintPass {
     declared_lints: FxIndexMap<Symbol, Span>,
     registered_lints: FxIndexSet<Symbol>,
 }
-
 impl_lint_pass!(LintWithoutLintPass => [
     DEFAULT_LINT,
     LINT_WITHOUT_LINT_PASS,
     INVALID_CLIPPY_VERSION_ATTRIBUTE,
     MISSING_CLIPPY_VERSION_ATTRIBUTE,
 ]);
-
 impl<'tcx> LateLintPass<'tcx> for LintWithoutLintPass {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         if is_lint_allowed(cx, DEFAULT_LINT, item.hir_id()) {
             return;
         }
-
         if let hir::ItemKind::Static(ty, Mutability::Not, body_id) = item.kind {
             if is_lint_ref_type(cx, ty) {
                 check_invalid_clippy_version_attribute(cx, item);
-
                 let expr = &cx.tcx.hir_body(body_id).value;
                 let fields = if let ExprKind::AddrOf(_, _, inner_exp) = expr.kind
                     && let ExprKind::Struct(_, struct_fields, _) = inner_exp.kind
@@ -116,12 +109,10 @@ impl<'tcx> LateLintPass<'tcx> for LintWithoutLintPass {
                 } else {
                     return;
                 };
-
                 let field = fields
                     .iter()
                     .find(|f| f.ident.as_str() == "desc")
                     .expect("lints must have a description field");
-
                 if let ExprKind::Lit(Spanned {
                     node: LitKind::Str(sym, _),
                     ..
@@ -169,12 +160,10 @@ impl<'tcx> LateLintPass<'tcx> for LintWithoutLintPass {
             }
         }
     }
-
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
         if is_lint_allowed(cx, LINT_WITHOUT_LINT_PASS, CRATE_HIR_ID) {
             return;
         }
-
         for (lint_name, &lint_span) in &self.declared_lints {
             // When using the `declare_tool_lint!` macro, the original `lint_span`'s
             // file points to "<rustc macros>".
@@ -184,7 +173,6 @@ impl<'tcx> LateLintPass<'tcx> for LintWithoutLintPass {
             // Therefore, we need to climb the macro expansion tree and find the
             // actual span that invoked `declare_tool_lint!`:
             let lint_span = lint_span.ctxt().outer_expn_data().call_site;
-
             if !self.registered_lints.contains(lint_name) {
                 span_lint(
                     cx,
@@ -196,7 +184,6 @@ impl<'tcx> LateLintPass<'tcx> for LintWithoutLintPass {
         }
     }
 }
-
 pub(super) fn is_lint_ref_type(cx: &LateContext<'_>, ty: &hir::Ty<'_>) -> bool {
     if let TyKind::Ref(
         _,
@@ -212,16 +199,13 @@ pub(super) fn is_lint_ref_type(cx: &LateContext<'_>, ty: &hir::Ty<'_>) -> bool {
             }
         }
     }
-
     false
 }
-
 fn check_invalid_clippy_version_attribute(cx: &LateContext<'_>, item: &'_ Item<'_>) {
     if let Some(value) = extract_clippy_version_value(cx, item) {
         if value.as_str() == "pre 1.29.0" {
             return;
         }
-
         if rustc_attr_parsing::parse_version(value).is_none() {
             span_lint_and_help(
                 cx,
@@ -243,7 +227,6 @@ fn check_invalid_clippy_version_attribute(cx: &LateContext<'_>, item: &'_ Item<'
         );
     }
 }
-
 /// This function extracts the version value of a `clippy::version` attribute if the given value has
 /// one
 pub(super) fn extract_clippy_version_value(cx: &LateContext<'_>, item: &'_ Item<'_>) -> Option<Symbol> {
@@ -262,21 +245,17 @@ pub(super) fn extract_clippy_version_value(cx: &LateContext<'_>, item: &'_ Item<
         }
     })
 }
-
 struct LintCollector<'a, 'tcx> {
     output: &'a mut FxIndexSet<Symbol>,
     cx: &'a LateContext<'tcx>,
 }
-
 impl<'tcx> Visitor<'tcx> for LintCollector<'_, 'tcx> {
     type NestedFilter = nested_filter::All;
-
     fn visit_path(&mut self, path: &Path<'_>, _: HirId) {
         if path.segments.len() == 1 {
             self.output.insert(path.segments[0].ident.name);
         }
     }
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }

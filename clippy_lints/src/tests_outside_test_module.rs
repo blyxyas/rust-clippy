@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::{is_in_cfg_test, is_in_test_function};
 use rustc_hir::intravisit::FnKind;
@@ -6,7 +8,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::LocalDefId;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Triggers when a testing function (marked with the `#[test]` attribute) isn't inside a testing module
@@ -44,9 +45,7 @@ declare_clippy_lint! {
     restriction,
     "A test function is outside the testing module."
 }
-
 declare_lint_pass!(TestsOutsideTestModule => [TESTS_OUTSIDE_TEST_MODULE]);
-
 impl LateLintPass<'_> for TestsOutsideTestModule {
     fn check_fn(
         &mut self,

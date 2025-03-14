@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::msrvs::{self, Msrv};
@@ -14,7 +16,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::symbol::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `mem::replace()` on an `Option` with
@@ -42,7 +43,6 @@ declare_clippy_lint! {
     style,
     "replacing an `Option` with `None` instead of `take()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `mem::replace()` on an `Option` with `Some(…)`.
@@ -67,7 +67,6 @@ declare_clippy_lint! {
     style,
     "replacing an `Option` with `Some` instead of `replace()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `mem::replace(&mut _, mem::uninitialized())`
@@ -99,7 +98,6 @@ declare_clippy_lint! {
     correctness,
     "`mem::replace(&mut _, mem::uninitialized())` or `mem::replace(&mut _, mem::zeroed())`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `std::mem::replace` on a value of type
@@ -124,10 +122,8 @@ declare_clippy_lint! {
     style,
     "replacing a value of type `T` with `T::default()` instead of using `std::mem::take`"
 }
-
 impl_lint_pass!(MemReplace =>
     [MEM_REPLACE_OPTION_WITH_NONE, MEM_REPLACE_OPTION_WITH_SOME, MEM_REPLACE_WITH_UNINIT, MEM_REPLACE_WITH_DEFAULT]);
-
 fn check_replace_option_with_none(cx: &LateContext<'_>, src: &Expr<'_>, dest: &Expr<'_>, expr_span: Span) -> bool {
     if is_res_lang_ctor(cx, path_res(cx, src), OptionNone) {
         // Since this is a late pass (already type-checked),
@@ -154,7 +150,6 @@ fn check_replace_option_with_none(cx: &LateContext<'_>, src: &Expr<'_>, dest: &E
         false
     }
 }
-
 fn check_replace_option_with_some(
     cx: &LateContext<'_>,
     src: &Expr<'_>,
@@ -188,7 +183,6 @@ fn check_replace_option_with_some(
         false
     }
 }
-
 fn check_replace_with_uninit(cx: &LateContext<'_>, src: &Expr<'_>, dest: &Expr<'_>, expr_span: Span) {
     if let Some(method_def_id) = cx.typeck_results().type_dependent_def_id(src.hir_id)
         // check if replacement is mem::MaybeUninit::uninit().assume_init()
@@ -210,7 +204,6 @@ fn check_replace_with_uninit(cx: &LateContext<'_>, src: &Expr<'_>, dest: &Expr<'
         );
         return;
     }
-
     if let ExprKind::Call(repl_func, []) = src.kind
         && let ExprKind::Path(ref repl_func_qpath) = repl_func.kind
         && let Some(repl_def_id) = cx.qpath_res(repl_func_qpath, repl_func.hir_id).opt_def_id()
@@ -244,7 +237,6 @@ fn check_replace_with_uninit(cx: &LateContext<'_>, src: &Expr<'_>, dest: &Expr<'
         }
     }
 }
-
 fn check_replace_with_default(
     cx: &LateContext<'_>,
     src: &Expr<'_>,
@@ -271,7 +263,6 @@ fn check_replace_with_default(
             |diag| {
                 if !expr.span.from_expansion() {
                     let suggestion = format!("{top_crate}::mem::take({})", snippet(cx, dest.span, ""));
-
                     diag.span_suggestion(
                         expr.span,
                         "consider using",
@@ -286,17 +277,14 @@ fn check_replace_with_default(
         false
     }
 }
-
 pub struct MemReplace {
     msrv: Msrv,
 }
-
 impl MemReplace {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for MemReplace {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Call(func, [dest, src]) = expr.kind

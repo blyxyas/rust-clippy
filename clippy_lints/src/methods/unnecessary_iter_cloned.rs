@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::UNNECESSARY_TO_OWNED;
 use super::utils::clone_or_copy_needed;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::higher::ForLoop;
@@ -12,9 +15,6 @@ use rustc_hir::def_id::DefId;
 use rustc_hir::{BindingMode, Expr, ExprKind, Node, PatKind};
 use rustc_lint::LateContext;
 use rustc_span::{Symbol, sym};
-
-use super::UNNECESSARY_TO_OWNED;
-
 pub fn check(cx: &LateContext<'_>, expr: &Expr<'_>, method_name: Symbol, receiver: &Expr<'_>) -> bool {
     if let Some(parent) = get_parent_expr(cx, expr)
         && let Some(callee_def_id) = fn_def_id(cx, parent)
@@ -25,7 +25,6 @@ pub fn check(cx: &LateContext<'_>, expr: &Expr<'_>, method_name: Symbol, receive
         false
     }
 }
-
 /// Checks whether `expr` is an iterator in a `for` loop and, if so, determines whether the
 /// iterated-over items could be iterated over by reference. The reason why `check` above does not
 /// include this code directly is so that it can be called from
@@ -47,7 +46,6 @@ pub fn check_for_loop_iter(
         // https://github.com/rust-lang/rust-clippy/issues/12098
         // if the assignee have `mut borrow` conflict with the iteratee
         // the lint should not execute, former didn't consider the mut case
-
         // check whether `expr` is mutable
         fn is_mutable(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
             if let Some(hir_id) = path_to_local(expr)
@@ -58,7 +56,6 @@ pub fn check_for_loop_iter(
                 true
             }
         }
-
         fn is_caller_or_fields_change(cx: &LateContext<'_>, body: &Expr<'_>, caller: &Expr<'_>) -> bool {
             let mut change = false;
             if let ExprKind::Block(block, ..) = body.kind {
@@ -75,7 +72,6 @@ pub fn check_for_loop_iter(
             }
             change
         }
-
         if let ExprKind::Call(_, [child, ..]) = expr.kind {
             // filter first layer of iterator
             let mut child = child;
@@ -88,7 +84,6 @@ pub fn check_for_loop_iter(
                 return true;
             }
         }
-
         // the lint should not be executed if no violation happens
         let snippet = if let ExprKind::MethodCall(maybe_iter_method_name, collection, [], _) = receiver.kind
             && maybe_iter_method_name.ident.name == sym::iter
@@ -123,12 +118,10 @@ pub fn check_for_loop_iter(
                 } else {
                     Applicability::MachineApplicable
                 };
-
                 let combined = references_to_binding
                     .into_iter()
                     .chain(vec![(expr.span, snippet.to_owned())])
                     .collect_vec();
-
                 diag.multipart_suggestion("remove any references to the binding", combined, applicability);
             },
         );
@@ -136,7 +129,6 @@ pub fn check_for_loop_iter(
     }
     false
 }
-
 /// Returns true if the named method is `IntoIterator::into_iter`.
 pub fn is_into_iter(cx: &LateContext<'_>, callee_def_id: DefId) -> bool {
     Some(callee_def_id) == cx.tcx.lang_items().into_iter_fn()

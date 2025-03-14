@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use crate::methods::method_call;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::peel_blocks;
@@ -8,7 +10,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::{BytePos, Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if both `.write(true)` and `.append(true)` methods are called
@@ -40,9 +41,7 @@ declare_clippy_lint! {
     suspicious,
     "usage of both `write(true)` and `append(true)` on same `OpenOptions`"
 }
-
 declare_lint_pass!(IneffectiveOpenOptions => [INEFFECTIVE_OPEN_OPTIONS]);
-
 fn index_if_arg_is_boolean(args: &[Expr<'_>], call_span: Span) -> Option<Span> {
     if let [arg] = args
         && let ExprKind::Lit(lit) = peel_blocks(arg).kind
@@ -54,7 +53,6 @@ fn index_if_arg_is_boolean(args: &[Expr<'_>], call_span: Span) -> Option<Span> {
         None
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for IneffectiveOpenOptions {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         let Some(("open", mut receiver, [_arg], _, _)) = method_call(expr) else {
@@ -65,10 +63,8 @@ impl<'tcx> LateLintPass<'tcx> for IneffectiveOpenOptions {
             ty::Adt(adt, _) if cx.tcx.is_diagnostic_item(sym::FsOpenOptions, adt.did()) => {},
             _ => return,
         }
-
         let mut append = None;
         let mut write = None;
-
         while let Some((name, recv, args, _, span)) = method_call(receiver) {
             if name == "append" {
                 append = index_if_arg_is_boolean(args, span);
@@ -77,7 +73,6 @@ impl<'tcx> LateLintPass<'tcx> for IneffectiveOpenOptions {
             }
             receiver = recv;
         }
-
         if let Some(write_span) = write
             && append.is_some()
         {

@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use crate::utils::attr_collector::AttrStorage;
 use clippy_config::Conf;
 use clippy_config::types::{DisallowedPath, create_disallowed_map};
 use clippy_utils::diagnostics::{span_lint_and_then, span_lint_hir_and_then};
@@ -11,9 +14,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::impl_lint_pass;
 use rustc_span::{ExpnId, MacroKind, Span};
-
-use crate::utils::attr_collector::AttrStorage;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Denies the configured macros in clippy.toml
@@ -56,19 +56,16 @@ declare_clippy_lint! {
     style,
     "use of a disallowed macro"
 }
-
 pub struct DisallowedMacros {
     disallowed: DefIdMap<(&'static str, &'static DisallowedPath)>,
     seen: FxHashSet<ExpnId>,
     // Track the most recently seen node that can have a `derive` attribute.
     // Needed to use the correct lint level.
     derive_src: Option<OwnerId>,
-
     // When a macro is disallowed in an early pass, it's stored
     // and emitted during the late pass. This happens for attributes.
     earlies: AttrStorage,
 }
-
 impl DisallowedMacros {
     pub fn new(tcx: TyCtxt<'_>, conf: &'static Conf, earlies: AttrStorage) -> Self {
         Self {
@@ -78,17 +75,14 @@ impl DisallowedMacros {
             earlies,
         }
     }
-
     fn check(&mut self, cx: &LateContext<'_>, span: Span, derive_src: Option<OwnerId>) {
         if self.disallowed.is_empty() {
             return;
         }
-
         for mac in macro_backtrace(span) {
             if !self.seen.insert(mac.expn) {
                 return;
             }
-
             if let Some(&(path, disallowed_path)) = self.disallowed.get(&mac.def_id) {
                 let msg = format!("use of a disallowed macro `{path}`");
                 let add_note = disallowed_path.diag_amendment(mac.span);
@@ -110,9 +104,7 @@ impl DisallowedMacros {
         }
     }
 }
-
 impl_lint_pass!(DisallowedMacros => [DISALLOWED_MACROS]);
-
 impl LateLintPass<'_> for DisallowedMacros {
     fn check_crate(&mut self, cx: &LateContext<'_>) {
         // once we check a crate in the late pass we can emit the early pass lints
@@ -122,7 +114,6 @@ impl LateLintPass<'_> for DisallowedMacros {
             }
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         self.check(cx, expr.span, None);
         // `$t + $t` can have the context of $t, check also the span of the binary operator
@@ -130,23 +121,18 @@ impl LateLintPass<'_> for DisallowedMacros {
             self.check(cx, op.span, None);
         }
     }
-
     fn check_stmt(&mut self, cx: &LateContext<'_>, stmt: &Stmt<'_>) {
         self.check(cx, stmt.span, None);
     }
-
     fn check_ty(&mut self, cx: &LateContext<'_>, ty: &Ty<'_, AmbigArg>) {
         self.check(cx, ty.span, None);
     }
-
     fn check_pat(&mut self, cx: &LateContext<'_>, pat: &Pat<'_>) {
         self.check(cx, pat.span, None);
     }
-
     fn check_item(&mut self, cx: &LateContext<'_>, item: &Item<'_>) {
         self.check(cx, item.span, self.derive_src);
         self.check(cx, item.vis_span, None);
-
         if matches!(
             item.kind,
             ItemKind::Struct(..) | ItemKind::Enum(..) | ItemKind::Union(..)
@@ -155,21 +141,17 @@ impl LateLintPass<'_> for DisallowedMacros {
             self.derive_src = Some(item.owner_id);
         }
     }
-
     fn check_foreign_item(&mut self, cx: &LateContext<'_>, item: &ForeignItem<'_>) {
         self.check(cx, item.span, None);
         self.check(cx, item.vis_span, None);
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'_>, item: &ImplItem<'_>) {
         self.check(cx, item.span, None);
         self.check(cx, item.vis_span, None);
     }
-
     fn check_trait_item(&mut self, cx: &LateContext<'_>, item: &TraitItem<'_>) {
         self.check(cx, item.span, None);
     }
-
     fn check_path(&mut self, cx: &LateContext<'_>, path: &Path<'_>, _: HirId) {
         self.check(cx, path.span, None);
     }

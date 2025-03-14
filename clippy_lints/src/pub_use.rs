@@ -1,8 +1,9 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_ast::ast::{Item, ItemKind, VisibilityKind};
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Restricts the usage of `pub use ...`
@@ -36,7 +37,6 @@ declare_clippy_lint! {
     "restricts the usage of `pub use`"
 }
 declare_lint_pass!(PubUse => [PUB_USE]);
-
 impl EarlyLintPass for PubUse {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         if let ItemKind::Use(_) = item.kind

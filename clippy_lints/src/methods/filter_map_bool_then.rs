@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::FILTER_MAP_BOOL_THEN;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::SpanRangeExt;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty::Binder;
 use rustc_middle::ty::adjustment::Adjust;
 use rustc_span::{Span, sym};
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, arg: &Expr<'_>, call_span: Span) {
     if !expr.span.in_external_macro(cx.sess().source_map())
         && is_trait_method(cx, expr, sym::Iterator)

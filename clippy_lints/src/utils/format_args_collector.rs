@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::macros::FormatArgsStorage;
 use clippy_utils::source::SpanRangeExt;
 use itertools::Itertools;
@@ -9,13 +11,11 @@ use rustc_session::impl_lint_pass;
 use rustc_span::{Span, hygiene};
 use std::iter::once;
 use std::mem;
-
 /// Populates [`FormatArgsStorage`] with AST [`FormatArgs`] nodes
 pub struct FormatArgsCollector {
     format_args: FxHashMap<Span, FormatArgs>,
     storage: FormatArgsStorage,
 }
-
 impl FormatArgsCollector {
     pub fn new(storage: FormatArgsStorage) -> Self {
         Self {
@@ -24,25 +24,20 @@ impl FormatArgsCollector {
         }
     }
 }
-
 impl_lint_pass!(FormatArgsCollector => []);
-
 impl EarlyLintPass for FormatArgsCollector {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
         if let ExprKind::FormatArgs(args) = &expr.kind {
             if has_span_from_proc_macro(cx, args) {
                 return;
             }
-
             self.format_args.insert(expr.span.with_parent(None), (**args).clone());
         }
     }
-
     fn check_crate_post(&mut self, _: &EarlyContext<'_>, _: &Crate) {
         self.storage.set(mem::take(&mut self.format_args));
     }
 }
-
 /// Detects if the format string or an argument has its span set by a proc macro to something inside
 /// a macro callsite, e.g.
 ///
@@ -64,7 +59,6 @@ impl EarlyLintPass for FormatArgsCollector {
 /// ```
 fn has_span_from_proc_macro(cx: &EarlyContext<'_>, args: &FormatArgs) -> bool {
     let ctxt = args.span.ctxt();
-
     // `format!("{} {} {c}", "one", "two", c = "three")`
     //                       ^^^^^  ^^^^^      ^^^^^^^
     let argument_span = args
@@ -72,7 +66,6 @@ fn has_span_from_proc_macro(cx: &EarlyContext<'_>, args: &FormatArgs) -> bool {
         .explicit_args()
         .iter()
         .map(|argument| hygiene::walk_chain(argument.expr.span, ctxt));
-
     // `format!("{} {} {c}", "one", "two", c = "three")`
     //                     ^^     ^^     ^^^^^^
     !once(args.span)

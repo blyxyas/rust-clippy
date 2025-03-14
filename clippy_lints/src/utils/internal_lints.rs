@@ -1,3 +1,5 @@
+use crate::HVec;
+
 pub mod almost_standard_lint_formulation;
 pub mod collapsible_calls;
 pub mod interning_defined_symbol;

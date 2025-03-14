@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_hir::{
     Body, Expr, ExprKind, FnDecl, LetExpr, LocalSource, Mutability, Pat, PatKind, Stmt, StmtKind, intravisit,
@@ -7,7 +9,6 @@ use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::LocalDefId;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for patterns that aren't exact representations of the types
@@ -77,9 +78,7 @@ declare_clippy_lint! {
     restriction,
     "type of pattern does not match the expression type"
 }
-
 declare_lint_pass!(PatternTypeMismatch => [PATTERN_TYPE_MISMATCH]);
-
 impl<'tcx> LateLintPass<'tcx> for PatternTypeMismatch {
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'_>) {
         if let StmtKind::Let(local) = stmt.kind {
@@ -93,7 +92,6 @@ impl<'tcx> LateLintPass<'tcx> for PatternTypeMismatch {
             apply_lint(cx, local.pat, deref_possible);
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Match(_, arms, _) = expr.kind {
             for arm in arms {
@@ -107,7 +105,6 @@ impl<'tcx> LateLintPass<'tcx> for PatternTypeMismatch {
             apply_lint(cx, pat, DerefPossible::Possible);
         }
     }
-
     fn check_fn(
         &mut self,
         cx: &LateContext<'tcx>,
@@ -122,13 +119,11 @@ impl<'tcx> LateLintPass<'tcx> for PatternTypeMismatch {
         }
     }
 }
-
 #[derive(Debug, Clone, Copy)]
 enum DerefPossible {
     Possible,
     Impossible,
 }
-
 fn apply_lint(cx: &LateContext<'_>, pat: &Pat<'_>, deref_possible: DerefPossible) -> bool {
     let maybe_mismatch = find_first_mismatch(cx, pat);
     if let Some((span, mutability, level)) = maybe_mismatch {
@@ -157,13 +152,11 @@ fn apply_lint(cx: &LateContext<'_>, pat: &Pat<'_>, deref_possible: DerefPossible
         false
     }
 }
-
 #[derive(Debug, Copy, Clone)]
 enum Level {
     Top,
     Lower,
 }
-
 fn find_first_mismatch(cx: &LateContext<'_>, pat: &Pat<'_>) -> Option<(Span, Mutability, Level)> {
     let mut result = None;
     pat.walk(|p| {

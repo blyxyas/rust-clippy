@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::CLONE_ON_COPY;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::ty::is_copy;
@@ -8,9 +11,6 @@ use rustc_middle::ty::adjustment::Adjust;
 use rustc_middle::ty::print::with_forced_trimmed_paths;
 use rustc_middle::ty::{self};
 use rustc_span::symbol::{Symbol, sym};
-
-use super::CLONE_ON_COPY;
-
 /// Checks for the `CLONE_ON_COPY` lint.
 #[allow(clippy::too_many_lines)]
 pub(super) fn check(
@@ -38,14 +38,12 @@ pub(super) fn check(
     let arg_ty = arg_adjustments
         .last()
         .map_or_else(|| cx.typeck_results().expr_ty(arg), |a| a.target);
-
     let ty = cx.typeck_results().expr_ty(expr);
     if let ty::Ref(_, inner, _) = arg_ty.kind() {
         if let ty::Ref(..) = inner.kind() {
             return; // don't report clone_on_copy
         }
     }
-
     if is_copy(cx, ty) {
         let parent_is_suffix_expr = match cx.tcx.parent_hir_node(expr.hir_id) {
             Node::Expr(parent) => match parent.kind {
@@ -74,10 +72,8 @@ pub(super) fn check(
             },
             _ => false,
         };
-
         let mut app = Applicability::MachineApplicable;
         let snip = snippet_with_context(cx, arg.span, expr.span.ctxt(), "_", &mut app).0;
-
         let deref_count = arg_adjustments
             .iter()
             .take_while(|adj| matches!(adj.kind, Adjust::Deref(_)))
@@ -89,7 +85,6 @@ pub(super) fn check(
         } else {
             ("try dereferencing it", format!("{}{snip}", "*".repeat(deref_count)))
         };
-
         span_lint_and_sugg(
             cx,
             CLONE_ON_COPY,

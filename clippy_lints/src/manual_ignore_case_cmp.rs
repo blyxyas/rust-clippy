@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use crate::manual_ignore_case_cmp::MatchType::{Literal, ToAscii};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet_with_applicability;
@@ -11,7 +13,6 @@ use rustc_middle::ty;
 use rustc_middle::ty::{Ty, UintTy};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for manual case-insensitive ASCII comparison.
@@ -37,14 +38,11 @@ declare_clippy_lint! {
     perf,
     "manual case-insensitive ASCII comparison"
 }
-
 declare_lint_pass!(ManualIgnoreCaseCmp => [MANUAL_IGNORE_CASE_CMP]);
-
 enum MatchType<'a, 'b> {
     ToAscii(bool, Ty<'a>),
     Literal(&'b LitKind),
 }
-
 fn get_ascii_type<'a, 'b>(cx: &LateContext<'a>, kind: rustc_hir::ExprKind<'b>) -> Option<(Span, MatchType<'a, 'b>)> {
     if let MethodCall(path, expr, _, _) = kind {
         let is_lower = match path.ident.name.as_str() {
@@ -66,7 +64,6 @@ fn get_ascii_type<'a, 'b>(cx: &LateContext<'a>, kind: rustc_hir::ExprKind<'b>) -
     }
     None
 }
-
 /// Returns true if the type needs to be dereferenced to be compared
 fn needs_ref_to_cmp(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
     ty.is_char()
@@ -74,7 +71,6 @@ fn needs_ref_to_cmp(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
         || is_type_diagnostic_item(cx, ty, sym::Vec)
         || is_type_lang_item(cx, ty, LangItem::String)
 }
-
 impl LateLintPass<'_> for ManualIgnoreCaseCmp {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &'_ Expr<'_>) {
         // check if expression represents a comparison of two strings

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::higher;
 use clippy_utils::ty::{get_type_diagnostic_name, implements_trait};
@@ -5,7 +7,6 @@ use rustc_hir::{BorrowKind, Closure, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::symbol::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for iteration that is guaranteed to be infinite.
@@ -25,7 +26,6 @@ declare_clippy_lint! {
     correctness,
     "infinite iteration"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for iteration that may be infinite.
@@ -48,9 +48,7 @@ declare_clippy_lint! {
     pedantic,
     "possible infinite iteration"
 }
-
 declare_lint_pass!(InfiniteIter => [INFINITE_ITER, MAYBE_INFINITE_ITER]);
-
 impl<'tcx> LateLintPass<'tcx> for InfiniteIter {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         let (lint, msg) = match complete_infinite_iter(cx, expr) {
@@ -63,16 +61,13 @@ impl<'tcx> LateLintPass<'tcx> for InfiniteIter {
         span_lint(cx, lint, expr.span, msg);
     }
 }
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum Finiteness {
     Infinite,
     MaybeInfinite,
     Finite,
 }
-
 use self::Finiteness::{Finite, Infinite, MaybeInfinite};
-
 impl Finiteness {
     #[must_use]
     fn and(self, b: Self) -> Self {
@@ -82,7 +77,6 @@ impl Finiteness {
             _ => Infinite,
         }
     }
-
     #[must_use]
     fn or(self, b: Self) -> Self {
         match (self, b) {
@@ -92,13 +86,11 @@ impl Finiteness {
         }
     }
 }
-
 impl From<bool> for Finiteness {
     fn from(b: bool) -> Self {
         if b { Infinite } else { Finite }
     }
 }
-
 /// This tells us what to look for to know if the iterator returned by
 /// this method is infinite
 #[derive(Copy, Clone)]
@@ -112,9 +104,7 @@ enum Heuristic {
     /// infinite if all of the supplied arguments are
     All,
 }
-
 use self::Heuristic::{All, Always, Any, First};
-
 /// a slice of (method name, number of args, heuristic, bounds) tuples
 /// that will be used to determine whether the method in question
 /// returns an infinite or possibly infinite iterator. The finiteness
@@ -141,7 +131,6 @@ const HEURISTICS: [(&str, usize, Heuristic, Finiteness); 19] = [
     ("take_while", 1, First, MaybeInfinite),
     ("scan", 2, First, MaybeInfinite),
 ];
-
 fn is_infinite(cx: &LateContext<'_>, expr: &Expr<'_>) -> Finiteness {
     match expr.kind {
         ExprKind::MethodCall(method, receiver, args, _) => {
@@ -180,7 +169,6 @@ fn is_infinite(cx: &LateContext<'_>, expr: &Expr<'_>) -> Finiteness {
         _ => Finite,
     }
 }
-
 /// the names and argument lengths of methods that *may* exhaust their
 /// iterators
 const POSSIBLY_COMPLETING_METHODS: [(&str, usize); 6] = [
@@ -191,7 +179,6 @@ const POSSIBLY_COMPLETING_METHODS: [(&str, usize); 6] = [
     ("any", 1),
     ("all", 1),
 ];
-
 /// the names and argument lengths of methods that *always* exhaust
 /// their iterators
 const COMPLETING_METHODS: [(&str, usize); 12] = [
@@ -208,7 +195,6 @@ const COMPLETING_METHODS: [(&str, usize); 12] = [
     ("sum", 0),
     ("product", 0),
 ];
-
 fn complete_infinite_iter(cx: &LateContext<'_>, expr: &Expr<'_>) -> Finiteness {
     match expr.kind {
         ExprKind::MethodCall(method, receiver, args, _) => {

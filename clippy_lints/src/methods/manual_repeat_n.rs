@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_REPEAT_N;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source::{snippet, snippet_with_context};
@@ -6,9 +9,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::MANUAL_REPEAT_N;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,

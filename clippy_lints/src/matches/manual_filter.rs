@@ -1,16 +1,15 @@
+use crate::HVec;
+
+use super::MANUAL_FILTER;
+use super::manual_utils::{SomeExpr, check_with};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::visitors::contains_unsafe_block;
 use clippy_utils::{is_res_lang_ctor, path_res, path_to_local_id};
-
 use rustc_hir::LangItem::{OptionNone, OptionSome};
 use rustc_hir::{Arm, Expr, ExprKind, HirId, Pat, PatKind};
 use rustc_lint::LateContext;
 use rustc_span::{SyntaxContext, sym};
-
-use super::MANUAL_FILTER;
-use super::manual_utils::{SomeExpr, check_with};
-
 // Function called on the <expr> of `[&+]Some((ref | ref mut) x) => <expr>`
 // Need to check if it's of the form `<expr>=if <cond> {<then_expr>} else {<else_expr>}`
 // AND that only one `then/else_expr` resolves to `Some(x)` while the other resolves to `None`
@@ -37,7 +36,6 @@ fn get_cond_expr<'tcx>(
     }
     None
 }
-
 fn peels_blocks_incl_unsafe_opt<'a>(expr: &'a Expr<'a>) -> Option<&'a Expr<'a>> {
     // we don't want to use `peel_blocks` here because we don't care if the block is unsafe, it's
     // checked by `contains_unsafe_block`
@@ -48,11 +46,9 @@ fn peels_blocks_incl_unsafe_opt<'a>(expr: &'a Expr<'a>) -> Option<&'a Expr<'a>> 
     }
     None
 }
-
 fn peels_blocks_incl_unsafe<'a>(expr: &'a Expr<'a>) -> &'a Expr<'a> {
     peels_blocks_incl_unsafe_opt(expr).unwrap_or(expr)
 }
-
 // function called for each <expr> expression:
 // Some(x) => if <cond> {
 //    <expr>
@@ -71,14 +67,12 @@ fn is_some_expr(cx: &LateContext<'_>, target: HirId, ctxt: SyntaxContext, expr: 
     }
     false
 }
-
 fn is_none_expr(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     if let Some(inner_expr) = peels_blocks_incl_unsafe_opt(expr) {
         return is_res_lang_ctor(cx, path_res(cx, inner_expr), OptionNone);
     }
     false
 }
-
 // given the closure: `|<pattern>| <expr>`
 // returns `|&<pattern>| <expr>`
 fn add_ampersand_if_copy(body_str: String, has_copy_trait: bool) -> String {
@@ -90,7 +84,6 @@ fn add_ampersand_if_copy(body_str: String, has_copy_trait: bool) -> String {
         body_str
     }
 }
-
 pub(super) fn check_match<'tcx>(
     cx: &LateContext<'tcx>,
     scrutinee: &'tcx Expr<'_>,
@@ -114,7 +107,6 @@ pub(super) fn check_match<'tcx>(
         );
     }
 }
-
 pub(super) fn check_if_let<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -125,7 +117,6 @@ pub(super) fn check_if_let<'tcx>(
 ) {
     check(cx, expr, let_expr, let_pat, then_expr, None, else_expr);
 }
-
 fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,

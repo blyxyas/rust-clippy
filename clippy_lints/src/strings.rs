@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::source::{snippet, snippet_with_applicability};
 use clippy_utils::ty::is_type_lang_item;
@@ -13,7 +15,6 @@ use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::source_map::Spanned;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for string appends of the form `x = x + y` (without
@@ -37,7 +38,6 @@ declare_clippy_lint! {
     pedantic,
     "using `x = x + ..` where x is a `String` instead of `push_str()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for all instances of `x + _` where `x` is of type
@@ -71,7 +71,6 @@ declare_clippy_lint! {
     restriction,
     "using `x + ..` where x is a `String` instead of `push_str()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the `as_bytes` method called on string literals
@@ -117,7 +116,6 @@ declare_clippy_lint! {
     nursery,
     "calling `as_bytes` on a string literal instead of using a byte string literal"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for slice operations on strings
@@ -141,9 +139,7 @@ declare_clippy_lint! {
     restriction,
     "slicing a string"
 }
-
 declare_lint_pass!(StringAdd => [STRING_ADD, STRING_ADD_ASSIGN, STRING_SLICE]);
-
 impl<'tcx> LateLintPass<'tcx> for StringAdd {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         if e.span.in_external_macro(cx.sess().source_map()) {
@@ -203,11 +199,9 @@ impl<'tcx> LateLintPass<'tcx> for StringAdd {
         }
     }
 }
-
 fn is_string(cx: &LateContext<'_>, e: &Expr<'_>) -> bool {
     is_type_lang_item(cx, cx.typeck_results().expr_ty(e).peel_refs(), LangItem::String)
 }
-
 fn is_add(cx: &LateContext<'_>, src: &Expr<'_>, target: &Expr<'_>) -> bool {
     match peel_blocks(src).kind {
         ExprKind::Binary(
@@ -220,7 +214,6 @@ fn is_add(cx: &LateContext<'_>, src: &Expr<'_>, target: &Expr<'_>) -> bool {
         _ => false,
     }
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Check if the string is transformed to byte array and casted back to string.
@@ -242,21 +235,16 @@ declare_clippy_lint! {
     complexity,
     "casting string slices to byte slices and back"
 }
-
 // Max length a b"foo" string can take
 const MAX_LENGTH_BYTE_STRING_LIT: usize = 32;
-
 declare_lint_pass!(StringLitAsBytes => [STRING_LIT_AS_BYTES, STRING_FROM_UTF8_AS_BYTES]);
-
 impl<'tcx> LateLintPass<'tcx> for StringLitAsBytes {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         use rustc_ast::LitKind;
-
         if let ExprKind::Call(fun, [bytes_arg]) = e.kind
             // Find `std::str::converts::from_utf8` or `std::primitive::str::from_utf8`
             && let Some(sym::str_from_utf8 | sym::str_inherent_from_utf8) =
                 path_def_id(cx, fun).and_then(|id| cx.tcx.get_diagnostic_name(id))
-
             // Find string::as_bytes
             && let ExprKind::AddrOf(BorrowKind::Ref, _, args) = bytes_arg.kind
             && let ExprKind::Index(left, right, _) = args.kind
@@ -264,15 +252,12 @@ impl<'tcx> LateLintPass<'tcx> for StringLitAsBytes {
             && method_names == [sym!(as_bytes)]
             && expressions.len() == 1
             && expressions[0].1.is_empty()
-
             // Check for slicer
             && let ExprKind::Struct(QPath::LangItem(LangItem::Range, ..), _, _) = right.kind
         {
             let mut applicability = Applicability::MachineApplicable;
             let string_expression = &expressions[0].0;
-
             let snippet_app = snippet_with_applicability(cx, string_expression.span, "..", &mut applicability);
-
             span_lint_and_sugg(
                 cx,
                 STRING_FROM_UTF8_AS_BYTES,
@@ -283,7 +268,6 @@ impl<'tcx> LateLintPass<'tcx> for StringLitAsBytes {
                 applicability,
             );
         }
-
         if !e.span.in_external_macro(cx.sess().source_map())
             && let ExprKind::MethodCall(path, receiver, ..) = &e.kind
             && path.ident.name.as_str() == "as_bytes"
@@ -330,7 +314,6 @@ impl<'tcx> LateLintPass<'tcx> for StringLitAsBytes {
                 }
             }
         }
-
         if let ExprKind::MethodCall(path, recv, [], _) = &e.kind
             && path.ident.name.as_str() == "into_bytes"
             && let ExprKind::MethodCall(path, recv, [], _) = &recv.kind
@@ -342,7 +325,6 @@ impl<'tcx> LateLintPass<'tcx> for StringLitAsBytes {
             && !recv.span.from_expansion()
         {
             let mut applicability = Applicability::MachineApplicable;
-
             span_lint_and_sugg(
                 cx,
                 STRING_LIT_AS_BYTES,
@@ -358,7 +340,6 @@ impl<'tcx> LateLintPass<'tcx> for StringLitAsBytes {
         }
     }
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint checks for `.to_string()` method calls on values of type `&str`.
@@ -381,15 +362,12 @@ declare_clippy_lint! {
     restriction,
     "using `to_string()` on a `&str`, which should be `to_owned()`"
 }
-
 declare_lint_pass!(StrToString => [STR_TO_STRING]);
-
 impl<'tcx> LateLintPass<'tcx> for StrToString {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'_>) {
         if expr.span.from_expansion() {
             return;
         }
-
         if let ExprKind::MethodCall(path, self_arg, [], _) = &expr.kind
             && path.ident.name == sym::to_string
             && let ty = cx.typeck_results().expr_ty(self_arg)
@@ -410,7 +388,6 @@ impl<'tcx> LateLintPass<'tcx> for StrToString {
         }
     }
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint checks for `.to_string()` method calls on values of type `String`.
@@ -435,15 +412,12 @@ declare_clippy_lint! {
     restriction,
     "using `to_string()` on a `String`, which should be `clone()`"
 }
-
 declare_lint_pass!(StringToString => [STRING_TO_STRING]);
-
 impl<'tcx> LateLintPass<'tcx> for StringToString {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'_>) {
         if expr.span.from_expansion() {
             return;
         }
-
         if let ExprKind::MethodCall(path, self_arg, [], _) = &expr.kind
             && path.ident.name == sym::to_string
             && let ty = cx.typeck_results().expr_ty(self_arg)
@@ -462,7 +436,6 @@ impl<'tcx> LateLintPass<'tcx> for StringToString {
         }
     }
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns about calling `str::trim` (or variants) before `str::split_whitespace`.
@@ -484,7 +457,6 @@ declare_clippy_lint! {
     "using `str::trim()` or alike before `str::split_whitespace`"
 }
 declare_lint_pass!(TrimSplitWhitespace => [TRIM_SPLIT_WHITESPACE]);
-
 impl<'tcx> LateLintPass<'tcx> for TrimSplitWhitespace {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'_>) {
         let tyckres = cx.typeck_results();
@@ -509,7 +481,6 @@ impl<'tcx> LateLintPass<'tcx> for TrimSplitWhitespace {
         }
     }
 }
-
 fn is_one_of_trim_diagnostic_items(cx: &LateContext<'_>, trim_def_id: DefId) -> bool {
     cx.tcx.is_diagnostic_item(sym::str_trim, trim_def_id)
         || cx.tcx.is_diagnostic_item(sym::str_trim_start, trim_def_id)

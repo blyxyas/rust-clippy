@@ -1,10 +1,10 @@
+use crate::HVec;
+
+use super::{SEPARATED_LITERAL_SUFFIX, UNSEPARATED_LITERAL_SUFFIX};
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_errors::Applicability;
 use rustc_lint::EarlyContext;
 use rustc_span::Span;
-
-use super::{SEPARATED_LITERAL_SUFFIX, UNSEPARATED_LITERAL_SUFFIX};
-
 pub(super) fn check(cx: &EarlyContext<'_>, lit_span: Span, lit_snip: &str, suffix: &str, sugg_type: &str) {
     let Some(maybe_last_sep_idx) = lit_snip.len().checked_sub(suffix.len() + 1) else {
         return; // It's useless so shouldn't lint.

@@ -1,4 +1,4 @@
-use std::{cmp, iter};
+use crate::HVec;
 
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
@@ -20,7 +20,7 @@ use rustc_middle::ty::{self, RegionKind, TyCtxt};
 use rustc_session::impl_lint_pass;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, sym};
-
+use std::{cmp, iter};
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions taking arguments by reference, where
@@ -70,7 +70,6 @@ declare_clippy_lint! {
     pedantic,
     "functions taking small copyable arguments by reference"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions taking arguments by value, where
@@ -103,13 +102,11 @@ declare_clippy_lint! {
     pedantic,
     "functions taking large arguments by value"
 }
-
 pub struct PassByRefOrValue {
     ref_min_size: u64,
     value_max_size: u64,
     avoid_breaking_exported_api: bool,
 }
-
 impl PassByRefOrValue {
     pub fn new(tcx: TyCtxt<'_>, conf: &'static Conf) -> Self {
         let ref_min_size = conf.trivial_copy_size_limit.unwrap_or_else(|| {
@@ -122,22 +119,18 @@ impl PassByRefOrValue {
             // Use a limit of 2 times the register byte width
             byte_width * 2
         });
-
         Self {
             ref_min_size,
             value_max_size: conf.pass_by_value_size_limit,
             avoid_breaking_exported_api: conf.avoid_breaking_exported_api,
         }
     }
-
     fn check_poly_fn(&mut self, cx: &LateContext<'_>, def_id: LocalDefId, decl: &FnDecl<'_>, span: Option<Span>) {
         if self.avoid_breaking_exported_api && cx.effective_visibilities.is_exported(def_id) {
             return;
         }
-
         let fn_sig = cx.tcx.fn_sig(def_id).instantiate_identity();
         let fn_body = cx.enclosing_body.map(|id| cx.tcx.hir_body(id));
-
         // Gather all the lifetimes found in the output type which may affect whether
         // `TRIVIALLY_COPY_PASS_BY_REF` should be linted.
         let mut output_regions = FxHashSet::default();
@@ -145,7 +138,6 @@ impl PassByRefOrValue {
             output_regions.insert(region);
             ControlFlow::Continue(())
         });
-
         for (index, (input, ty)) in iter::zip(
             decl.inputs,
             fn_sig.skip_binder().inputs().iter().map(|&ty| fn_sig.rebind(ty)),
@@ -157,7 +149,6 @@ impl PassByRefOrValue {
                 Some(s) if s == input.span => continue,
                 _ => (),
             }
-
             match *ty.skip_binder().kind() {
                 ty::Ref(lt, ty, Mutability::Not) => {
                     match lt.kind() {
@@ -171,7 +162,6 @@ impl PassByRefOrValue {
                         RegionKind::ReEarlyParam(..) => continue,
                         _ => (),
                     }
-
                     let ty = cx.tcx.instantiate_bound_regions_with_erased(fn_sig.rebind(ty));
                     if is_copy(cx, ty)
                         && let Some(size) = cx.layout_of(ty).ok().map(|l| l.size.bytes())
@@ -211,7 +201,6 @@ impl PassByRefOrValue {
                         );
                     }
                 },
-
                 ty::Adt(_, _) | ty::Array(_, _) | ty::Tuple(_) => {
                     // if function has a body and parameter is annotated with mut, ignore
                     if let Some(param) = fn_body.and_then(|body| body.params.get(index)) {
@@ -221,7 +210,6 @@ impl PassByRefOrValue {
                         }
                     }
                     let ty = cx.tcx.instantiate_bound_regions_with_erased(ty);
-
                     if is_copy(cx, ty)
                         && !is_self_ty(input)
                         && let Some(size) = cx.layout_of(ty).ok().map(|l| l.size.bytes())
@@ -241,26 +229,21 @@ impl PassByRefOrValue {
                         );
                     }
                 },
-
                 _ => {},
             }
         }
     }
 }
-
 impl_lint_pass!(PassByRefOrValue => [TRIVIALLY_COPY_PASS_BY_REF, LARGE_TYPES_PASSED_BY_VALUE]);
-
 impl<'tcx> LateLintPass<'tcx> for PassByRefOrValue {
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::TraitItem<'_>) {
         if item.span.from_expansion() {
             return;
         }
-
         if let hir::TraitItemKind::Fn(method_sig, _) = &item.kind {
             self.check_poly_fn(cx, item.owner_id.def_id, method_sig.decl, None);
         }
     }
-
     fn check_fn(
         &mut self,
         cx: &LateContext<'tcx>,
@@ -273,7 +256,6 @@ impl<'tcx> LateLintPass<'tcx> for PassByRefOrValue {
         if span.from_expansion() {
             return;
         }
-
         let hir_id = cx.tcx.local_def_id_to_hir_id(def_id);
         match kind {
             FnKind::ItemFn(.., header) => {
@@ -294,7 +276,6 @@ impl<'tcx> LateLintPass<'tcx> for PassByRefOrValue {
             FnKind::Method(..) => (),
             FnKind::Closure => return,
         }
-
         // Exclude non-inherent impls
         if let Node::Item(item) = cx.tcx.parent_hir_node(hir_id) {
             if matches!(
@@ -304,7 +285,6 @@ impl<'tcx> LateLintPass<'tcx> for PassByRefOrValue {
                 return;
             }
         }
-
         self.check_poly_fn(cx, def_id, decl, Some(span));
     }
 }

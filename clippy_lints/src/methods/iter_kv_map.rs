@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::ITER_KV_MAP;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
@@ -7,7 +9,6 @@ use clippy_utils::ty::is_type_diagnostic_item;
 use rustc_hir::{Body, Expr, ExprKind, PatKind};
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
 /// lint use of:
 ///
 /// - `hashmap.iter().map(|(_, v)| v)`
@@ -43,7 +44,6 @@ pub(super) fn check<'tcx>(
         let mut applicability = rustc_errors::Applicability::MachineApplicable;
         let recv_snippet = snippet_with_applicability(cx, recv.span, "map", &mut applicability);
         let into_prefix = if map_type == "into_iter" { "into_" } else { "" };
-
         if let ExprKind::Path(rustc_hir::QPath::Resolved(_, path)) = body_expr.kind
             && let [local_ident] = path.segments
             && local_ident.ident.as_str() == bound_ident.as_str()

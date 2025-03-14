@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::EXPLICIT_ITER_LOOP;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
@@ -12,7 +14,6 @@ use rustc_lint::LateContext;
 use rustc_middle::ty::adjustment::{Adjust, Adjustment, AutoBorrow, AutoBorrowMutability};
 use rustc_middle::ty::{self, EarlyBinder, Ty};
 use rustc_span::sym;
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     self_arg: &Expr<'_>,
@@ -23,7 +24,6 @@ pub(super) fn check(
     let Some((adjust, ty)) = is_ref_iterable(cx, self_arg, call_expr, enforce_iter_loop_reborrow, msrv) else {
         return;
     };
-
     if let ty::Array(_, count) = *ty.peel_refs().kind() {
         if !ty.is_ref() {
             if !msrv.meets(cx, msrvs::ARRAY_INTO_ITERATOR) {
@@ -34,7 +34,6 @@ pub(super) fn check(
             return;
         }
     }
-
     let mut applicability = Applicability::MachineApplicable;
     let object = snippet_with_applicability(cx, self_arg.span, "_", &mut applicability);
     span_lint_and_sugg(
@@ -48,7 +47,6 @@ pub(super) fn check(
         applicability,
     );
 }
-
 #[derive(Clone, Copy)]
 enum AdjustKind {
     None,
@@ -65,28 +63,24 @@ impl AdjustKind {
             Mutability::Mut => Self::BorrowMut,
         }
     }
-
     fn auto_borrow(mutbl: AutoBorrowMutability) -> Self {
         match mutbl {
             AutoBorrowMutability::Not => Self::Borrow,
             AutoBorrowMutability::Mut { .. } => Self::BorrowMut,
         }
     }
-
     fn reborrow(mutbl: Mutability) -> Self {
         match mutbl {
             Mutability::Not => Self::Reborrow,
             Mutability::Mut => Self::ReborrowMut,
         }
     }
-
     fn auto_reborrow(mutbl: AutoBorrowMutability) -> Self {
         match mutbl {
             AutoBorrowMutability::Not => Self::Reborrow,
             AutoBorrowMutability::Mut { .. } => Self::ReborrowMut,
         }
     }
-
     fn display(self) -> &'static str {
         match self {
             Self::None => "",
@@ -98,7 +92,6 @@ impl AdjustKind {
         }
     }
 }
-
 /// Checks if an `iter` or `iter_mut` call returns `IntoIterator::IntoIter`. Returns how the
 /// argument needs to be adjusted.
 #[expect(clippy::too_many_lines)]
@@ -126,18 +119,15 @@ fn is_ref_iterable<'tcx>(
         let adjustments = typeck.expr_adjustments(self_arg);
         let self_ty = typeck.expr_ty(self_arg);
         let self_is_copy = is_copy(cx, self_ty);
-
         if is_type_lang_item(cx, self_ty.peel_refs(), rustc_hir::LangItem::OwnedBox)
             && !msrv.meets(cx, msrvs::BOX_INTO_ITER)
         {
             return None;
         }
-
         if adjustments.is_empty() && self_is_copy {
             // Exact type match, already checked earlier
             return Some((AdjustKind::None, self_ty));
         }
-
         let res_ty = cx
             .tcx
             .erase_regions(EarlyBinder::bind(req_res_ty).instantiate(cx.tcx, typeck.node_args(call_expr.hir_id)));
@@ -146,7 +136,6 @@ fn is_ref_iterable<'tcx>(
         } else {
             None
         };
-
         if !adjustments.is_empty() {
             if self_is_copy {
                 // Using by value won't consume anything
@@ -189,7 +178,6 @@ fn is_ref_iterable<'tcx>(
                 return Some((AdjustKind::borrow(mutbl), self_ty));
             }
         }
-
         match adjustments {
             [] => Some((AdjustKind::None, self_ty)),
             &[

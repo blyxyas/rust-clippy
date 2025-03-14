@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_TRY_FOLD;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source::SpanRangeExt;
@@ -8,9 +11,6 @@ use rustc_hir::def::{DefKind, Res};
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LintContext};
 use rustc_span::{Span, sym};
-
-use super::MANUAL_TRY_FOLD;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &Expr<'tcx>,
@@ -39,7 +39,6 @@ pub(super) fn check<'tcx>(
             .then_some(first.span)
             .and_then(|span| span.get_source_text(cx))
             .map_or_else(|| "...".to_owned(), |src| src.to_owned());
-
         span_lint_and_sugg(
             cx,
             MANUAL_TRY_FOLD,

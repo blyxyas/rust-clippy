@@ -1,13 +1,12 @@
+use crate::HVec;
+
+use super::ERASING_OP;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::ty::same_type_and_consts;
-
 use rustc_hir::{BinOpKind, Expr};
 use rustc_lint::LateContext;
 use rustc_middle::ty::TypeckResults;
-
-use super::ERASING_OP;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     e: &'tcx Expr<'_>,
@@ -25,13 +24,11 @@ pub(super) fn check<'tcx>(
         _ => (),
     }
 }
-
 fn different_types(tck: &TypeckResults<'_>, input: &Expr<'_>, output: &Expr<'_>) -> bool {
     let input_ty = tck.expr_ty(input).peel_refs();
     let output_ty = tck.expr_ty(output).peel_refs();
     !same_type_and_consts(input_ty, output_ty)
 }
-
 fn check_op<'tcx>(
     cx: &LateContext<'tcx>,
     tck: &'tcx TypeckResults<'tcx>,

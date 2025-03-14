@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, MsrvStack};
@@ -6,7 +8,6 @@ use rustc_ast::ast::{Expr, ExprKind, LitKind, Pat, PatKind, RangeEnd, RangeLimit
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass, LintContext};
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for ranges which almost include the entire range of letters from 'a' to 'z'
@@ -29,7 +30,6 @@ declare_clippy_lint! {
     "almost complete range"
 }
 impl_lint_pass!(AlmostCompleteRange => [ALMOST_COMPLETE_RANGE]);
-
 pub struct AlmostCompleteRange {
     msrv: MsrvStack,
 }
@@ -68,7 +68,6 @@ impl EarlyLintPass for AlmostCompleteRange {
             );
         }
     }
-
     fn check_pat(&mut self, cx: &EarlyContext<'_>, p: &Pat) {
         if let PatKind::Range(Some(start), Some(end), kind) = &p.kind
             && matches!(kind.node, RangeEnd::Excluded)
@@ -95,10 +94,8 @@ impl EarlyLintPass for AlmostCompleteRange {
             );
         }
     }
-
     extract_msrv_attr!();
 }
-
 fn is_incomplete_range(start: &Expr, end: &Expr) -> bool {
     match (&start.peel_parens().kind, &end.peel_parens().kind) {
         (&ExprKind::Lit(start_lit), &ExprKind::Lit(end_lit)) => {

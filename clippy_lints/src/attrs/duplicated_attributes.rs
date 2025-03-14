@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::DUPLICATED_ATTRIBUTES;
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_ast::{Attribute, MetaItem};
@@ -5,7 +7,6 @@ use rustc_data_structures::fx::FxHashMap;
 use rustc_lint::EarlyContext;
 use rustc_span::{Span, sym};
 use std::collections::hash_map::Entry;
-
 fn emit_if_duplicated(
     cx: &EarlyContext<'_>,
     attr: &MetaItem,
@@ -24,7 +25,6 @@ fn emit_if_duplicated(
         },
     }
 }
-
 fn check_duplicated_attr(
     cx: &EarlyContext<'_>,
     attr: &MetaItem,
@@ -64,10 +64,8 @@ fn check_duplicated_attr(
         emit_if_duplicated(cx, attr, attr_paths, format!("{}:{name}", parent.join(":")));
     }
 }
-
 pub fn check(cx: &EarlyContext<'_>, attrs: &[Attribute]) {
     let mut attr_paths = FxHashMap::default();
-
     for attr in attrs {
         if let Some(meta) = attr.meta() {
             check_duplicated_attr(cx, &meta, &mut attr_paths, &mut Vec::new());

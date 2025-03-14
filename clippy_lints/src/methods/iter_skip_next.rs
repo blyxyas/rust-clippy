@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::ITER_SKIP_NEXT;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet;
 use clippy_utils::{is_trait_method, path_to_local};
@@ -6,9 +9,6 @@ use rustc_hir as hir;
 use rustc_hir::{BindingMode, Node, PatKind};
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::ITER_SKIP_NEXT;
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, recv: &hir::Expr<'_>, arg: &hir::Expr<'_>) {
     // lint if caller of skip is an Iterator
     if is_trait_method(cx, expr, sym::Iterator) {
@@ -30,7 +30,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, recv: &hir::Expr
                         format!("for this change `{}` has to be mutable", snippet(cx, pat.span, "..")),
                     );
                 }
-
                 diag.span_suggestion(
                     expr.span.trim_start(recv.span).unwrap(),
                     "use `nth` instead",

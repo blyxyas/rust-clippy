@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::ty::is_type_diagnostic_item;
 use rustc_hir::Expr;
@@ -5,7 +7,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, IntTy, Ty, UintTy};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `Mutex<X>` where an atomic will do.
@@ -45,7 +46,6 @@ declare_clippy_lint! {
     restriction,
     "using a mutex where an atomic value could be used instead."
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `Mutex<X>` where `X` is an integral
@@ -85,9 +85,7 @@ declare_clippy_lint! {
     restriction,
     "using a mutex for an integer type"
 }
-
 declare_lint_pass!(Mutex => [MUTEX_ATOMIC, MUTEX_INTEGER]);
-
 impl<'tcx> LateLintPass<'tcx> for Mutex {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         let ty = cx.typeck_results().expr_ty(expr);
@@ -109,7 +107,6 @@ impl<'tcx> LateLintPass<'tcx> for Mutex {
         }
     }
 }
-
 fn get_atomic_name(ty: Ty<'_>) -> Option<&'static str> {
     match ty.kind() {
         ty::Bool => Some("AtomicBool"),

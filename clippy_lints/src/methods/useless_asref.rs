@@ -1,29 +1,26 @@
+use crate::HVec;
+
+use super::USELESS_ASREF;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::{implements_trait, should_call_clone_as_function, walk_ptrs_ty_depth};
 use clippy_utils::{
     get_parent_expr, is_diag_trait_item, match_def_path, path_to_local_id, peel_blocks, strip_pat_refs,
 };
+use core::ops::ControlFlow;
 use rustc_errors::Applicability;
 use rustc_hir::{self as hir, LangItem};
 use rustc_lint::LateContext;
 use rustc_middle::ty::adjustment::Adjust;
 use rustc_middle::ty::{Ty, TyCtxt, TypeSuperVisitable, TypeVisitable, TypeVisitor};
 use rustc_span::{Span, sym};
-
-use core::ops::ControlFlow;
-
-use super::USELESS_ASREF;
-
 /// Returns the first type inside the `Option`/`Result` type passed as argument.
 fn get_enum_ty(enum_ty: Ty<'_>) -> Option<Ty<'_>> {
     struct ContainsTyVisitor {
         level: usize,
     }
-
     impl<'tcx> TypeVisitor<TyCtxt<'tcx>> for ContainsTyVisitor {
         type Result = ControlFlow<Ty<'tcx>>;
-
         fn visit_ty(&mut self, t: Ty<'tcx>) -> Self::Result {
             self.level += 1;
             if self.level == 1 {
@@ -33,13 +30,11 @@ fn get_enum_ty(enum_ty: Ty<'_>) -> Option<Ty<'_>> {
             }
         }
     }
-
     match enum_ty.visit_with(&mut ContainsTyVisitor { level: 0 }) {
         ControlFlow::Break(ty) => Some(ty),
         ControlFlow::Continue(()) => None,
     }
 }
-
 /// Checks for the `USELESS_ASREF` lint.
 pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, call_name: &str, recvr: &hir::Expr<'_>) {
     // when we get here, we've already checked that the call name is "as_ref" or "as_mut"
@@ -47,7 +42,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, call_name: &str,
     let Some(def_id) = cx.typeck_results().type_dependent_def_id(expr.hir_id) else {
         return;
     };
-
     if is_diag_trait_item(cx, def_id, sym::AsRef) || is_diag_trait_item(cx, def_id, sym::AsMut) {
         // check if the type after `as_ref` or `as_mut` is the same as before
         let rcv_ty = cx.typeck_results().expr_ty(recvr);
@@ -62,14 +56,12 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, call_name: &str,
                 {
                     return;
                 }
-
                 // allow the `as_ref` or `as_mut` if they belong to a closure that changes
                 // the number of references
                 if matches!(parent.kind, hir::ExprKind::Closure(..)) && rcv_depth != res_depth {
                     return;
                 }
             }
-
             let mut applicability = Applicability::MachineApplicable;
             span_lint_and_sugg(
                 cx,
@@ -86,7 +78,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, call_name: &str,
     {
         let rcv_ty = cx.typeck_results().expr_ty(recvr).peel_refs();
         let res_ty = cx.typeck_results().expr_ty(expr).peel_refs();
-
         if let Some(rcv_ty) = get_enum_ty(rcv_ty)
             && let Some(res_ty) = get_enum_ty(res_ty)
             // If the only thing the `as_mut`/`as_ref` call is doing is adding references and not
@@ -109,7 +100,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, call_name: &str,
         }
     }
 }
-
 fn check_qpath(cx: &LateContext<'_>, qpath: hir::QPath<'_>, hir_id: hir::HirId) -> bool {
     // We check it's calling the `clone` method of the `Clone` trait.
     if let Some(path_def_id) = cx.qpath_res(&qpath, hir_id).opt_def_id() {
@@ -118,7 +108,6 @@ fn check_qpath(cx: &LateContext<'_>, qpath: hir::QPath<'_>, hir_id: hir::HirId) 
         false
     }
 }
-
 fn is_calling_clone(cx: &LateContext<'_>, arg: &hir::Expr<'_>) -> bool {
     match arg.kind {
         hir::ExprKind::Closure(&hir::Closure { body, .. })
@@ -161,7 +150,6 @@ fn is_calling_clone(cx: &LateContext<'_>, arg: &hir::Expr<'_>) -> bool {
         _ => false,
     }
 }
-
 fn lint_as_ref_clone(cx: &LateContext<'_>, span: Span, recvr: &hir::Expr<'_>, call_name: &str) {
     let mut applicability = Applicability::MachineApplicable;
     span_lint_and_sugg(

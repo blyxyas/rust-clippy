@@ -1,10 +1,10 @@
+use crate::HVec;
+
+use super::UNIT_CMP;
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::macros::{find_assert_eq_args, root_macro_call_first_node};
 use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::LateContext;
-
-use super::UNIT_CMP;
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>) {
     if expr.span.from_expansion() {
         if let Some(macro_call) = root_macro_call_first_node(cx, expr) {
@@ -29,7 +29,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>) {
         }
         return;
     }
-
     if let ExprKind::Binary(ref cmp, left, _) = expr.kind {
         let op = cmp.node;
         if op.is_comparison() && cx.typeck_results().expr_ty(left).is_unit() {

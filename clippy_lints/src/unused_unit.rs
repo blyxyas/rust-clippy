@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::{SpanRangeExt, position_before_rarrow};
 use rustc_ast::visit::FnKind;
@@ -6,7 +8,6 @@ use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{BytePos, Span};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unit (`()`) expressions that can be removed.
@@ -31,9 +32,7 @@ declare_clippy_lint! {
     style,
     "needless unit expression"
 }
-
 declare_lint_pass!(UnusedUnit => [UNUSED_UNIT]);
-
 impl EarlyLintPass for UnusedUnit {
     fn check_fn(&mut self, cx: &EarlyContext<'_>, kind: FnKind<'_>, span: Span, _: ast::NodeId) {
         if let ast::FnRetTy::Ty(ref ty) = kind.decl().output
@@ -46,11 +45,9 @@ impl EarlyLintPass for UnusedUnit {
             if let FnKind::Closure(&ClosureBinder::For { .. }, ..) = kind {
                 return;
             }
-
             lint_unneeded_unit_return(cx, ty, span);
         }
     }
-
     fn check_block(&mut self, cx: &EarlyContext<'_>, block: &ast::Block) {
         if let Some(stmt) = block.stmts.last()
             && let ast::StmtKind::Expr(ref expr) = stmt.kind
@@ -72,7 +69,6 @@ impl EarlyLintPass for UnusedUnit {
             );
         }
     }
-
     fn check_expr(&mut self, cx: &EarlyContext<'_>, e: &ast::Expr) {
         match e.kind {
             ast::ExprKind::Ret(Some(ref expr)) | ast::ExprKind::Break(_, Some(ref expr)) => {
@@ -91,10 +87,8 @@ impl EarlyLintPass for UnusedUnit {
             _ => (),
         }
     }
-
     fn check_poly_trait_ref(&mut self, cx: &EarlyContext<'_>, poly: &ast::PolyTraitRef) {
         let segments = &poly.trait_ref.path.segments;
-
         if segments.len() == 1
             && ["Fn", "FnMut", "FnOnce"].contains(&segments[0].ident.name.as_str())
             && let Some(args) = &segments[0].args
@@ -106,7 +100,6 @@ impl EarlyLintPass for UnusedUnit {
         }
     }
 }
-
 // get the def site
 #[must_use]
 fn get_def(span: Span) -> Option<Span> {
@@ -116,7 +109,6 @@ fn get_def(span: Span) -> Option<Span> {
         None
     }
 }
-
 // is this expr a `()` unit?
 fn is_unit_expr(expr: &ast::Expr) -> bool {
     if let ast::ExprKind::Tup(ref vals) = expr.kind {
@@ -125,7 +117,6 @@ fn is_unit_expr(expr: &ast::Expr) -> bool {
         false
     }
 }
-
 fn lint_unneeded_unit_return(cx: &EarlyContext<'_>, ty: &ast::Ty, span: Span) {
     let (ret_span, appl) =
         span.with_hi(ty.span.hi())

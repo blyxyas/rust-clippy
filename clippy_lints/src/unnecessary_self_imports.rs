@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_ast::{Item, ItemKind, UseTreeKind};
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::symbol::kw;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for imports ending in `::{self}`.
@@ -30,9 +31,7 @@ declare_clippy_lint! {
     restriction,
     "imports ending in `::{self}`, which can be omitted"
 }
-
 declare_lint_pass!(UnnecessarySelfImports => [UNNECESSARY_SELF_IMPORTS]);
-
 impl EarlyLintPass for UnnecessarySelfImports {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         if let ItemKind::Use(use_tree) = &item.kind

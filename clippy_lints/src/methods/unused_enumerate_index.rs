@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use crate::loops::UNUSED_ENUMERATE_INDEX;
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::source::{SpanRangeExt, snippet};
 use clippy_utils::{expr_or_init, is_trait_method, pat_is_wild};
@@ -6,9 +9,6 @@ use rustc_hir::{Expr, ExprKind, FnDecl, PatKind, TyKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::AdtDef;
 use rustc_span::{Span, sym};
-
-use crate::loops::UNUSED_ENUMERATE_INDEX;
-
 /// Check for the `UNUSED_ENUMERATE_INDEX` lint outside of loops.
 ///
 /// The lint is declared in `clippy_lints/src/loops/mod.rs`. There, the following pattern is
@@ -93,7 +93,6 @@ pub(super) fn check(cx: &LateContext<'_>, call_expr: &Expr<'_>, recv: &Expr<'_>,
             // Otherwise, we have no explicit type. We can replace with the binding name of the element.
             None => snippet(cx, elem.span, "..").into_owned(),
         };
-
         // Suggest removing the tuple from the closure and the preceding call to `enumerate`, whose span we
         // can get from the `MethodCall`.
         span_lint_hir_and_then(
@@ -118,7 +117,6 @@ pub(super) fn check(cx: &LateContext<'_>, call_expr: &Expr<'_>, recv: &Expr<'_>,
         );
     }
 }
-
 /// Find the span of the explicit type of the element.
 ///
 /// # Returns

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::{get_expr_use_or_unification_node, path_def_id, path_to_local, path_to_local_id};
 use core::cell::Cell;
@@ -12,7 +14,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::symbol::{Ident, kw};
 use std::iter;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for arguments that are only used in recursion with no side-effects.
@@ -84,7 +85,6 @@ declare_clippy_lint! {
     "arguments that is only used in recursion can be removed"
 }
 impl_lint_pass!(OnlyUsedInRecursion => [ONLY_USED_IN_RECURSION]);
-
 #[derive(Clone, Copy)]
 enum FnKind {
     Fn,
@@ -94,7 +94,6 @@ enum FnKind {
     // equality.
     ImplTraitFn(usize),
 }
-
 struct Param {
     /// The function this is a parameter for.
     fn_id: DefId,
@@ -119,7 +118,6 @@ impl Param {
         }
     }
 }
-
 #[derive(Debug)]
 struct Usage {
     span: Span,
@@ -130,7 +128,6 @@ impl Usage {
         Self { span, idx }
     }
 }
-
 /// The parameters being checked by the lint, indexed by both the parameter's `HirId` and the
 /// `DefId` of the function paired with the parameter's index.
 #[derive(Default)]
@@ -147,7 +144,6 @@ impl Params {
         self.by_fn.insert((param.fn_id, param.idx), idx);
         self.params.push(param);
     }
-
     fn remove_by_id(&mut self, id: HirId) {
         if let Some(param) = self.get_by_id_mut(id) {
             param.uses = Vec::new();
@@ -157,21 +153,17 @@ impl Params {
             self.by_id.swap_remove(&id);
         }
     }
-
     fn get_by_id_mut(&mut self, id: HirId) -> Option<&mut Param> {
         self.params.get_mut(*self.by_id.get(&id)?)
     }
-
     fn get_by_fn(&self, id: DefId, idx: usize) -> Option<&Param> {
         self.params.get(*self.by_fn.get(&(id, idx))?)
     }
-
     fn clear(&mut self) {
         self.params.clear();
         self.by_id.clear();
         self.by_fn.clear();
     }
-
     /// Sets the `apply_lint` flag on each parameter.
     fn flag_for_linting(&mut self) {
         // Stores the list of parameters currently being resolved. Needed to avoid cycles.
@@ -180,7 +172,6 @@ impl Params {
             self.try_disable_lint_for_param(param, &mut eval_stack);
         }
     }
-
     // Use by calling `flag_for_linting`.
     fn try_disable_lint_for_param(&self, param: &Param, eval_stack: &mut Vec<usize>) -> bool {
         if !param.apply_lint.get() {
@@ -212,14 +203,12 @@ impl Params {
         }
     }
 }
-
 #[derive(Default)]
 pub struct OnlyUsedInRecursion {
     /// Track the top-level body entered. Needed to delay reporting when entering nested bodies.
     entered_body: Option<HirId>,
     params: Params,
 }
-
 impl<'tcx> LateLintPass<'tcx> for OnlyUsedInRecursion {
     fn check_body(&mut self, cx: &LateContext<'tcx>, body: &Body<'tcx>) {
         if body.value.span.from_expansion() {
@@ -276,7 +265,6 @@ impl<'tcx> LateLintPass<'tcx> for OnlyUsedInRecursion {
             self.entered_body = Some(body.value.hir_id);
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'tcx>) {
         if let Some(id) = path_to_local(e)
             && let Some(param) = self.params.get_by_id_mut(id)
@@ -348,7 +336,6 @@ impl<'tcx> LateLintPass<'tcx> for OnlyUsedInRecursion {
             }
         }
     }
-
     fn check_body_post(&mut self, cx: &LateContext<'tcx>, body: &Body<'tcx>) {
         if self.entered_body == Some(body.value.hir_id) {
             self.entered_body = None;
@@ -381,7 +368,6 @@ impl<'tcx> LateLintPass<'tcx> for OnlyUsedInRecursion {
         }
     }
 }
-
 fn has_matching_args(kind: FnKind, args: GenericArgsRef<'_>) -> bool {
     match kind {
         FnKind::Fn => true,

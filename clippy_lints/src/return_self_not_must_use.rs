@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::ty::is_must_use_ty;
 use clippy_utils::{nth_arg, return_ty};
@@ -7,7 +9,6 @@ use rustc_hir::{Body, FnDecl, OwnerId, TraitItem, TraitItemKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint warns when a method returning `Self` doesn't have the `#[must_use]` attribute.
@@ -64,9 +65,7 @@ declare_clippy_lint! {
     pedantic,
     "missing `#[must_use]` annotation on a method returning `Self`"
 }
-
 declare_lint_pass!(ReturnSelfNotMustUse => [RETURN_SELF_NOT_MUST_USE]);
-
 fn check_method(cx: &LateContext<'_>, decl: &FnDecl<'_>, fn_def: LocalDefId, span: Span, owner_id: OwnerId) {
     if !span.in_external_macro(cx.sess().source_map())
         // If it comes from an external macro, better ignore it.
@@ -96,7 +95,6 @@ fn check_method(cx: &LateContext<'_>, decl: &FnDecl<'_>, fn_def: LocalDefId, spa
         );
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for ReturnSelfNotMustUse {
     fn check_fn(
         &mut self,
@@ -118,7 +116,6 @@ impl<'tcx> LateLintPass<'tcx> for ReturnSelfNotMustUse {
             check_method(cx, decl, fn_def, span, hir_id.expect_owner());
         }
     }
-
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx TraitItem<'tcx>) {
         if let TraitItemKind::Fn(ref sig, _) = item.kind {
             check_method(cx, sig.decl, item.owner_id.def_id, item.span, item.owner_id);

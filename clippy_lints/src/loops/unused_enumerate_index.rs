@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::UNUSED_ENUMERATE_INDEX;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet;
@@ -8,7 +10,6 @@ use rustc_hir::{Expr, ExprKind, Pat, PatKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::sym;
-
 /// Checks for the `UNUSED_ENUMERATE_INDEX` lint.
 ///
 /// The lint is also partially implemented in `clippy_lints/src/methods/unused_enumerate_index.rs`.

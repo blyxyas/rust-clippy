@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::{is_from_proc_macro, is_in_test_function};
@@ -8,7 +10,6 @@ use rustc_hir::{Expr, ExprKind, HirId, Node};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions that are only used once. Does not lint tests.
@@ -59,18 +60,15 @@ declare_clippy_lint! {
     "checks for functions that are only used once"
 }
 impl_lint_pass!(SingleCallFn => [SINGLE_CALL_FN]);
-
 #[derive(Debug, Clone)]
 pub enum CallState {
     Once { call_site: Span },
     Multiple,
 }
-
 pub struct SingleCallFn {
     avoid_breaking_exported_api: bool,
     def_id_to_usage: FxIndexMap<LocalDefId, CallState>,
 }
-
 impl SingleCallFn {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -78,7 +76,6 @@ impl SingleCallFn {
             def_id_to_usage: FxIndexMap::default(),
         }
     }
-
     fn is_function_allowed(
         &self,
         cx: &LateContext<'_>,
@@ -100,7 +97,6 @@ impl SingleCallFn {
             }
     }
 }
-
 /// Whether a called function is a kind of item that the lint cares about.
 /// For example, calling an `extern "C" { fn fun(); }` only once is totally fine and does not
 /// to be considered.
@@ -110,7 +106,6 @@ fn is_valid_item_kind(cx: &LateContext<'_>, def_id: LocalDefId) -> bool {
         Node::Item(_) | Node::ImplItem(_) | Node::TraitItem(_)
     )
 }
-
 impl<'tcx> LateLintPass<'tcx> for SingleCallFn {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &'tcx Expr<'tcx>) {
         if let ExprKind::Path(qpath) = expr.kind
@@ -132,7 +127,6 @@ impl<'tcx> LateLintPass<'tcx> for SingleCallFn {
             }
         }
     }
-
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
         for (&def_id, usage) in &self.def_id_to_usage {
             if let CallState::Once { call_site } = *usage

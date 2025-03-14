@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::WHILE_LET_LOOP;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::higher;
@@ -7,7 +9,6 @@ use clippy_utils::visitors::any_temporaries_need_ordered_drop;
 use rustc_errors::Applicability;
 use rustc_hir::{Block, Expr, ExprKind, LetStmt, MatchSource, Pat, StmtKind};
 use rustc_lint::LateContext;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, loop_block: &'tcx Block<'_>) {
     let (init, has_trailing_exprs) = match (loop_block.stmts, loop_block.expr) {
         ([stmt, stmts @ ..], expr) => {
@@ -27,7 +28,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, loop_blo
         ([], Some(e)) => (e, false),
         _ => return,
     };
-
     if let Some(if_let) = higher::IfLet::hir(cx, init)
         && let Some(else_expr) = if_let.if_else
         && is_simple_break_expr(else_expr)
@@ -41,12 +41,10 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, loop_blo
         could_be_while_let(cx, expr, arm1.pat, scrutinee, has_trailing_exprs);
     }
 }
-
 /// Returns `true` if expr contains a single break expression without a label or eub-expression.
 fn is_simple_break_expr(e: &Expr<'_>) -> bool {
     matches!(peel_blocks(e).kind, ExprKind::Break(dest, None) if dest.label.is_none())
 }
-
 /// Removes any blocks containing only a single expression.
 fn peel_blocks<'tcx>(e: &'tcx Expr<'tcx>) -> &'tcx Expr<'tcx> {
     if let ExprKind::Block(b, _) = e.kind {
@@ -65,7 +63,6 @@ fn peel_blocks<'tcx>(e: &'tcx Expr<'tcx>) -> &'tcx Expr<'tcx> {
         e
     }
 }
-
 fn could_be_while_let<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -80,7 +77,6 @@ fn could_be_while_let<'tcx>(
         // Switching to a `while let` loop will extend the lifetime of some values.
         return;
     }
-
     // NOTE: we used to build a body here instead of using
     // ellipsis, this was removed because:
     // 1) it was ugly with big bodies;

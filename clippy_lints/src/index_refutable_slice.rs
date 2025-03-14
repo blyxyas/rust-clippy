@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -16,7 +18,6 @@ use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::symbol::Ident;
-
 declare_clippy_lint! {
     /// ### What it does
     /// The lint checks for slice bindings in patterns that are only used to
@@ -52,12 +53,10 @@ declare_clippy_lint! {
     pedantic,
     "avoid indexing on slices which could be destructed"
 }
-
 pub struct IndexRefutableSlice {
     max_suggested_slice: u64,
     msrv: Msrv,
 }
-
 impl IndexRefutableSlice {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -66,9 +65,7 @@ impl IndexRefutableSlice {
         }
     }
 }
-
 impl_lint_pass!(IndexRefutableSlice => [INDEX_REFUTABLE_SLICE]);
-
 impl<'tcx> LateLintPass<'tcx> for IndexRefutableSlice {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) {
         if let Some(IfLet { let_pat, if_then, .. }) = IfLet::hir(cx, expr)
@@ -86,7 +83,6 @@ impl<'tcx> LateLintPass<'tcx> for IndexRefutableSlice {
         }
     }
 }
-
 fn find_slice_values(cx: &LateContext<'_>, pat: &hir::Pat<'_>) -> FxIndexMap<HirId, SliceLintInformation> {
     let mut removed_pat: FxHashSet<HirId> = FxHashSet::default();
     let mut slices: FxIndexMap<HirId, SliceLintInformation> = FxIndexMap::default();
@@ -107,14 +103,12 @@ fn find_slice_values(cx: &LateContext<'_>, pat: &hir::Pat<'_>) -> FxIndexMap<Hir
                 slices.swap_remove(&value_hir_id);
                 return;
             }
-
             let bound_ty = cx.typeck_results().node_type(pat.hir_id);
             if let ty::Slice(inner_ty) | ty::Array(inner_ty, _) = bound_ty.peel_refs().kind() {
                 // The values need to use the `ref` keyword if they can't be copied.
                 // This will need to be adjusted if the lint want to support mutable access in the future
                 let src_is_ref = bound_ty.is_ref() && by_ref == hir::ByRef::No;
                 let needs_ref = !(src_is_ref || is_copy(cx, *inner_ty));
-
                 let slice_info = slices
                     .entry(value_hir_id)
                     .or_insert_with(|| SliceLintInformation::new(ident, needs_ref));
@@ -122,19 +116,15 @@ fn find_slice_values(cx: &LateContext<'_>, pat: &hir::Pat<'_>) -> FxIndexMap<Hir
             }
         }
     });
-
     slices
 }
-
 fn lint_slice(cx: &LateContext<'_>, slice: &SliceLintInformation) {
     let used_indices = slice
         .index_use
         .iter()
         .map(|(index, _)| *index)
         .collect::<FxIndexSet<_>>();
-
     let value_name = |index| format!("{}_{}", slice.ident.name, index);
-
     if let Some(max_index) = used_indices.iter().max() {
         let opt_ref = if slice.needs_ref { "ref " } else { "" };
         let pat_sugg_idents = (0..=*max_index)
@@ -147,19 +137,15 @@ fn lint_slice(cx: &LateContext<'_>, slice: &SliceLintInformation) {
             })
             .collect::<Vec<_>>();
         let pat_sugg = format!("[{}, ..]", pat_sugg_idents.join(", "));
-
         let mut suggestions = Vec::new();
-
         // Add the binding pattern suggestion
         if !slice.pattern_spans.is_empty() {
             suggestions.extend(slice.pattern_spans.iter().map(|span| (*span, pat_sugg.clone())));
         }
-
         // Add the index replacement suggestions
         if !slice.index_use.is_empty() {
             suggestions.extend(slice.index_use.iter().map(|(index, span)| (*span, value_name(*index))));
         }
-
         span_lint_and_then(
             cx,
             INDEX_REFUTABLE_SLICE,
@@ -175,7 +161,6 @@ fn lint_slice(cx: &LateContext<'_>, slice: &SliceLintInformation) {
         );
     }
 }
-
 #[derive(Debug)]
 struct SliceLintInformation {
     ident: Ident,
@@ -183,7 +168,6 @@ struct SliceLintInformation {
     pattern_spans: Vec<Span>,
     index_use: Vec<(u64, Span)>,
 }
-
 impl SliceLintInformation {
     fn new(ident: Ident, needs_ref: bool) -> Self {
         Self {
@@ -194,7 +178,6 @@ impl SliceLintInformation {
         }
     }
 }
-
 fn filter_lintable_slices<'tcx>(
     cx: &LateContext<'tcx>,
     slice_lint_info: FxIndexMap<HirId, SliceLintInformation>,
@@ -206,25 +189,19 @@ fn filter_lintable_slices<'tcx>(
         slice_lint_info,
         max_suggested_slice,
     };
-
     intravisit::walk_expr(&mut visitor, scope);
-
     visitor.slice_lint_info
 }
-
 struct SliceIndexLintingVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     slice_lint_info: FxIndexMap<HirId, SliceLintInformation>,
     max_suggested_slice: u64,
 }
-
 impl<'tcx> Visitor<'tcx> for SliceIndexLintingVisitor<'_, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }
-
     fn visit_expr(&mut self, expr: &'tcx hir::Expr<'tcx>) {
         if let Some(local_id) = path_to_local(expr) {
             let Self {
@@ -232,7 +209,6 @@ impl<'tcx> Visitor<'tcx> for SliceIndexLintingVisitor<'_, 'tcx> {
                 ref mut slice_lint_info,
                 max_suggested_slice,
             } = *self;
-
             if let Some(use_info) = slice_lint_info.get_mut(&local_id)
                 // Checking for slice indexing
                 && let parent_id = cx.tcx.parent_hir_id(expr.hir_id)
@@ -241,7 +217,6 @@ impl<'tcx> Visitor<'tcx> for SliceIndexLintingVisitor<'_, 'tcx> {
                 && let Some(Constant::Int(index_value)) = ConstEvalCtxt::new(cx).eval(index_expr)
                 && let Ok(index_value) = index_value.try_into()
                 && index_value < max_suggested_slice
-
                 // Make sure that this slice index is read only
                 && let hir::Node::Expr(maybe_addrof_expr) = cx.tcx.parent_hir_node(parent_id)
                 && let hir::ExprKind::AddrOf(_kind, hir::Mutability::Not, _inner_expr) = maybe_addrof_expr.kind
@@ -251,7 +226,6 @@ impl<'tcx> Visitor<'tcx> for SliceIndexLintingVisitor<'_, 'tcx> {
                     .push((index_value, cx.tcx.hir().span(parent_expr.hir_id)));
                 return;
             }
-
             // The slice was used for something other than indexing
             // FIXME(rust/#120456) - is `swap_remove` correct?
             self.slice_lint_info.swap_remove(&local_id);

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
 use clippy_utils::ty::is_copy;
@@ -5,7 +7,6 @@ use clippy_utils::{get_parent_expr, is_mutable, path_to_local};
 use rustc_hir::{Expr, ExprField, ExprKind, Path, QPath, StructTailExpr, UnOp};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for initialization of an identical `struct` from another instance
@@ -44,20 +45,16 @@ declare_clippy_lint! {
     "struct built from a base that can be written mode concisely"
 }
 declare_lint_pass!(UnnecessaryStruct => [UNNECESSARY_STRUCT_INITIALIZATION]);
-
 impl LateLintPass<'_> for UnnecessaryStruct {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         let ExprKind::Struct(_, fields, base) = expr.kind else {
             return;
         };
-
         if expr.span.from_expansion() {
             // Prevent lint from hitting inside macro code
             return;
         }
-
         let field_path = same_path_in_all_fields(cx, expr, fields);
-
         let sugg = match (field_path, base) {
             (Some(&path), StructTailExpr::None | StructTailExpr::DefaultFields(_)) => {
                 // all fields match, no base given
@@ -75,7 +72,6 @@ impl LateLintPass<'_> for UnnecessaryStruct {
             },
             _ => return,
         };
-
         span_lint_and_sugg(
             cx,
             UNNECESSARY_STRUCT_INITIALIZATION,
@@ -87,12 +83,10 @@ impl LateLintPass<'_> for UnnecessaryStruct {
         );
     }
 }
-
 fn base_is_suitable(cx: &LateContext<'_>, expr: &Expr<'_>, base: &Expr<'_>) -> bool {
     if !check_references(cx, expr, base) {
         return false;
     }
-
     // TODO: do not propose to replace *XX if XX is not Copy
     if let ExprKind::Unary(UnOp::Deref, target) = base.kind
         && matches!(target.kind, ExprKind::Path(..))
@@ -103,7 +97,6 @@ fn base_is_suitable(cx: &LateContext<'_>, expr: &Expr<'_>, base: &Expr<'_>) -> b
     }
     true
 }
-
 /// Check whether all fields of a struct assignment match.
 /// Returns a [Path] item that one can obtain a span from for the lint suggestion.
 ///
@@ -120,9 +113,7 @@ fn same_path_in_all_fields<'tcx>(
     fields: &[ExprField<'tcx>],
 ) -> Option<&'tcx Path<'tcx>> {
     let ty = cx.typeck_results().expr_ty(expr);
-
     let mut found = None;
-
     for f in fields {
         // fields are assigned from expression
         if let ExprKind::Field(src_expr, ident) = f.expr.kind
@@ -138,7 +129,6 @@ fn same_path_in_all_fields<'tcx>(
                 found = Some((src_expr, src_path));
                 continue;
             };
-
             if p.res == src_path.res {
                 // subsequent field assignment with same origin struct as before
                 continue;
@@ -147,7 +137,6 @@ fn same_path_in_all_fields<'tcx>(
         // source of field assignment doesn’t qualify
         return None;
     }
-
     if let Some((src_expr, src_path)) = found
         && check_references(cx, expr, src_expr)
     {
@@ -156,7 +145,6 @@ fn same_path_in_all_fields<'tcx>(
         None
     }
 }
-
 fn check_references(cx: &LateContext<'_>, expr_a: &Expr<'_>, expr_b: &Expr<'_>) -> bool {
     if let Some(parent) = get_parent_expr(cx, expr_a)
         && let parent_ty = cx.typeck_results().expr_ty_adjusted(parent)
@@ -167,16 +155,13 @@ fn check_references(cx: &LateContext<'_>, expr_a: &Expr<'_>, expr_b: &Expr<'_>) 
             // copy. Using the original would borrow it.
             return false;
         }
-
         if parent_ty.is_mutable_ptr() && !is_mutable(cx, expr_b) {
             // The original can be used in a mutable reference context only if it is mutable.
             return false;
         }
     }
-
     true
 }
-
 /// When some fields are assigned from a base struct and others individually
 /// the lint applies only if the source of the field is the same as the base.
 /// This is enforced here by comparing the path of the base expression;

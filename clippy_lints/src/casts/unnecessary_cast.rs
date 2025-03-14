@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::UNNECESSARY_CAST;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::numeric_literal::NumericLiteral;
 use clippy_utils::source::{SpanRangeExt, snippet_opt};
@@ -10,9 +13,6 @@ use rustc_hir::{Expr, ExprKind, Lit, Node, Path, QPath, TyKind, UnOp};
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty::{self, FloatTy, InferTy, Ty};
 use std::ops::ControlFlow;
-
-use super::UNNECESSARY_CAST;
-
 #[expect(clippy::too_many_lines)]
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
@@ -22,7 +22,6 @@ pub(super) fn check<'tcx>(
     cast_to: Ty<'tcx>,
 ) -> bool {
     let cast_str = snippet_opt(cx, cast_expr.span).unwrap_or_default();
-
     if let ty::RawPtr(..) = cast_from.kind()
         // check both mutability and type are the same
         && cast_from.kind() == cast_to.kind()
@@ -45,7 +44,6 @@ pub(super) fn check<'tcx>(
             TyKind::Infer(()) => return false,
             _ => {},
         }
-
         span_lint_and_sugg(
             cx,
             UNNECESSARY_CAST,
@@ -58,7 +56,6 @@ pub(super) fn check<'tcx>(
             Applicability::MaybeIncorrect,
         );
     }
-
     // skip cast of local that is a type alias
     if let ExprKind::Cast(inner, ..) = expr.kind
         && let ExprKind::Path(qpath) = inner.kind
@@ -73,7 +70,6 @@ pub(super) fn check<'tcx>(
         {
             return false;
         }
-
         if let Some(expr) = local.init
             && let ExprKind::Cast(.., cast_to) = expr.kind
             && let TyKind::Path(qpath) = cast_to.kind
@@ -82,7 +78,6 @@ pub(super) fn check<'tcx>(
             return false;
         }
     }
-
     // skip cast to non-primitive type
     if let ExprKind::Cast(_, cast_to) = expr.kind
         && let TyKind::Path(QPath::Resolved(_, path)) = &cast_to.kind
@@ -91,17 +86,14 @@ pub(super) fn check<'tcx>(
     } else {
         return false;
     }
-
     // skip cast of fn call that returns type alias
     if let ExprKind::Cast(inner, ..) = expr.kind
         && is_cast_from_ty_alias(cx, inner, cast_from)
     {
         return false;
     }
-
     if let Some(lit) = get_numeric_literal(cast_expr) {
         let literal_str = &cast_str;
-
         if let LitKind::Int(n, _) = lit.node
             && let Some(src) = cast_expr.span.get_source_text(cx)
             && cast_to.is_floating_point()
@@ -116,7 +108,6 @@ pub(super) fn check<'tcx>(
             lint_unnecessary_cast(cx, expr, num_lit.integer, cast_from, cast_to);
             return true;
         }
-
         match lit.node {
             LitKind::Int(_, LitIntType::Unsuffixed) if cast_to.is_integral() => {
                 lint_unnecessary_cast(cx, expr, literal_str, cast_from, cast_to);
@@ -140,7 +131,6 @@ pub(super) fn check<'tcx>(
             _ => {},
         }
     }
-
     if cast_from.kind() == cast_to.kind() && !expr.span.in_external_macro(cx.sess().source_map()) {
         if let Some(id) = path_to_local(cast_expr)
             && !cx.tcx.hir().span(id).eq_ctxt(cast_expr.span)
@@ -149,7 +139,6 @@ pub(super) fn check<'tcx>(
             // Weird macro wizardry could be involved here.
             return false;
         }
-
         // If the whole cast expression is a unary expression (`(*x as T)`) or an addressof
         // expression (`(&x as T)`), then not surrounding the suggestion into a block risks us
         // changing the precedence of operators if the cast expression is followed by an operation
@@ -159,7 +148,6 @@ pub(super) fn check<'tcx>(
         // expression or an addressof expression.
         let needs_block = matches!(cast_expr.kind, ExprKind::Unary(..) | ExprKind::AddrOf(..))
             || get_parent_expr(cx, expr).is_some_and(|e| matches!(e.kind, ExprKind::Unary(..) | ExprKind::AddrOf(..)));
-
         span_lint_and_sugg(
             cx,
             UNNECESSARY_CAST,
@@ -175,10 +163,8 @@ pub(super) fn check<'tcx>(
         );
         return true;
     }
-
     false
 }
-
 fn lint_unnecessary_cast(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -202,7 +188,6 @@ fn lint_unnecessary_cast(
     } else {
         format!("{literal_str}_{cast_to}")
     };
-
     span_lint_and_sugg(
         cx,
         UNNECESSARY_CAST,
@@ -213,7 +198,6 @@ fn lint_unnecessary_cast(
         Applicability::MachineApplicable,
     );
 }
-
 fn get_numeric_literal<'e>(expr: &'e Expr<'e>) -> Option<&'e Lit> {
     match expr.kind {
         ExprKind::Lit(lit) => Some(lit),
@@ -227,7 +211,6 @@ fn get_numeric_literal<'e>(expr: &'e Expr<'e>) -> Option<&'e Lit> {
         _ => None,
     }
 }
-
 /// Returns the mantissa bits wide of a fp type.
 /// Will return 0 if the type is not a fp
 fn fp_ty_mantissa_nbits(typ: Ty<'_>) -> u32 {
@@ -237,7 +220,6 @@ fn fp_ty_mantissa_nbits(typ: Ty<'_>) -> u32 {
         _ => 0,
     }
 }
-
 /// Finds whether an `Expr` returns a type alias.
 ///
 /// TODO: Maybe we should move this to `clippy_utils` so others won't need to go down this dark,
@@ -279,7 +261,6 @@ fn is_cast_from_ty_alias<'tcx>(cx: &LateContext<'tcx>, expr: impl Visitable<'tcx
                 {
                     return ControlFlow::Break::<()>(());
                 }
-
                 if let Some(ty) = l.ty
                     && let TyKind::Path(qpath) = ty.kind
                     && is_ty_alias(&qpath)
@@ -288,12 +269,10 @@ fn is_cast_from_ty_alias<'tcx>(cx: &LateContext<'tcx>, expr: impl Visitable<'tcx
                 }
             }
         }
-
         ControlFlow::Continue(())
     })
     .is_some()
 }
-
 fn snippet_eq_ty(snippet: &str, ty: Ty<'_>) -> bool {
     snippet.trim() == ty.to_string() || snippet.trim().contains(&format!("::{ty}"))
 }

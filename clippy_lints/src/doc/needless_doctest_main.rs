@@ -1,7 +1,6 @@
-use std::ops::Range;
-use std::sync::Arc;
-use std::{io, thread};
+use crate::HVec;
 
+use super::Fragments;
 use crate::doc::{NEEDLESS_DOCTEST_MAIN, TEST_ATTR_IN_DOCTEST};
 use clippy_utils::diagnostics::span_lint;
 use rustc_ast::{CoroutineKind, Fn, FnRetTy, Item, ItemKind};
@@ -14,9 +13,9 @@ use rustc_session::parse::ParseSess;
 use rustc_span::edition::Edition;
 use rustc_span::source_map::{FilePathMapping, SourceMap};
 use rustc_span::{FileName, Pos, sym};
-
-use super::Fragments;
-
+use std::ops::Range;
+use std::sync::Arc;
+use std::{io, thread};
 fn get_test_spans(item: &Item, test_attr_spans: &mut Vec<Range<usize>>) {
     test_attr_spans.extend(
         item.attrs
@@ -25,7 +24,6 @@ fn get_test_spans(item: &Item, test_attr_spans: &mut Vec<Range<usize>>) {
             .map(|attr| attr.span.lo().to_usize()..item.ident.span.hi().to_usize()),
     );
 }
-
 pub fn check(
     cx: &LateContext<'_>,
     text: &str,
@@ -41,7 +39,6 @@ pub fn check(
             rustc_span::create_session_globals_then(edition, None, || {
                 let mut test_attr_spans = vec![];
                 let filename = FileName::anon_source_code(&code);
-
                 let fallback_bundle =
                     rustc_errors::fallback_fluent_bundle(rustc_driver::DEFAULT_LOCALE_RESOURCES.to_vec(), false);
                 let emitter = HumanEmitter::new(Box::new(io::sink()), fallback_bundle);
@@ -49,7 +46,6 @@ pub fn check(
                 #[expect(clippy::arc_with_non_send_sync)] // `Arc` is expected by with_dcx
                 let sm = Arc::new(SourceMap::new(FilePathMapping::empty()));
                 let psess = ParseSess::with_dcx(dcx, sm);
-
                 let mut parser = match new_parser_from_source_str(&psess, filename, code) {
                     Ok(p) => p,
                     Err(errs) => {
@@ -57,7 +53,6 @@ pub fn check(
                         return (false, test_attr_spans);
                     },
                 };
-
                 let mut relevant_main_found = false;
                 let mut eligible = true;
                 loop {
@@ -75,7 +70,6 @@ pub fn check(
                                     FnRetTy::Ty(ty) if ty.kind.is_unit() => true,
                                     FnRetTy::Ty(_) => false,
                                 };
-
                                 if returns_nothing && !is_async && !block.stmts.is_empty() {
                                     // This main function should be linted, but only if there are no other functions
                                     relevant_main_found = true;
@@ -107,16 +101,13 @@ pub fn check(
                         },
                     }
                 }
-
                 (relevant_main_found & eligible, test_attr_spans)
             })
         })
         .ok()
         .unwrap_or_default()
     }
-
     let trailing_whitespace = text.len() - text.trim_end().len();
-
     // Because of the global session, we need to create a new session in a different thread with
     // the edition we need.
     let text = text.to_owned();

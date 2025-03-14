@@ -1,4 +1,4 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::return_ty;
@@ -15,7 +15,7 @@ use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, sym};
 use rustc_trait_selection::error_reporting::InferCtxtErrorExt;
 use rustc_trait_selection::traits::{self, FulfillmentError, ObligationCtxt};
-
+use std::ops::ControlFlow;
 declare_clippy_lint! {
     /// ### What it does
     /// This lint requires Future implementations returned from
@@ -58,9 +58,7 @@ declare_clippy_lint! {
     nursery,
     "public Futures must be Send"
 }
-
 declare_lint_pass!(FutureNotSend => [FUTURE_NOT_SEND]);
-
 impl<'tcx> LateLintPass<'tcx> for FutureNotSend {
     fn check_fn(
         &mut self,
@@ -91,7 +89,6 @@ impl<'tcx> LateLintPass<'tcx> for FutureNotSend {
                 let cause = traits::ObligationCause::misc(span, fn_def_id);
                 ocx.register_bound(cause, cx.param_env, ret_ty, send_trait);
                 let send_errors = ocx.select_all_or_error();
-
                 // Allow errors that try to prove `Send` for types that "mention" a generic parameter at the "top
                 // level".
                 // For example, allow errors that `T: Send` can't be proven, but reject `Rc<T>: Send` errors,
@@ -101,7 +98,6 @@ impl<'tcx> LateLintPass<'tcx> for FutureNotSend {
                 // type parameter.
                 // This is to prevent emitting warnings for e.g. holding a `<Fut as Future>::Output` across await
                 // points, where `Fut` is a type parameter.
-
                 let is_send = send_errors.iter().all(|err| {
                     err.obligation
                         .predicate
@@ -113,7 +109,6 @@ impl<'tcx> LateLintPass<'tcx> for FutureNotSend {
                                 && TyParamAtTopLevelVisitor.visit_ty(pred.self_ty()) == ControlFlow::Break(true)
                         })
                 });
-
                 if !is_send {
                     span_lint_and_then(
                         cx,
@@ -142,7 +137,6 @@ impl<'tcx> LateLintPass<'tcx> for FutureNotSend {
         }
     }
 }
-
 struct TyParamAtTopLevelVisitor;
 impl<'tcx> TypeVisitor<TyCtxt<'tcx>> for TyParamAtTopLevelVisitor {
     type Result = ControlFlow<bool>;

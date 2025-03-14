@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::ty::implements_trait;
 use rustc_hir::def_id::LocalDefId;
@@ -5,7 +7,6 @@ use rustc_hir::{FnSig, ImplItem, ImplItemKind, Item, ItemKind, Node, TraitItem, 
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Symbol, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects methods named `iter` or `iter_mut` that do not have a return type that implements `Iterator`.
@@ -38,9 +39,7 @@ declare_clippy_lint! {
     pedantic,
     "methods named `iter` or `iter_mut` that do not return an `Iterator`"
 }
-
 declare_lint_pass!(IterNotReturningIterator => [ITER_NOT_RETURNING_ITERATOR]);
-
 impl<'tcx> LateLintPass<'tcx> for IterNotReturningIterator {
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx TraitItem<'_>) {
         if let TraitItemKind::Fn(fn_sig, _) = &item.kind
@@ -49,7 +48,6 @@ impl<'tcx> LateLintPass<'tcx> for IterNotReturningIterator {
             check_sig(cx, item.ident.name, fn_sig, item.owner_id.def_id);
         }
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx ImplItem<'tcx>) {
         if let ImplItemKind::Fn(fn_sig, _) = &item.kind
             && matches!(item.ident.name, sym::iter | sym::iter_mut)
@@ -62,7 +60,6 @@ impl<'tcx> LateLintPass<'tcx> for IterNotReturningIterator {
         }
     }
 }
-
 fn check_sig(cx: &LateContext<'_>, name: Symbol, sig: &FnSig<'_>, fn_id: LocalDefId) {
     if sig.decl.implicit_self.has_implicit_self() {
         let ret_ty = cx

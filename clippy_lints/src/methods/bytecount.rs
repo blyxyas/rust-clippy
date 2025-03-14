@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::NAIVE_BYTECOUNT;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -8,9 +11,6 @@ use rustc_hir::{BinOpKind, Closure, Expr, ExprKind, PatKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, UintTy};
 use rustc_span::sym;
-
-use super::NAIVE_BYTECOUNT;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,

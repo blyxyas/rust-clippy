@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::FOR_KV_MAP;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet;
@@ -8,11 +10,9 @@ use rustc_hir::{BorrowKind, Expr, ExprKind, Mutability, Pat, PatKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::sym;
-
 /// Checks for the `FOR_KV_MAP` lint.
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, pat: &'tcx Pat<'_>, arg: &'tcx Expr<'_>, body: &'tcx Expr<'_>) {
     let pat_span = pat.span;
-
     if let PatKind::Tuple(pat, _) = pat.kind {
         if pat.len() == 2 {
             let arg_span = arg.span;
@@ -32,7 +32,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, pat: &'tcx Pat<'_>, arg: &'tcx
                 ExprKind::AddrOf(BorrowKind::Ref, _, expr) => expr,
                 _ => arg,
             };
-
             if is_type_diagnostic_item(cx, ty, sym::HashMap) || is_type_diagnostic_item(cx, ty, sym::BTreeMap) {
                 span_lint_and_then(
                     cx,

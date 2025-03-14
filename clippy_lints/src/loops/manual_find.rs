@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::MANUAL_FIND;
 use super::utils::make_iterator_snippet;
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -10,7 +12,6 @@ use rustc_hir::lang_items::LangItem;
 use rustc_hir::{BindingMode, Block, Expr, ExprKind, HirId, Node, Pat, PatKind, Stmt, StmtKind};
 use rustc_lint::LateContext;
 use rustc_span::Span;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     pat: &'tcx Pat<'_>,
@@ -97,7 +98,6 @@ pub(super) fn check<'tcx>(
         );
     }
 }
-
 fn get_binding(pat: &Pat<'_>) -> Option<HirId> {
     let mut hir_id = None;
     let mut count = 0;
@@ -113,7 +113,6 @@ fn get_binding(pat: &Pat<'_>) -> Option<HirId> {
     });
     hir_id
 }
-
 // Returns the last statement and last return if function fits format for lint
 fn last_stmt_and_ret<'tcx>(
     cx: &LateContext<'tcx>,

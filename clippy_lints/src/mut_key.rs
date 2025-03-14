@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::trait_ref_of_method;
@@ -11,7 +13,6 @@ use rustc_span::Span;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::symbol::sym;
 use std::iter;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for sets/maps with mutable key types.
@@ -67,20 +68,16 @@ declare_clippy_lint! {
     suspicious,
     "Check for mutable `Map`/`Set` key type"
 }
-
 pub struct MutableKeyType<'tcx> {
     interior_mut: InteriorMut<'tcx>,
 }
-
 impl_lint_pass!(MutableKeyType<'_> => [ MUTABLE_KEY_TYPE ]);
-
 impl<'tcx> LateLintPass<'tcx> for MutableKeyType<'tcx> {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::Item<'tcx>) {
         if let hir::ItemKind::Fn { ref sig, .. } = item.kind {
             self.check_sig(cx, item.owner_id.def_id, sig.decl);
         }
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::ImplItem<'tcx>) {
         if let hir::ImplItemKind::Fn(ref sig, ..) = item.kind {
             if trait_ref_of_method(cx, item.owner_id.def_id).is_none() {
@@ -88,13 +85,11 @@ impl<'tcx> LateLintPass<'tcx> for MutableKeyType<'tcx> {
             }
         }
     }
-
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::TraitItem<'tcx>) {
         if let hir::TraitItemKind::Fn(ref sig, ..) = item.kind {
             self.check_sig(cx, item.owner_id.def_id, sig.decl);
         }
     }
-
     fn check_local(&mut self, cx: &LateContext<'tcx>, local: &hir::LetStmt<'tcx>) {
         if let hir::PatKind::Wild = local.pat.kind {
             return;
@@ -102,14 +97,12 @@ impl<'tcx> LateLintPass<'tcx> for MutableKeyType<'tcx> {
         self.check_ty_(cx, local.span, cx.typeck_results().pat_ty(local.pat));
     }
 }
-
 impl<'tcx> MutableKeyType<'tcx> {
     pub fn new(tcx: TyCtxt<'tcx>, conf: &'static Conf) -> Self {
         Self {
             interior_mut: InteriorMut::without_pointers(tcx, &conf.ignore_interior_mutability),
         }
     }
-
     fn check_sig(&mut self, cx: &LateContext<'tcx>, fn_def_id: LocalDefId, decl: &hir::FnDecl<'tcx>) {
         let fn_sig = cx.tcx.fn_sig(fn_def_id).instantiate_identity();
         for (hir_ty, ty) in iter::zip(decl.inputs, fn_sig.inputs().skip_binder()) {
@@ -121,7 +114,6 @@ impl<'tcx> MutableKeyType<'tcx> {
             cx.tcx.instantiate_bound_regions_with_erased(fn_sig.output()),
         );
     }
-
     // We want to lint 1. sets or maps with 2. not immutable key types and 3. no unerased
     // generics (because the compiler cannot ensure immutability for unknown types).
     fn check_ty_(&mut self, cx: &LateContext<'tcx>, span: Span, ty: Ty<'tcx>) {

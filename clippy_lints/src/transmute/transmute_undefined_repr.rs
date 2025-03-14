@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use super::TRANSMUTE_UNDEFINED_REPR;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::ty::is_c_void;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, GenericArgsRef, IntTy, Ty, UintTy};
-
 #[expect(clippy::too_many_lines)]
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
@@ -14,7 +15,6 @@ pub(super) fn check<'tcx>(
 ) -> bool {
     let mut from_ty = cx.tcx.erase_regions(from_ty_orig);
     let mut to_ty = cx.tcx.erase_regions(to_ty_orig);
-
     while from_ty != to_ty {
         let reduced_tys = reduce_refs(cx, from_ty, to_ty);
         match (reduce_ty(cx, reduced_tys.from_ty), reduce_ty(cx, reduced_tys.to_ty)) {
@@ -23,7 +23,6 @@ pub(super) fn check<'tcx>(
             | (_, ReducedTy::TypeErasure { raw_ptr_only: false }) => return false,
             (ReducedTy::TypeErasure { .. }, _) if reduced_tys.from_raw_ptr => return false,
             (_, ReducedTy::TypeErasure { .. }) if reduced_tys.to_raw_ptr => return false,
-
             // `Repr(C)` <-> unordered type.
             // If the first field of the `Repr(C)` type matches then the transmute is ok
             (ReducedTy::OrderedFields(Some(from_sub_ty)), ReducedTy::UnorderedFields(to_sub_ty))
@@ -39,7 +38,6 @@ pub(super) fn check<'tcx>(
                 from_ty = from_sub_ty;
                 to_ty = to_sub_ty;
             },
-
             // ptr <-> ptr
             (ReducedTy::Other(from_sub_ty), ReducedTy::Other(to_sub_ty))
                 if matches!(from_sub_ty.kind(), ty::Ref(..) | ty::RawPtr(_, _))
@@ -48,7 +46,6 @@ pub(super) fn check<'tcx>(
                 from_ty = from_sub_ty;
                 to_ty = to_sub_ty;
             },
-
             // fat ptr <-> (*size, *size)
             (ReducedTy::Other(_), ReducedTy::UnorderedFields(to_ty))
                 if reduced_tys.from_fat_ptr && is_size_pair(to_ty) =>
@@ -60,7 +57,6 @@ pub(super) fn check<'tcx>(
             {
                 return false;
             },
-
             // fat ptr -> some struct | some struct -> fat ptr
             (ReducedTy::Other(_), _) if reduced_tys.from_fat_ptr => {
                 span_lint_and_then(
@@ -90,7 +86,6 @@ pub(super) fn check<'tcx>(
                 );
                 return true;
             },
-
             (ReducedTy::UnorderedFields(from_ty), ReducedTy::UnorderedFields(to_ty)) if from_ty != to_ty => {
                 let same_adt_did = if let (ty::Adt(from_def, from_subs), ty::Adt(to_def, to_subs)) =
                     (from_ty.kind(), to_ty.kind())
@@ -171,10 +166,8 @@ pub(super) fn check<'tcx>(
             },
         }
     }
-
     false
 }
-
 #[expect(clippy::struct_excessive_bools)]
 struct ReducedTys<'tcx> {
     from_ty: Ty<'tcx>,
@@ -184,7 +177,6 @@ struct ReducedTys<'tcx> {
     from_fat_ptr: bool,
     to_fat_ptr: bool,
 }
-
 /// Remove references so long as both types are references.
 fn reduce_refs<'tcx>(cx: &LateContext<'tcx>, mut from_ty: Ty<'tcx>, mut to_ty: Ty<'tcx>) -> ReducedTys<'tcx> {
     let mut from_raw_ptr = false;
@@ -223,7 +215,6 @@ fn reduce_refs<'tcx>(cx: &LateContext<'tcx>, mut from_ty: Ty<'tcx>, mut to_ty: T
         to_fat_ptr,
     }
 }
-
 enum ReducedTy<'tcx> {
     /// The type can be used for type erasure.
     TypeErasure { raw_ptr_only: bool },
@@ -236,7 +227,6 @@ enum ReducedTy<'tcx> {
     /// Any other type.
     Other(Ty<'tcx>),
 }
-
 /// Reduce structs containing a single non-zero sized field to it's contained type.
 fn reduce_ty<'tcx>(cx: &LateContext<'tcx>, mut ty: Ty<'tcx>) -> ReducedTy<'tcx> {
     loop {
@@ -291,7 +281,6 @@ fn reduce_ty<'tcx>(cx: &LateContext<'tcx>, mut ty: Ty<'tcx>) -> ReducedTy<'tcx> 
         };
     }
 }
-
 fn is_zero_sized_ty<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> bool {
     if let Ok(ty) = cx.tcx.try_normalize_erasing_regions(cx.typing_env(), ty)
         && let Ok(layout) = cx.tcx.layout_of(cx.typing_env().as_query_input(ty))
@@ -301,7 +290,6 @@ fn is_zero_sized_ty<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> bool {
         false
     }
 }
-
 fn is_size_pair(ty: Ty<'_>) -> bool {
     if let ty::Tuple(tys) = *ty.kind()
         && let [ty1, ty2] = &**tys
@@ -312,7 +300,6 @@ fn is_size_pair(ty: Ty<'_>) -> bool {
         false
     }
 }
-
 fn same_except_params<'tcx>(subs1: GenericArgsRef<'tcx>, subs2: GenericArgsRef<'tcx>) -> bool {
     // TODO: check const parameters as well. Currently this will consider `Array<5>` the same as
     // `Array<6>`

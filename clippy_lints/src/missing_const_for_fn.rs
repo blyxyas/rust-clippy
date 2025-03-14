@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
@@ -13,7 +15,6 @@ use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::LocalDefId;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Suggests the use of `const` in functions and methods where possible.
@@ -71,19 +72,15 @@ declare_clippy_lint! {
     nursery,
     "Lint functions definitions that could be made `const fn`"
 }
-
 impl_lint_pass!(MissingConstForFn => [MISSING_CONST_FOR_FN]);
-
 pub struct MissingConstForFn {
     msrv: Msrv,
 }
-
 impl MissingConstForFn {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
     fn check_fn(
         &mut self,
@@ -98,16 +95,13 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
         if is_in_test(cx.tcx, hir_id) {
             return;
         }
-
         if span.in_external_macro(cx.tcx.sess.source_map()) || is_entrypoint_fn(cx, def_id.to_def_id()) {
             return;
         }
-
         // Building MIR for `fn`s with unsatisfiable preds results in ICE.
         if fn_has_unsatisfiable_preds(cx, def_id.to_def_id()) {
             return;
         }
-
         // Perform some preliminary checks that rule out constness on the Clippy side. This way we
         // can skip the actual const check and return early.
         match kind {
@@ -116,7 +110,6 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
                     .params
                     .iter()
                     .any(|param| matches!(param.kind, GenericParamKind::Const { .. }));
-
                 if already_const(header)
                     || has_const_generic_params
                     || !could_be_const_with_abi(cx, self.msrv, header.abi)
@@ -131,11 +124,9 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
             },
             FnKind::Closure => return,
         }
-
         if fn_inputs_has_impl_trait_ty(cx, def_id) {
             return;
         }
-
         // Const fns are not allowed as methods in a trait.
         {
             let parent = cx.tcx.hir_get_parent_item(hir_id).def_id;
@@ -147,17 +138,13 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
                 }
             }
         }
-
         if !self.msrv.meets(cx, msrvs::CONST_IF_MATCH) {
             return;
         }
-
         if is_from_proc_macro(cx, &(&kind, body, hir_id, span)) {
             return;
         }
-
         let mir = cx.tcx.optimized_mir(def_id);
-
         if let Ok(()) = is_min_const_fn(cx, mir, self.msrv)
             && let hir::Node::Item(hir::Item { vis_span, .. }) | hir::Node::ImplItem(hir::ImplItem { vis_span, .. }) =
                 cx.tcx.hir_node_by_def_id(def_id)
@@ -174,13 +161,11 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
         }
     }
 }
-
 // We don't have to lint on something that's already `const`
 #[must_use]
 fn already_const(header: hir::FnHeader) -> bool {
     header.constness == Constness::Const
 }
-
 fn could_be_const_with_abi(cx: &LateContext<'_>, msrv: Msrv, abi: ExternAbi) -> bool {
     match abi {
         ExternAbi::Rust => true,
@@ -190,7 +175,6 @@ fn could_be_const_with_abi(cx: &LateContext<'_>, msrv: Msrv, abi: ExternAbi) -> 
         _ => msrv.meets(cx, msrvs::CONST_EXTERN_FN),
     }
 }
-
 /// Return `true` when the given `def_id` is a function that has `impl Trait` ty as one of
 /// its parameter types.
 fn fn_inputs_has_impl_trait_ty(cx: &LateContext<'_>, def_id: LocalDefId) -> bool {

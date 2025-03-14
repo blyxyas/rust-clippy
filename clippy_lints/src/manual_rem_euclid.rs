@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, FullInt};
 use clippy_utils::diagnostics::span_lint_and_sugg;
@@ -8,7 +10,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Expr, ExprKind, Node, TyKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for an expression like `((x % 4) + 4) % 4` which is a common manual reimplementation
@@ -32,19 +33,15 @@ declare_clippy_lint! {
     complexity,
     "manually reimplementing `rem_euclid`"
 }
-
 pub struct ManualRemEuclid {
     msrv: Msrv,
 }
-
 impl ManualRemEuclid {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(ManualRemEuclid => [MANUAL_REM_EUCLID]);
-
 impl<'tcx> LateLintPass<'tcx> for ManualRemEuclid {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         // (x % c + c) % c
@@ -83,7 +80,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualRemEuclid {
                 },
                 _ => return,
             }
-
             let mut app = Applicability::MachineApplicable;
             let rem_of = snippet_with_context(cx, rem2_lhs.span, ctxt, "_", &mut app).0;
             span_lint_and_sugg(
@@ -98,7 +94,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualRemEuclid {
         }
     }
 }
-
 // Checks if either the left or right expressions can be an unsigned int constant and returns that
 // constant along with the other expression unchanged if so
 fn check_for_either_unsigned_int_constant<'a>(
@@ -110,7 +105,6 @@ fn check_for_either_unsigned_int_constant<'a>(
         .map(|int_const| (int_const, right))
         .or_else(|| check_for_unsigned_int_constant(cx, right).map(|int_const| (int_const, left)))
 }
-
 fn check_for_unsigned_int_constant<'a>(cx: &'a LateContext<'_>, expr: &'a Expr<'_>) -> Option<u128> {
     let int_const = ConstEvalCtxt::new(cx).eval_full_int(expr)?;
     match int_const {

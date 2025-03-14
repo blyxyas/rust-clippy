@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MAP_UNWRAP_OR;
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg};
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source::snippet;
@@ -7,9 +10,6 @@ use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_span::symbol::sym;
-
-use super::MAP_UNWRAP_OR;
-
 /// lint use of `map().unwrap_or_else()` for `Option`s and `Result`s
 ///
 /// Returns true if the lint was emitted
@@ -24,11 +24,9 @@ pub(super) fn check<'tcx>(
     // lint if the caller of `map()` is an `Option` or a `Result`.
     let is_option = is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(recv), sym::Option);
     let is_result = is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(recv), sym::Result);
-
     if is_result && !msrv.meets(cx, msrvs::RESULT_MAP_OR_ELSE) {
         return false;
     }
-
     if is_option || is_result {
         // Don't make a suggestion that may fail to compile due to mutably borrowing
         // the same variable twice.
@@ -41,7 +39,6 @@ pub(super) fn check<'tcx>(
         } else {
             return false;
         }
-
         // lint message
         let msg = if is_option {
             "called `map(<f>).unwrap_or_else(<g>)` on an `Option` value"
@@ -72,6 +69,5 @@ pub(super) fn check<'tcx>(
             return true;
         }
     }
-
     false
 }

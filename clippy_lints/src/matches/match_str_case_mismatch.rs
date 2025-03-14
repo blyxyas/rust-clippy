@@ -1,5 +1,6 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
+use super::MATCH_STR_CASE_MISMATCH;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::ty::is_type_lang_item;
 use rustc_ast::ast::LitKind;
@@ -10,9 +11,7 @@ use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::Span;
 use rustc_span::symbol::Symbol;
-
-use super::MATCH_STR_CASE_MISMATCH;
-
+use std::ops::ControlFlow;
 #[derive(Debug)]
 enum CaseMethod {
     LowerCase,
@@ -20,7 +19,6 @@ enum CaseMethod {
     UpperCase,
     AsciiUppercase,
 }
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, scrutinee: &'tcx Expr<'_>, arms: &'tcx [Arm<'_>]) {
     if let ty::Ref(_, ty, _) = cx.typeck_results().expr_ty(scrutinee).kind()
         && let ty::Str = ty.kind()
@@ -33,11 +31,9 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, scrutinee: &'tcx Expr<'_>, arm
         }
     }
 }
-
 struct MatchExprVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
 }
-
 impl<'tcx> Visitor<'tcx> for MatchExprVisitor<'_, 'tcx> {
     type Result = ControlFlow<CaseMethod>;
     fn visit_expr(&mut self, ex: &'tcx Expr<'_>) -> Self::Result {
@@ -47,25 +43,20 @@ impl<'tcx> Visitor<'tcx> for MatchExprVisitor<'_, 'tcx> {
                 return result;
             }
         }
-
         walk_expr(self, ex)
     }
 }
-
 impl MatchExprVisitor<'_, '_> {
     fn case_altered(&mut self, segment_ident: &str, receiver: &Expr<'_>) -> ControlFlow<CaseMethod> {
         if let Some(case_method) = get_case_method(segment_ident) {
             let ty = self.cx.typeck_results().expr_ty(receiver).peel_refs();
-
             if is_type_lang_item(self.cx, ty, LangItem::String) || ty.kind() == &ty::Str {
                 return ControlFlow::Break(case_method);
             }
         }
-
         ControlFlow::Continue(())
     }
 }
-
 fn get_case_method(segment_ident_str: &str) -> Option<CaseMethod> {
     match segment_ident_str {
         "to_lowercase" => Some(CaseMethod::LowerCase),
@@ -75,7 +66,6 @@ fn get_case_method(segment_ident_str: &str) -> Option<CaseMethod> {
         _ => None,
     }
 }
-
 fn verify_case<'a>(case_method: &'a CaseMethod, arms: &'a [Arm<'_>]) -> Option<(Span, Symbol)> {
     let case_check = match case_method {
         CaseMethod::LowerCase => |input: &str| -> bool { input.chars().all(|c| c.to_lowercase().next() == Some(c)) },
@@ -83,7 +73,6 @@ fn verify_case<'a>(case_method: &'a CaseMethod, arms: &'a [Arm<'_>]) -> Option<(
         CaseMethod::UpperCase => |input: &str| -> bool { input.chars().all(|c| c.to_uppercase().next() == Some(c)) },
         CaseMethod::AsciiUppercase => |input: &str| -> bool { !input.chars().any(|c| c.is_ascii_lowercase()) },
     };
-
     for arm in arms {
         if let PatKind::Expr(PatExpr {
             kind: PatExprKind::Lit { lit, negated: false },
@@ -96,10 +85,8 @@ fn verify_case<'a>(case_method: &'a CaseMethod, arms: &'a [Arm<'_>]) -> Option<(
             return Some((lit.span, symbol));
         }
     }
-
     None
 }
-
 fn lint(cx: &LateContext<'_>, case_method: &CaseMethod, bad_case_span: Span, bad_case_str: &str) {
     let (method_str, suggestion) = match case_method {
         CaseMethod::LowerCase => ("to_lowercase", bad_case_str.to_lowercase()),
@@ -107,7 +94,6 @@ fn lint(cx: &LateContext<'_>, case_method: &CaseMethod, bad_case_span: Span, bad
         CaseMethod::UpperCase => ("to_uppercase", bad_case_str.to_uppercase()),
         CaseMethod::AsciiUppercase => ("to_ascii_uppercase", bad_case_str.to_ascii_uppercase()),
     };
-
     span_lint_and_sugg(
         cx,
         MATCH_STR_CASE_MISMATCH,

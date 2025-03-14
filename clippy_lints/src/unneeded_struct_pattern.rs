@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_from_proc_macro;
 use rustc_errors::Applicability;
@@ -5,7 +7,6 @@ use rustc_hir::def::{DefKind, Res};
 use rustc_hir::{Pat, PatKind, QPath};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for struct patterns that match against unit variant.
@@ -37,9 +38,7 @@ declare_clippy_lint! {
     style,
     "using struct pattern to match against unit variant"
 }
-
 declare_lint_pass!(UnneededStructPattern => [UNNEEDED_STRUCT_PATTERN]);
-
 impl LateLintPass<'_> for UnneededStructPattern {
     fn check_pat(&mut self, cx: &LateContext<'_>, pat: &Pat<'_>) {
         if !pat.span.from_expansion()
@@ -49,17 +48,14 @@ impl LateLintPass<'_> for UnneededStructPattern {
         {
             let enum_did = cx.tcx.parent(did);
             let variant = cx.tcx.adt_def(enum_did).variant_with_id(did);
-
             let has_only_fields_brackets = variant.ctor.is_some() && variant.fields.is_empty();
             let non_exhaustive_activated = !variant.def_id.is_local() && variant.is_field_list_non_exhaustive();
             if !has_only_fields_brackets || non_exhaustive_activated {
                 return;
             }
-
             if is_from_proc_macro(cx, *path) {
                 return;
             }
-
             if let Some(brackets_span) = pat.span.trim_start(path.span) {
                 span_lint_and_sugg(
                     cx,

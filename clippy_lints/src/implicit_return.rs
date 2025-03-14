@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context, walk_span_to_context};
 use clippy_utils::visitors::for_each_expr_without_closures;
@@ -10,7 +12,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::declare_lint_pass;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, SyntaxContext};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for missing return statements at the end of a block.
@@ -40,9 +41,7 @@ declare_clippy_lint! {
     restriction,
     "use a return statement like `return expr` instead of an expression"
 }
-
 declare_lint_pass!(ImplicitReturn => [IMPLICIT_RETURN]);
-
 fn lint_return(cx: &LateContext<'_>, emission_place: HirId, span: Span) {
     span_lint_hir_and_then(
         cx,
@@ -57,7 +56,6 @@ fn lint_return(cx: &LateContext<'_>, emission_place: HirId, span: Span) {
         },
     );
 }
-
 fn lint_break(cx: &LateContext<'_>, emission_place: HirId, break_span: Span, expr_span: Span) {
     span_lint_hir_and_then(
         cx,
@@ -77,7 +75,6 @@ fn lint_break(cx: &LateContext<'_>, emission_place: HirId, break_span: Span, exp
         },
     );
 }
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum LintLocation {
     /// The lint was applied to a parent expression.
@@ -89,17 +86,14 @@ impl LintLocation {
     fn still_parent(self, b: bool) -> Self {
         if b { self } else { Self::Inner }
     }
-
     fn is_parent(self) -> bool {
         self == Self::Parent
     }
 }
-
 // Gets the call site if the span is in a child context. Otherwise returns `None`.
 fn get_call_site(span: Span, ctxt: SyntaxContext) -> Option<Span> {
     (span.ctxt() != ctxt).then(|| walk_span_to_context(span, ctxt).unwrap_or(span))
 }
-
 fn lint_implicit_returns(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -121,7 +115,6 @@ fn lint_implicit_returns(
             call_site_span.or_else(|| get_call_site(block_expr.span, ctxt)),
         )
         .still_parent(call_site_span.is_some()),
-
         ExprKind::If(_, then_expr, Some(else_expr)) => {
             // Both `then_expr` or `else_expr` are required to be blocks in the same context as the `if`. Don't
             // bother checking.
@@ -132,7 +125,6 @@ fn lint_implicit_returns(
             }
             lint_implicit_returns(cx, else_expr, ctxt, call_site_span).still_parent(call_site_span.is_some())
         },
-
         ExprKind::Match(_, arms, _) => {
             for arm in arms {
                 let res = lint_implicit_returns(
@@ -149,7 +141,6 @@ fn lint_implicit_returns(
             }
             LintLocation::Inner
         },
-
         ExprKind::Loop(block, ..) => {
             let mut add_return = false;
             let _: Option<!> = for_each_expr_without_closures(block, |e| {
@@ -182,13 +173,11 @@ fn lint_implicit_returns(
                 LintLocation::Inner
             }
         },
-
         // If expressions without an else clause, and blocks without a final expression can only be the final expression
         // if they are divergent, or return the unit type.
         ExprKind::If(_, _, None) | ExprKind::Block(Block { expr: None, .. }, _) | ExprKind::Ret(_) => {
             LintLocation::Inner
         },
-
         // Any divergent expression doesn't need a return statement.
         ExprKind::MethodCall(..)
         | ExprKind::Call(..)
@@ -199,7 +188,6 @@ fn lint_implicit_returns(
         {
             LintLocation::Inner
         },
-
         _ =>
         {
             #[expect(clippy::option_if_let_else)]
@@ -213,7 +201,6 @@ fn lint_implicit_returns(
         },
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for ImplicitReturn {
     fn check_fn(
         &mut self,
@@ -230,12 +217,10 @@ impl<'tcx> LateLintPass<'tcx> for ImplicitReturn {
         {
             return;
         }
-
         let res_ty = cx.typeck_results().expr_ty(body.value);
         if res_ty.is_unit() || res_ty.is_never() {
             return;
         }
-
         let expr = if is_async_fn(kind) {
             match get_async_fn_body(cx.tcx, body) {
                 Some(e) => e,
@@ -244,7 +229,6 @@ impl<'tcx> LateLintPass<'tcx> for ImplicitReturn {
         } else {
             body.value
         };
-
         if is_from_proc_macro(cx, expr) {
             return;
         }

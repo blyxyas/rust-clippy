@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::VEC_RESIZE_TO_ZERO;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::ty::is_type_diagnostic_item;
 use rustc_ast::LitKind;
@@ -7,9 +10,6 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_span::source_map::Spanned;
 use rustc_span::{Span, sym};
-
-use super::VEC_RESIZE_TO_ZERO;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,

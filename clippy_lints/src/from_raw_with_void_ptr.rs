@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::path_def_id;
 use clippy_utils::ty::is_c_void;
@@ -7,7 +9,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if we're passing a `c_void` raw pointer to `{Box,Rc,Arc,Weak}::from_raw(_)`
@@ -36,7 +37,6 @@ declare_clippy_lint! {
     "creating a `Box` from a void raw pointer"
 }
 declare_lint_pass!(FromRawWithVoidPtr => [FROM_RAW_WITH_VOID_PTR]);
-
 impl LateLintPass<'_> for FromRawWithVoidPtr {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         if let ExprKind::Call(box_from_raw, [arg]) = expr.kind
@@ -59,7 +59,6 @@ impl LateLintPass<'_> for FromRawWithVoidPtr {
         }
     }
 }
-
 /// Checks whether a `DefId` matches `Box`, `Rc`, `Arc`, or one of the `Weak` types.
 /// Returns a static string slice with the name of the type, if one was found.
 fn def_id_matches_type(cx: &LateContext<'_>, def_id: DefId) -> Option<&'static str> {
@@ -67,7 +66,6 @@ fn def_id_matches_type(cx: &LateContext<'_>, def_id: DefId) -> Option<&'static s
     if Some(def_id) == cx.tcx.lang_items().owned_box() {
         return Some("Box");
     }
-
     if let Some(symbol) = cx.tcx.get_diagnostic_name(def_id) {
         if symbol == sym::Arc {
             return Some("Arc");
@@ -75,7 +73,6 @@ fn def_id_matches_type(cx: &LateContext<'_>, def_id: DefId) -> Option<&'static s
             return Some("Rc");
         }
     }
-
     if matches!(cx.tcx.get_diagnostic_name(def_id), Some(sym::RcWeak | sym::ArcWeak)) {
         Some("Weak")
     } else {

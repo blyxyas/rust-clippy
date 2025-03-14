@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_hir_and_then};
 use clippy_utils::source::{SpanRangeExt, snippet_with_context};
 use clippy_utils::sugg::has_enclosing_paren;
@@ -25,7 +27,6 @@ use rustc_span::edition::Edition;
 use rustc_span::{BytePos, Pos, Span, sym};
 use std::borrow::Cow;
 use std::fmt::Display;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `let`-bindings, which are subsequently
@@ -59,7 +60,6 @@ declare_clippy_lint! {
     style,
     "creating a let-binding and then immediately returning it like `let x = expr; x` at the end of a block"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for return statements at the end of a block.
@@ -88,7 +88,6 @@ declare_clippy_lint! {
     style,
     "using a return statement like `return expr;` where an expression would suffice"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for return statements on `Err` paired with the `?` operator.
@@ -131,7 +130,6 @@ declare_clippy_lint! {
     style,
     "using a return statement like `return Err(expr)?;` where removing it would suffice"
 }
-
 #[derive(PartialEq, Eq)]
 enum RetReplacement<'tcx> {
     Empty,
@@ -140,7 +138,6 @@ enum RetReplacement<'tcx> {
     NeedsPar(Cow<'tcx, str>, Applicability),
     Expr(Cow<'tcx, str>, Applicability),
 }
-
 impl RetReplacement<'_> {
     fn sugg_help(&self) -> &'static str {
         match self {
@@ -150,7 +147,6 @@ impl RetReplacement<'_> {
             Self::NeedsPar(..) => "remove `return` and wrap the sequence with parentheses",
         }
     }
-
     fn applicability(&self) -> Applicability {
         match self {
             Self::Expr(_, ap) | Self::NeedsPar(_, ap) => *ap,
@@ -158,7 +154,6 @@ impl RetReplacement<'_> {
         }
     }
 }
-
 impl Display for RetReplacement<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -170,9 +165,7 @@ impl Display for RetReplacement<'_> {
         }
     }
 }
-
 declare_lint_pass!(Return => [LET_AND_RETURN, NEEDLESS_RETURN, NEEDLESS_RETURN_WITH_QUESTION_MARK]);
-
 /// Checks if a return statement is "needed" in the middle of a block, or if it can be removed. This
 /// is the case when the enclosing block expression is coerced to some other type, which only works
 /// because of the never-ness of `return` expressions
@@ -187,7 +180,6 @@ fn stmt_needs_never_type(cx: &LateContext<'_>, stmt_hir_id: HirId) -> bool {
                 .any(|adjust| adjust.target != cx.tcx.types.unit && matches!(adjust.kind, Adjust::NeverToAny))
         })
 }
-
 impl<'tcx> LateLintPass<'tcx> for Return {
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'_>) {
         if !stmt.span.in_external_macro(cx.sess().source_map())
@@ -201,7 +193,6 @@ impl<'tcx> LateLintPass<'tcx> for Return {
             && let ExprKind::Call(_, [maybe_result_err]) = maybe_cons.kind
             && let ExprKind::Call(maybe_constr, _) = maybe_result_err.kind
             && is_res_lang_ctor(cx, path_res(cx, maybe_constr), ResultErr)
-
             // Ensure this is not the final stmt, otherwise removing it would cause a compile error
             && let OwnerNode::Item(item) = cx.tcx.hir_owner_node(cx.tcx.hir_get_parent_item(expr.hir_id))
             && let ItemKind::Fn { body, .. } = item.kind
@@ -224,7 +215,6 @@ impl<'tcx> LateLintPass<'tcx> for Return {
             );
         }
     }
-
     fn check_block(&mut self, cx: &LateContext<'tcx>, block: &'tcx Block<'_>) {
         // we need both a let-binding stmt and an expr
         if let Some(retexpr) = block.expr
@@ -249,7 +239,6 @@ impl<'tcx> LateLintPass<'tcx> for Return {
                 "returning the result of a `let` binding from a block",
                 |err| {
                     err.span_label(local.span, "unnecessary `let` binding");
-
                     if let Some(src) = initexpr.span.get_source_text(cx) {
                         let sugg = if binary_expr_needs_parentheses(initexpr) {
                             if has_enclosing_paren(&src) {
@@ -278,7 +267,6 @@ impl<'tcx> LateLintPass<'tcx> for Return {
             );
         }
     }
-
     fn check_fn(
         &mut self,
         cx: &LateContext<'tcx>,
@@ -291,7 +279,6 @@ impl<'tcx> LateLintPass<'tcx> for Return {
         if sp.from_expansion() {
             return;
         }
-
         match kind {
             FnKind::Closure => {
                 // when returning without value in closure, replace this `return`
@@ -309,7 +296,6 @@ impl<'tcx> LateLintPass<'tcx> for Return {
         }
     }
 }
-
 // if `expr` is a block, check if there are needless returns in it
 fn check_block_return<'tcx>(cx: &LateContext<'tcx>, expr_kind: &ExprKind<'tcx>, sp: Span, mut semi_spans: Vec<Span>) {
     if let ExprKind::Block(block, _) = expr_kind {
@@ -335,7 +321,6 @@ fn check_block_return<'tcx>(cx: &LateContext<'tcx>, expr_kind: &ExprKind<'tcx>, 
         }
     }
 }
-
 fn check_final_expr<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -354,7 +339,6 @@ fn check_final_expr<'tcx>(
             } else {
                 peeled_drop_expr.span
             };
-
             let replacement = if let Some(inner_expr) = inner {
                 // if desugar of `do yeet`, don't lint
                 if let ExprKind::Call(path_expr, [_]) = inner_expr.kind
@@ -362,7 +346,6 @@ fn check_final_expr<'tcx>(
                 {
                     return;
                 }
-
                 let mut applicability = Applicability::MachineApplicable;
                 let (snippet, _) = snippet_with_context(cx, inner_expr.span, ret_span.ctxt(), "..", &mut applicability);
                 if binary_expr_needs_parentheses(inner_expr) {
@@ -388,15 +371,12 @@ fn check_final_expr<'tcx>(
                     None => replacement,
                 }
             };
-
             if inner.is_some_and(|inner| leaks_droppable_temporary_with_limited_lifetime(cx, inner)) {
                 return;
             }
-
             if ret_span.from_expansion() || is_from_proc_macro(cx, expr) {
                 return;
             }
-
             // Returns may be used to turn an expression into a statement in rustc's AST.
             // This allows the addition of attributes, like `#[allow]` (See: clippy#9361)
             // `#[expect(clippy::needless_return)]` needs to be handled separately to
@@ -422,7 +402,6 @@ fn check_final_expr<'tcx>(
                 },
                 _ => return,
             }
-
             emit_return_lint(cx, ret_span, semi_spans, &replacement, expr.hir_id);
         },
         ExprKind::If(_, then, else_clause_opt) => {
@@ -445,7 +424,6 @@ fn check_final_expr<'tcx>(
         other_expr_kind => check_block_return(cx, other_expr_kind, peeled_drop_expr.span, semi_spans),
     }
 }
-
 fn emit_return_lint(
     cx: &LateContext<'_>,
     ret_span: Span,
@@ -463,12 +441,10 @@ fn emit_return_lint(
             let suggestions = std::iter::once((ret_span, replacement.to_string()))
                 .chain(semi_spans.into_iter().map(|span| (span, String::new())))
                 .collect();
-
             diag.multipart_suggestion_verbose(replacement.sugg_help(), suggestions, replacement.applicability());
         },
     );
 }
-
 fn last_statement_borrows<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> bool {
     for_each_expr(cx, expr, |e| {
         if let Some(def_id) = fn_def_id(cx, e)
@@ -488,7 +464,6 @@ fn last_statement_borrows<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) 
     })
     .is_some()
 }
-
 // Go backwards while encountering whitespace and extend the given Span to that point.
 fn extend_span_to_previous_non_ws(cx: &LateContext<'_>, sp: Span) -> Span {
     if let Ok(prev_source) = cx.sess().source_map().span_to_prev_source(sp) {
@@ -498,6 +473,5 @@ fn extend_span_to_previous_non_ws(cx: &LateContext<'_>, sp: Span) -> Span {
             return sp.with_lo(sp.lo() - BytePos::from_usize(len));
         }
     }
-
     sp
 }

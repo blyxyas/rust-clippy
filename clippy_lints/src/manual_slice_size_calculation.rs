@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::{expr_or_init, is_in_const_context, std_or_core};
@@ -7,7 +9,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::symbol::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// When `a` is `&[T]`, detect `a.len() * size_of::<T>()` and suggest `size_of_val(a)`
@@ -37,7 +38,6 @@ declare_clippy_lint! {
     "manual slice size calculation"
 }
 declare_lint_pass!(ManualSliceSizeCalculation => [MANUAL_SLICE_SIZE_CALCULATION]);
-
 impl<'tcx> LateLintPass<'tcx> for ManualSliceSizeCalculation {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let ExprKind::Binary(ref op, left, right) = expr.kind
@@ -52,7 +52,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualSliceSizeCalculation {
             let deref = "*".repeat(refs_count - 1);
             let val_name = snippet_with_context(cx, receiver.span, ctxt, "slice", &mut app).0;
             let Some(sugg) = std_or_core(cx) else { return };
-
             span_lint_and_sugg(
                 cx,
                 MANUAL_SLICE_SIZE_CALCULATION,
@@ -65,7 +64,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualSliceSizeCalculation {
         }
     }
 }
-
 fn simplify<'tcx>(
     cx: &LateContext<'tcx>,
     expr1: &'tcx Expr<'tcx>,
@@ -73,10 +71,8 @@ fn simplify<'tcx>(
 ) -> Option<(&'tcx Expr<'tcx>, usize)> {
     let expr1 = expr_or_init(cx, expr1);
     let expr2 = expr_or_init(cx, expr2);
-
     simplify_half(cx, expr1, expr2).or_else(|| simplify_half(cx, expr2, expr1))
 }
-
 fn simplify_half<'tcx>(
     cx: &LateContext<'tcx>,
     expr1: &'tcx Expr<'tcx>,

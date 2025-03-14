@@ -1,14 +1,13 @@
+use crate::HVec;
+
+use super::TOO_LONG_FIRST_DOC_PARAGRAPH;
+use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::is_from_proc_macro;
+use clippy_utils::source::snippet_opt;
 use rustc_attr_parsing::AttributeKind;
 use rustc_errors::Applicability;
 use rustc_hir::{Attribute, Item, ItemKind};
 use rustc_lint::LateContext;
-
-use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::is_from_proc_macro;
-use clippy_utils::source::snippet_opt;
-
-use super::TOO_LONG_FIRST_DOC_PARAGRAPH;
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     item: &Item<'_>,
@@ -39,10 +38,8 @@ pub(super) fn check(
     {
         return;
     }
-
     let mut spans = Vec::new();
     let mut should_suggest_empty_doc = false;
-
     for attr in attrs {
         if let Attribute::Parsed(AttributeKind::DocComment { span, comment, .. }) = attr {
             spans.push(span);
@@ -56,7 +53,6 @@ pub(super) fn check(
                 // We make this suggestion only if the second doc line is not empty.
                 should_suggest_empty_doc &= !doc.is_empty();
             }
-
             let len = doc.chars().count();
             if len >= first_paragraph_len {
                 break;
@@ -64,14 +60,12 @@ pub(super) fn check(
             first_paragraph_len -= len;
         }
     }
-
     let &[first_span, .., last_span] = spans.as_slice() else {
         return;
     };
     if is_from_proc_macro(cx, item) {
         return;
     }
-
     span_lint_and_then(
         cx,
         TOO_LONG_FIRST_DOC_PARAGRAPH,
@@ -89,7 +83,6 @@ pub(super) fn check(
                 let Some(comment_form) = first.get(..3) else {
                     return;
                 };
-
                 diag.span_suggestion(
                     new_span,
                     "add an empty line",

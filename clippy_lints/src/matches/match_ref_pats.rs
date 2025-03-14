@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MATCH_REF_PATS;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::{snippet, walk_span_to_context};
 use clippy_utils::sugg::Sugg;
@@ -5,9 +8,6 @@ use core::iter::once;
 use rustc_errors::Applicability;
 use rustc_hir::{BorrowKind, Expr, ExprKind, Mutability, Pat, PatKind};
 use rustc_lint::LateContext;
-
-use super::MATCH_REF_PATS;
-
 pub(crate) fn check<'a, 'b, I>(cx: &LateContext<'_>, scrutinee: &Expr<'_>, pats: I, expr: &Expr<'_>)
 where
     'b: 'a,
@@ -16,7 +16,6 @@ where
     if !has_multiple_ref_pats(pats.clone()) {
         return;
     }
-
     let (first_sugg, msg, title);
     let ctxt = expr.span.ctxt();
     let mut app = Applicability::Unspecified;
@@ -43,7 +42,6 @@ where
         msg = "instead of prefixing all patterns with `&`, you can dereference the expression";
         title = "you don't need to add `&` to all patterns";
     }
-
     let remaining_suggs = pats.filter_map(|pat| {
         if let PatKind::Ref(refp, _) = pat.kind {
             Some((pat.span, snippet(cx, refp.span, "..").to_string()))
@@ -51,7 +49,6 @@ where
             None
         }
     });
-
     span_lint_and_then(cx, MATCH_REF_PATS, expr.span, title, |diag| {
         if !expr.span.from_expansion() {
             diag.multipart_suggestion(
@@ -62,7 +59,6 @@ where
         }
     });
 }
-
 fn has_multiple_ref_pats<'a, 'b, I>(pats: I) -> bool
 where
     'b: 'a,

@@ -29,7 +29,6 @@
     unused_qualifications,
     rustc::internal
 )]
-
 // FIXME: switch to something more ergonomic here, once available.
 // (Currently there is no way to opt into sysroot crates without `extern crate`.)
 extern crate pulldown_cmark;
@@ -58,20 +57,188 @@ extern crate rustc_span;
 extern crate rustc_target;
 extern crate rustc_trait_selection;
 extern crate thin_vec;
-
 #[macro_use]
 mod declare_clippy_lint;
-
 #[macro_use]
 extern crate clippy_utils;
-
-#[cfg_attr(feature = "internal", allow(clippy::missing_clippy_version_attribute))]
-mod utils;
-
 pub mod ctfe; // Very important lint, do not remove (rust#125116)
 pub mod declared_lints;
 pub mod deprecated_lints;
+#[cfg_attr(feature = "internal", allow(clippy::missing_clippy_version_attribute))]
+mod utils;
+use std::sync::atomic::Ordering;
 
+static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+struct HVec<T> {
+    v: Box<Vec<T>>,
+    id: usize,
+    manual_len: usize,
+}
+
+impl<T> HVec<T> {
+    #[track_caller]
+    pub fn new() -> Self {
+        let current_counter = ID_COUNTER.load(Ordering::Relaxed);
+        println!("{} == Counter: {}", std::panic::Location::caller(), current_counter + 1);
+        ID_COUNTER.store(current_counter + 1, Ordering::Relaxed);
+        Self {
+            v: Box::new(Vec::<T>::new()),
+            id: current_counter,
+            manual_len: 0,
+        }
+    }
+}
+
+impl<T> std::ops::Deref for HVec<T> {
+    type Target = Vec<T>;
+    fn deref(&self) -> &Vec<T> {
+        &self.v
+    }
+}
+impl<T> std::ops::DerefMut for HVec<T> {
+    fn deref_mut(&mut self) -> &mut Vec<T> {
+        self.manual_len = self.v.len();
+        println!("Current length {}", self.v.len());
+        &mut self.v
+    }
+}
+impl<T> Drop for HVec<T> {
+    fn drop(&mut self) {
+        println!("Dropping {}", self.id);
+    }
+}
+
+impl<T> FromIterator<T> for HVec<T> {
+    #[inline]
+    #[track_caller]
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> HVec<T> {
+        let v: Vec<T> = iter.into_iter().collect();
+
+        let current_counter = ID_COUNTER.load(Ordering::Relaxed);
+        println!("{} == Counter: {}", std::panic::Location::caller(), current_counter + 1);
+        ID_COUNTER.store(current_counter + 1, Ordering::Relaxed);
+        let len = v.len();
+
+        Self {
+            v: Box::new(v),
+            id: current_counter,
+            manual_len: len,
+        }
+    }
+}
+
+// impl<T> Vec<T> {
+//     fn new() -> Vec<T> {
+//         Self { v: Vec::new() }
+//     }
+//     fn with_capacity(cap: usize) -> Vec<T> {
+//         Self { v: Vec::with_capacity(cap) }
+//     }
+//     fn capacity(&self) -> usize {
+//         self.v.capacity()
+//     }
+//     fn reserve(&mut self, a: usize) {
+//         self.v.reserve(a)
+//     }
+//     fn reserve_exact(&mut self, a: usize) {
+//         self.v.reserve_exact(a)
+//     }
+//     pub fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
+//         self.v.try_reserve(additional)
+//     }
+//     fn try_reserve_exact(
+//         &mut self,
+//         additional: usize,
+//     ) -> Result<(), TryReserveError> {
+//         self.v.try_reserve_exact(additional)
+//     }
+//     fn shrink_to_fit(&mut self) {
+//         self.v.shrink_to_fit()
+//     }
+//     fn shrink_to(&mut self, mc: usize) {
+//         self.v.shrink_to(mc)
+//     }
+//     fn into_boxed_slice(mut self) -> Box<[T]> {
+//         self.v.into_boxed_slice()
+//     }
+//     fn truncate(&mut self, len: usize) {
+//         self.v.truncate(len)
+//     }
+//     fn as_slice(&self) -> &[T] {
+//         self.v.as_slice()
+//     }
+//     fn as_mut_slice(&mut self) -> &mut [T] {
+//         self.v.as_mut_slice()
+//     }
+//     fn as_ptr(&self) -> *const T {
+//         self.v.as_ptr()
+//     }
+//     fn as_mut_ptr(&mut self) -> *mut T {
+//         self.v.as_mut_ptr()
+//     }
+//     fn swap_remove(&mut self, index: usize) -> T {
+//         self.v.swap_remove(index)
+//     }
+//     fn insert(&mut self, index: usize, element: T) {
+//         self.v.insert(index, element);
+//     }
+//     fn remove(&mut self, index: usize) {
+//         self.v.remove(index);
+//     }
+//     fn retain(&mut self, f: impl FnMut(&T) -> bool) {
+//         self.v.retain(f);
+//     }
+//     fn retain_mut(&mut self, f: impl FnMut(&mut T) -> bool) {
+//         self.v.retain_mut(f)
+//     }
+//     fn push(&mut self, element: T) {
+//         self.v.push(element)
+//     }
+// }
+// impl<T> std::ops::Deref for Vec<T> {
+//     type Target = [T];
+//     #[inline]
+//     fn deref(&self) -> &[T] {
+//         self.v.deref()
+//     }
+// }
+// impl<T> std::ops::DerefMut for Vec<T> {
+//     #[inline]
+//     fn deref_mut(&mut self) -> &mut [T] {
+//         self.v.deref_mut()
+//     }
+// }
+// impl<T: Clone> Clone for Vec<T> {
+//     fn clone(&self) -> Self {
+//         self.v.clone()
+//     }
+//     fn clone_from(&mut self, source: &Self) {
+//         self.v.clone_from()
+//     }
+// }
+// use std::ops::Index;
+// use std::slice::SliceIndex;
+// impl<T, I: SliceIndex<[T]>> Index<I> for Vec<T> {
+//     type Output = I::Output;
+//     #[inline]
+//     fn index(&self, index: I) -> &Self::Output {
+//         Index::index(&**self, index)
+//     }
+// }
+// impl<T> FromIterator<T> for Vec<T> {
+//     #[inline]
+//     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Vec<T> {
+//         from_iter(iter)
+//     }
+// }
+// impl<T> IntoIterator for Vec<T> {
+//     type Item = T;
+//     type IntoITer = IntoIter<T>;
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.v.into_iter()
+//     }
+// }
 // begin lints modules, do not remove this comment, it’s used in `update_lints`
 mod absolute_paths;
 mod almost_complete_range;
@@ -405,13 +572,13 @@ mod zero_repeat_side_effects;
 mod zero_sized_map_values;
 mod zombie_processes;
 // end lints modules, do not remove this comment, it’s used in `update_lints`
-
 use clippy_config::{Conf, get_configuration_metadata, sanitize_explanation};
 use clippy_utils::macros::FormatArgsStorage;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_lint::{Lint, LintId};
+use std::collections::TryReserveError;
+use std::sync::atomic::AtomicUsize;
 use utils::attr_collector::{AttrCollector, AttrStorage};
-
 /// Register all pre expansion lints
 ///
 /// Pre-expansion lints run before any macro expansion has happened.
@@ -423,10 +590,8 @@ use utils::attr_collector::{AttrCollector, AttrStorage};
 pub fn register_pre_expansion_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
     // NOTE: Do not add any more pre-expansion passes. These should be removed eventually.
     store.register_pre_expansion_pass(move || Box::new(attrs::EarlyAttributes::new(conf)));
-
     store.register_early_pass(move || Box::new(attrs::PostExpansionEarlyAttributes::new(conf)));
 }
-
 #[derive(Default)]
 struct RegistrationGroups {
     all: Vec<LintId>,
@@ -442,7 +607,6 @@ struct RegistrationGroups {
     #[cfg(feature = "internal")]
     internal: Vec<LintId>,
 }
-
 impl RegistrationGroups {
     #[rustfmt::skip]
     fn register(self, store: &mut rustc_lint::LintStore) {
@@ -460,7 +624,6 @@ impl RegistrationGroups {
         store.register_group(true, "clippy::internal", Some("clippy_internal"), self.internal);
     }
 }
-
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum LintCategory {
     Cargo,
@@ -475,15 +638,12 @@ pub(crate) enum LintCategory {
     #[cfg(feature = "internal")]
     Internal,
 }
-
 #[allow(clippy::enum_glob_use)]
 use LintCategory::*;
-
 impl LintCategory {
     fn is_all(self) -> bool {
         matches!(self, Correctness | Suspicious | Style | Complexity | Perf)
     }
-
     fn group(self, groups: &mut RegistrationGroups) -> &mut Vec<LintId> {
         match self {
             Cargo => &mut groups.cargo,
@@ -500,7 +660,6 @@ impl LintCategory {
         }
     }
 }
-
 pub struct LintInfo {
     /// Double reference to maintain pointer equality
     pub lint: &'static &'static Lint,
@@ -510,14 +669,12 @@ pub struct LintInfo {
     pub location: &'static str,
     pub version: Option<&'static str>,
 }
-
 impl LintInfo {
     /// Returns the lint name in lowercase without the `clippy::` prefix
     #[allow(clippy::missing_panics_doc)]
     pub fn name_lower(&self) -> String {
         self.lint.name.strip_prefix("clippy::").unwrap().to_ascii_lowercase()
     }
-
     /// Returns the name of the lint's category in lowercase (`style`, `pedantic`)
     pub fn category_str(&self) -> &'static str {
         match self.category {
@@ -535,10 +692,8 @@ impl LintInfo {
         }
     }
 }
-
 pub fn explain(name: &str) -> i32 {
     let target = format!("clippy::{}", name.to_ascii_uppercase());
-
     if let Some(info) = declared_lints::LINTS.iter().find(|info| info.lint.name == target) {
         println!("{}", sanitize_explanation(info.explanation));
         // Check if the lint has configuration
@@ -557,38 +712,30 @@ pub fn explain(name: &str) -> i32 {
         1
     }
 }
-
 fn register_categories(store: &mut rustc_lint::LintStore) {
     let mut groups = RegistrationGroups::default();
-
     for LintInfo { lint, category, .. } in declared_lints::LINTS {
         if category.is_all() {
             groups.all.push(LintId::of(lint));
         }
-
         category.group(&mut groups).push(LintId::of(lint));
     }
-
     let lints: Vec<&'static Lint> = declared_lints::LINTS.iter().map(|info| *info.lint).collect();
-
     store.register_lints(&lints);
     groups.register(store);
 }
-
 /// Register all lints and lint groups with the rustc lint store
 ///
 /// Used in `./src/driver.rs`.
 #[expect(clippy::too_many_lines)]
 pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
     register_categories(store);
-
     for (old_name, new_name) in deprecated_lints::RENAMED {
         store.register_renamed(old_name, new_name);
     }
     for (name, reason) in deprecated_lints::DEPRECATED {
         store.register_removed(name, reason);
     }
-
     let format_args_storage = FormatArgsStorage::default();
     let format_args = format_args_storage.clone();
     store.register_early_pass(move || {
@@ -596,11 +743,9 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
             format_args.clone(),
         ))
     });
-
     let attr_storage = AttrStorage::default();
     let attrs = attr_storage.clone();
     store.register_early_pass(move || Box::new(AttrCollector::new(attrs.clone())));
-
     // all the internal lints
     #[cfg(feature = "internal")]
     {
@@ -624,9 +769,7 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
         });
         store.register_late_pass(|_| Box::new(utils::internal_lints::slow_symbol_comparisons::SlowSymbolComparisons));
     }
-
     store.register_late_pass(|_| Box::new(ctfe::ClippyCtfe));
-
     store.register_late_pass(move |_| Box::new(operators::arithmetic_side_effects::ArithmeticSideEffects::new(conf)));
     store.register_late_pass(|_| Box::new(utils::dump_hir::DumpHir));
     store.register_late_pass(|_| Box::new(utils::author::Author));

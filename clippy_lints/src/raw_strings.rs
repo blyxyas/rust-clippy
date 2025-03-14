@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::{SpanRangeExt, snippet_opt};
@@ -9,7 +11,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::{BytePos, Pos, Span};
 use std::iter::once;
 use std::ops::ControlFlow;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for raw string literals where a string literal can be used instead.
@@ -55,11 +56,9 @@ declare_clippy_lint! {
     "suggests reducing the number of hashes around a raw string literal"
 }
 impl_lint_pass!(RawStrings => [NEEDLESS_RAW_STRINGS, NEEDLESS_RAW_STRING_HASHES]);
-
 pub struct RawStrings {
     pub allow_one_hash_in_raw_strings: bool,
 }
-
 impl RawStrings {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -67,7 +66,6 @@ impl RawStrings {
         }
     }
 }
-
 impl EarlyLintPass for RawStrings {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
         if let ExprKind::FormatArgs(format_args) = &expr.kind
@@ -86,7 +84,6 @@ impl EarlyLintPass for RawStrings {
                 "string",
             );
         }
-
         if let ExprKind::Lit(lit) = expr.kind
             && let (prefix, max) = match lit.kind {
                 LitKind::StrRaw(max) => ("r", max),
@@ -101,7 +98,6 @@ impl EarlyLintPass for RawStrings {
         }
     }
 }
-
 impl RawStrings {
     fn check_raw_string(
         &mut self,
@@ -120,17 +116,14 @@ impl RawStrings {
                 "unnecessary raw string literal",
                 |diag| {
                     let (start, end) = hash_spans(lit_span, prefix.len(), 0, max);
-
                     // BytePos: skip over the `b` in `br`, we checked the prefix appears in the source text
                     let r_pos = lit_span.lo() + BytePos::from_usize(prefix.len() - 1);
                     let start = start.with_lo(r_pos);
-
                     let mut remove = vec![(start, String::new())];
                     // avoid debug ICE from empty suggestions
                     if !end.is_empty() {
                         remove.push((end, String::new()));
                     }
-
                     diag.multipart_suggestion_verbose(
                         format!("use a plain {descr} literal instead"),
                         remove,
@@ -142,7 +135,6 @@ impl RawStrings {
                 return;
             }
         }
-
         let mut req = {
             let mut following_quote = false;
             let mut req = 0;
@@ -154,19 +146,15 @@ impl RawStrings {
                     _ => {
                         if following_quote {
                             following_quote = false;
-
                             if req == max {
                                 return ControlFlow::Break(req);
                             }
-
                             return ControlFlow::Continue(acc.max(req));
                         }
                     },
                 }
-
                 ControlFlow::Continue(acc)
             });
-
             match num {
                 ControlFlow::Continue(num) | ControlFlow::Break(num) => num,
             }
@@ -182,13 +170,11 @@ impl RawStrings {
                 "unnecessary hashes around raw string literal",
                 |diag| {
                     let (start, end) = hash_spans(lit_span, prefix.len(), req, max);
-
                     let message = match max - req {
                         _ if req == 0 => format!("remove all the hashes around the {descr} literal"),
                         1 => format!("remove one hash from both sides of the {descr} literal"),
                         n => format!("remove {n} hashes from both sides of the {descr} literal"),
                     };
-
                     diag.multipart_suggestion(
                         message,
                         vec![(start, String::new()), (end, String::new())],
@@ -199,7 +185,6 @@ impl RawStrings {
         }
     }
 }
-
 /// Returns spans pointing at the unneeded hashes, e.g. for a `req` of `1` and `max` of `3`:
 ///
 /// ```ignore
@@ -208,11 +193,9 @@ impl RawStrings {
 /// ```
 fn hash_spans(literal_span: Span, prefix_len: usize, req: u8, max: u8) -> (Span, Span) {
     let literal_span = literal_span.data();
-
     // BytePos: we checked prefix appears literally in the source text
     let hash_start = literal_span.lo + BytePos::from_usize(prefix_len);
     let hash_end = literal_span.hi;
-
     // BytePos: req/max are counts of the ASCII character #
     let start = Span::new(
         hash_start + BytePos(req.into()),
@@ -226,6 +209,5 @@ fn hash_spans(literal_span: Span, prefix_len: usize, req: u8, max: u8) -> (Span,
         literal_span.ctxt,
         None,
     );
-
     (start, end)
 }

@@ -1,23 +1,20 @@
+use crate::HVec;
+
+use super::UNNECESSARY_GET_THEN_CHECK;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::ty::is_type_diagnostic_item;
-
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::Ty;
 use rustc_span::{Span, sym};
-
-use super::UNNECESSARY_GET_THEN_CHECK;
-
 fn is_a_std_set_type(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
     is_type_diagnostic_item(cx, ty, sym::HashSet) || is_type_diagnostic_item(cx, ty, sym::BTreeSet)
 }
-
 fn is_a_std_map_type(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
     is_type_diagnostic_item(cx, ty, sym::HashMap) || is_type_diagnostic_item(cx, ty, sym::BTreeMap)
 }
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     call_span: Span,
@@ -27,10 +24,8 @@ pub(super) fn check(
     is_some: bool,
 ) {
     let caller_ty = cx.typeck_results().expr_ty(get_caller);
-
     let is_set = is_a_std_set_type(cx, caller_ty);
     let is_map = is_a_std_map_type(cx, caller_ty);
-
     if !is_set && !is_map {
         return;
     }
@@ -65,7 +60,6 @@ pub(super) fn check(
             );
         } else if let Some(caller_snippet) = get_caller.span.get_source_text(cx) {
             let full_span = get_caller.span.with_hi(call_span.hi());
-
             span_lint_and_then(
                 cx,
                 UNNECESSARY_GET_THEN_CHECK,

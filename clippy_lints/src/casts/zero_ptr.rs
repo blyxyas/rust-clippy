@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::ZERO_PTR;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::{is_in_const_context, is_integer_literal, std_or_core};
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, Mutability, Ty, TyKind};
 use rustc_lint::LateContext;
-
-use super::ZERO_PTR;
-
 pub fn check(cx: &LateContext<'_>, expr: &Expr<'_>, from: &Expr<'_>, to: &Ty<'_>) {
     if let TyKind::Ptr(ref mut_ty) = to.kind
         && is_integer_literal(from, 0)
@@ -17,7 +17,6 @@ pub fn check(cx: &LateContext<'_>, expr: &Expr<'_>, from: &Expr<'_>, to: &Ty<'_>
             Mutability::Mut => ("`0 as *mut _` detected", "ptr::null_mut"),
             Mutability::Not => ("`0 as *const _` detected", "ptr::null"),
         };
-
         let sugg = if let TyKind::Infer(()) = mut_ty.ty.kind {
             format!("{std_or_core}::{sugg_fn}()")
         } else if let Some(mut_ty_snip) = mut_ty.ty.span.get_source_text(cx) {
@@ -25,7 +24,6 @@ pub fn check(cx: &LateContext<'_>, expr: &Expr<'_>, from: &Expr<'_>, to: &Ty<'_>
         } else {
             return;
         };
-
         span_lint_and_sugg(
             cx,
             ZERO_PTR,

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use rustc_ast::ast::{AttrKind, Attribute, Item, ItemKind};
 use rustc_ast::token::{Token, TokenKind};
@@ -7,7 +9,6 @@ use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::symbol::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `crate` as opposed to `$crate` in a macro definition.
@@ -50,7 +51,6 @@ declare_clippy_lint! {
     "using `crate` in a macro definition"
 }
 declare_lint_pass!(CrateInMacroDef => [CRATE_IN_MACRO_DEF]);
-
 impl EarlyLintPass for CrateInMacroDef {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         if let ItemKind::MacroDef(macro_def) = &item.kind
@@ -69,7 +69,6 @@ impl EarlyLintPass for CrateInMacroDef {
         }
     }
 }
-
 fn is_macro_export(attr: &Attribute) -> bool {
     if let AttrKind::Normal(normal) = &attr.kind
         && let [segment] = normal.item.path.segments.as_slice()
@@ -79,7 +78,6 @@ fn is_macro_export(attr: &Attribute) -> bool {
         false
     }
 }
-
 fn contains_unhygienic_crate_reference(tts: &TokenStream) -> Option<Span> {
     let mut prev_is_dollar = false;
     let mut iter = tts.iter();
@@ -101,7 +99,6 @@ fn contains_unhygienic_crate_reference(tts: &TokenStream) -> Option<Span> {
     }
     None
 }
-
 fn is_crate_keyword(tt: &TokenTree) -> Option<Span> {
     if let TokenTree::Token(
         Token {
@@ -117,7 +114,6 @@ fn is_crate_keyword(tt: &TokenTree) -> Option<Span> {
         None
     }
 }
-
 fn is_token(tt: &TokenTree, kind: &TokenKind) -> bool {
     if let TokenTree::Token(Token { kind: other, .. }, _) = tt {
         kind == other

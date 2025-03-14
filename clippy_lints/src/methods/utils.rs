@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::{get_parent_expr, path_to_local_id, usage};
 use rustc_hir::intravisit::{Visitor, walk_expr};
@@ -7,7 +9,6 @@ use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::Span;
 use rustc_span::symbol::sym;
-
 pub(super) fn derefs_to_slice<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -23,7 +24,6 @@ pub(super) fn derefs_to_slice<'tcx>(
             _ => false,
         }
     }
-
     if let ExprKind::MethodCall(path, self_arg, ..) = &expr.kind {
         if path.ident.name == sym::iter && may_slice(cx, cx.typeck_results().expr_ty(self_arg)) {
             Some(self_arg)
@@ -45,7 +45,6 @@ pub(super) fn derefs_to_slice<'tcx>(
         }
     }
 }
-
 /// The core logic of `check_for_loop_iter` in `unnecessary_iter_cloned.rs`, this function wraps a
 /// use of `CloneOrCopyVisitor`.
 pub(super) fn clone_or_copy_needed<'tcx>(
@@ -62,7 +61,6 @@ pub(super) fn clone_or_copy_needed<'tcx>(
     visitor.visit_expr(body);
     (visitor.clone_or_copy_needed, visitor.references_to_binding)
 }
-
 /// Returns a vector of all `HirId`s bound by the pattern.
 fn pat_bindings(pat: &Pat<'_>) -> Vec<HirId> {
     let mut collector = usage::ParamBindingIdCollector {
@@ -71,7 +69,6 @@ fn pat_bindings(pat: &Pat<'_>) -> Vec<HirId> {
     collector.visit_pat(pat);
     collector.binding_hir_ids
 }
-
 /// `clone_or_copy_needed` will be false when `CloneOrCopyVisitor` is done visiting if the only
 /// operations performed on `binding_hir_ids` are:
 /// * to take non-mutable references to them
@@ -85,14 +82,11 @@ struct CloneOrCopyVisitor<'cx, 'tcx> {
     clone_or_copy_needed: bool,
     references_to_binding: Vec<(Span, String)>,
 }
-
 impl<'tcx> Visitor<'tcx> for CloneOrCopyVisitor<'_, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'tcx>) {
         walk_expr(self, expr);
         if self.is_binding(expr) {
@@ -122,7 +116,6 @@ impl<'tcx> Visitor<'tcx> for CloneOrCopyVisitor<'_, 'tcx> {
         }
     }
 }
-
 impl<'tcx> CloneOrCopyVisitor<'_, 'tcx> {
     fn is_binding(&self, expr: &Expr<'tcx>) -> bool {
         self.binding_hir_ids
@@ -130,7 +123,6 @@ impl<'tcx> CloneOrCopyVisitor<'_, 'tcx> {
             .any(|hir_id| path_to_local_id(expr, *hir_id))
     }
 }
-
 pub(super) fn get_last_chain_binding_hir_id(mut hir_id: HirId, statements: &[Stmt<'_>]) -> Option<HirId> {
     for stmt in statements {
         if let StmtKind::Let(local) = stmt.kind

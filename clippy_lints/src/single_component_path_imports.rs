@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_sugg};
 use rustc_ast::node_id::{NodeId, NodeMap};
 use rustc_ast::ptr::P;
@@ -9,7 +11,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::edition::Edition;
 use rustc_span::symbol::kw;
 use rustc_span::{Span, Symbol};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checking for imports with single component use path.
@@ -37,31 +38,25 @@ declare_clippy_lint! {
     style,
     "imports with single component path are redundant"
 }
-
 #[derive(Default)]
 pub struct SingleComponentPathImports {
     /// Buffer found usages to emit when visiting that item so that `#[allow]` works as expected
     found: NodeMap<Vec<SingleUse>>,
 }
-
 struct SingleUse {
     name: Symbol,
     span: Span,
     item_id: NodeId,
     can_suggest: bool,
 }
-
 impl_lint_pass!(SingleComponentPathImports => [SINGLE_COMPONENT_PATH_IMPORTS]);
-
 impl EarlyLintPass for SingleComponentPathImports {
     fn check_crate(&mut self, cx: &EarlyContext<'_>, krate: &Crate) {
         if cx.sess().opts.edition < Edition::Edition2018 {
             return;
         }
-
         self.check_mod(&krate.items);
     }
-
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         for SingleUse { span, can_suggest, .. } in self.found.remove(&item.id).into_iter().flatten() {
             if can_suggest {
@@ -87,7 +82,6 @@ impl EarlyLintPass for SingleComponentPathImports {
         }
     }
 }
-
 #[derive(Default)]
 struct ImportUsageVisitor {
     // keep track of imports reused with `self` keyword, such as `self::std` in the example below.
@@ -101,7 +95,6 @@ struct ImportUsageVisitor {
     // ```
     imports_referenced_with_self: Vec<Symbol>,
 }
-
 impl Visitor<'_> for ImportUsageVisitor {
     fn visit_expr(&mut self, expr: &Expr) {
         if let ExprKind::Path(_, path) = &expr.kind
@@ -112,7 +105,6 @@ impl Visitor<'_> for ImportUsageVisitor {
         }
         walk_expr(self, expr);
     }
-
     fn visit_ty(&mut self, ty: &Ty) {
         if let TyKind::Path(_, path) = &ty.kind
             && path.segments.len() > 1
@@ -122,7 +114,6 @@ impl Visitor<'_> for ImportUsageVisitor {
         }
     }
 }
-
 impl SingleComponentPathImports {
     fn check_mod(&mut self, items: &[P<Item>]) {
         // keep track of imports reused with `self` keyword, such as `self::crypto_hash` in the example
@@ -133,26 +124,22 @@ impl SingleComponentPathImports {
         // use self::crypto_hash::{Algorithm, Hasher};
         // ```
         let mut imports_reused_with_self = Vec::new();
-
         // keep track of single use statements such as `crypto_hash` in the example below
         // ```
         // use crypto_hash;
         // ```
         let mut single_use_usages = Vec::new();
-
         // keep track of macros defined in the module as we don't want it to trigger on this (#7106)
         // ```
         // macro_rules! foo { () => {} };
         // pub(crate) use foo;
         // ```
         let mut macros = Vec::new();
-
         let mut import_usage_visitor = ImportUsageVisitor::default();
         for item in items {
             self.track_uses(item, &mut imports_reused_with_self, &mut single_use_usages, &mut macros);
             import_usage_visitor.visit_item(item);
         }
-
         for usage in single_use_usages {
             if !imports_reused_with_self.contains(&usage.name)
                 && !import_usage_visitor.imports_referenced_with_self.contains(&usage.name)
@@ -161,7 +148,6 @@ impl SingleComponentPathImports {
             }
         }
     }
-
     fn track_uses(
         &mut self,
         item: &Item,
@@ -172,7 +158,6 @@ impl SingleComponentPathImports {
         if item.span.from_expansion() || item.vis.kind.is_pub() {
             return;
         }
-
         match &item.kind {
             ItemKind::Mod(_, ModKind::Loaded(items, ..)) => {
                 self.check_mod(items);
@@ -182,7 +167,6 @@ impl SingleComponentPathImports {
             },
             ItemKind::Use(use_tree) => {
                 let segments = &use_tree.prefix.segments;
-
                 // keep track of `use some_module;` usages
                 if segments.len() == 1 {
                     if let UseTreeKind::Simple(None) = use_tree.kind {
@@ -198,7 +182,6 @@ impl SingleComponentPathImports {
                     }
                     return;
                 }
-
                 if segments.is_empty() {
                     // keep track of `use {some_module, some_other_module};` usages
                     if let UseTreeKind::Nested { items, .. } = &use_tree.kind {
@@ -227,7 +210,6 @@ impl SingleComponentPathImports {
                             imports_reused_with_self.push(segments[1].ident.name);
                             return;
                         }
-
                         // nested case such as `use self::{module1::Struct1, module2::Struct2}`
                         if let UseTreeKind::Nested { items, .. } = &use_tree.kind {
                             for tree in items {

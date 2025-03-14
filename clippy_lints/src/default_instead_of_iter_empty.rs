@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::{last_path_segment, std_or_core};
@@ -6,7 +8,6 @@ use rustc_hir::{Expr, ExprKind, GenericArg, QPath, TyKind, def};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{SyntaxContext, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// It checks for `std::iter::Empty::default()` and suggests replacing it with
@@ -29,7 +30,6 @@ declare_clippy_lint! {
     "check `std::iter::Empty::default()` and replace with `std::iter::empty()`"
 }
 declare_lint_pass!(DefaultIterEmpty => [DEFAULT_INSTEAD_OF_ITER_EMPTY]);
-
 impl<'tcx> LateLintPass<'tcx> for DefaultIterEmpty {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Call(iter_expr, []) = &expr.kind
@@ -57,7 +57,6 @@ impl<'tcx> LateLintPass<'tcx> for DefaultIterEmpty {
         }
     }
 }
-
 fn make_sugg(
     cx: &LateContext<'_>,
     ty_path: &QPath<'_>,

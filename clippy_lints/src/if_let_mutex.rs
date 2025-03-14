@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::visitors::for_each_expr_without_closures;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::edition::Edition::Edition2024;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `Mutex::lock` calls in `if let` expression
@@ -47,15 +48,12 @@ declare_clippy_lint! {
     correctness,
     "locking a `Mutex` in an `if let` block can cause deadlocks"
 }
-
 declare_lint_pass!(IfLetMutex => [IF_LET_MUTEX]);
-
 impl<'tcx> LateLintPass<'tcx> for IfLetMutex {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if cx.tcx.sess.edition() >= Edition2024 {
             return;
         }
-
         if let Some(higher::IfLet {
             let_expr,
             if_then,
@@ -87,7 +85,6 @@ impl<'tcx> LateLintPass<'tcx> for IfLetMutex {
         }
     }
 }
-
 fn mutex_lock_call<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,

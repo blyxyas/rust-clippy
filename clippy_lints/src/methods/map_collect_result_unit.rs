@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MAP_COLLECT_RESULT_UNIT;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -6,9 +9,6 @@ use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::symbol::sym;
-
-use super::MAP_COLLECT_RESULT_UNIT;
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, iter: &hir::Expr<'_>, map_fn: &hir::Expr<'_>) {
     // return of collect `Result<(),_>`
     let collect_ret_ty = cx.typeck_results().expr_ty(expr);

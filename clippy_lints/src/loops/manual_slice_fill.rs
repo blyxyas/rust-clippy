@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_SLICE_FILL;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::eager_or_lazy::switch_to_eager_eval;
 use clippy_utils::msrvs::{self, Msrv};
@@ -15,9 +18,6 @@ use rustc_hir::{Expr, ExprKind, Pat};
 use rustc_lint::LateContext;
 use rustc_span::source_map::Spanned;
 use rustc_span::sym;
-
-use super::MANUAL_SLICE_FILL;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     pat: &'tcx Pat<'_>,
@@ -83,7 +83,6 @@ pub(super) fn check<'tcx>(
         sugg(cx, body, expr, recv_path.span, assignval.span);
     }
 }
-
 fn sugg<'tcx>(
     cx: &LateContext<'tcx>,
     body: &'tcx Expr<'_>,
@@ -96,7 +95,6 @@ fn sugg<'tcx>(
     } else {
         Applicability::MachineApplicable
     };
-
     span_lint_and_sugg(
         cx,
         MANUAL_SLICE_FILL,

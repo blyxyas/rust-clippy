@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::FLAT_MAP_IDENTITY;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::{is_expr_untyped_identity_function, is_trait_method};
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_span::{Span, sym};
-
-use super::FLAT_MAP_IDENTITY;
-
 /// lint use of `flat_map` for `Iterators` where `flatten` would be sufficient
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,

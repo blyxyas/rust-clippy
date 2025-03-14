@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::ty::{implements_trait, is_must_use_ty, match_type};
 use clippy_utils::{is_from_proc_macro, is_must_use_func_call, paths};
@@ -6,7 +8,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{GenericArgKind, IsSuggestable};
 use rustc_session::declare_lint_pass;
 use rustc_span::{BytePos, Span};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `let _ = <expr>` where expr is `#[must_use]`
@@ -29,7 +30,6 @@ declare_clippy_lint! {
     restriction,
     "non-binding `let` on a `#[must_use]` expression"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `let _ = sync_lock`. This supports `mutex` and `rwlock` in
@@ -57,7 +57,6 @@ declare_clippy_lint! {
     correctness,
     "non-binding `let` on a synchronization lock"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `let _ = <expr>` where the resulting type of expr implements `Future`
@@ -88,7 +87,6 @@ declare_clippy_lint! {
     suspicious,
     "non-binding `let` on a future"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `let _ = <expr>` without a type annotation, and suggests to either provide one,
@@ -126,15 +124,12 @@ declare_clippy_lint! {
     restriction,
     "non-binding `let` without a type annotation"
 }
-
 declare_lint_pass!(LetUnderscore => [LET_UNDERSCORE_MUST_USE, LET_UNDERSCORE_LOCK, LET_UNDERSCORE_FUTURE, LET_UNDERSCORE_UNTYPED]);
-
 const SYNC_GUARD_PATHS: [&[&str]; 3] = [
     &paths::PARKING_LOT_MUTEX_GUARD,
     &paths::PARKING_LOT_RWLOCK_READ_GUARD,
     &paths::PARKING_LOT_RWLOCK_WRITE_GUARD,
 ];
-
 impl<'tcx> LateLintPass<'tcx> for LetUnderscore {
     fn check_local(&mut self, cx: &LateContext<'tcx>, local: &LetStmt<'tcx>) {
         if matches!(local.source, LocalSource::Normal)
@@ -197,22 +192,18 @@ impl<'tcx> LateLintPass<'tcx> for LetUnderscore {
                     },
                 );
             }
-
             if local.pat.default_binding_modes && local.ty.is_none() {
                 // When `default_binding_modes` is true, the `let` keyword is present.
-
                 // Ignore unnameable types
                 if let Some(init) = local.init
                     && !cx.typeck_results().expr_ty(init).is_suggestable(cx.tcx, true)
                 {
                     return;
                 }
-
                 // Ignore if it is from a procedural macro...
                 if is_from_proc_macro(cx, init) {
                     return;
                 }
-
                 span_lint_and_then(
                     cx,
                     LET_UNDERSCORE_UNTYPED,

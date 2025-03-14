@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::return_ty;
 use clippy_utils::source::snippet;
@@ -8,7 +10,6 @@ use rustc_hir::HirIdSet;
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for public types with a `pub fn new() -> Self` method and no
@@ -47,14 +48,11 @@ declare_clippy_lint! {
     style,
     "`pub fn new() -> Self` method without `Default` implementation"
 }
-
 #[derive(Clone, Default)]
 pub struct NewWithoutDefault {
     impling_types: Option<HirIdSet>,
 }
-
 impl_lint_pass!(NewWithoutDefault => [NEW_WITHOUT_DEFAULT]);
-
 impl<'tcx> LateLintPass<'tcx> for NewWithoutDefault {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::Item<'_>) {
         if let hir::ItemKind::Impl(hir::Impl {
@@ -107,7 +105,6 @@ impl<'tcx> LateLintPass<'tcx> for NewWithoutDefault {
                                 });
                                 self.impling_types = Some(impls);
                             }
-
                             // Check if a Default implementation exists for the Self type, regardless of
                             // generics
                             if let Some(ref impling_types) = self.impling_types
@@ -119,7 +116,6 @@ impl<'tcx> LateLintPass<'tcx> for NewWithoutDefault {
                             {
                                 return;
                             }
-
                             let generics_sugg = snippet(cx, generics.span, "");
                             let where_clause_sugg = if generics.has_where_clause_predicates {
                                 format!("\n{}\n", snippet(cx, generics.where_clause_span, ""))
@@ -155,7 +151,6 @@ impl<'tcx> LateLintPass<'tcx> for NewWithoutDefault {
         }
     }
 }
-
 fn create_new_without_default_suggest_msg(
     self_type_snip: &str,
     generics_sugg: &str,

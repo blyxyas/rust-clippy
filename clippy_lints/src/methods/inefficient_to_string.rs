@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::INEFFICIENT_TO_STRING;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::{is_type_lang_item, walk_ptrs_ty_depth};
@@ -6,9 +9,6 @@ use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::symbol::{Symbol, sym};
-
-use super::INEFFICIENT_TO_STRING;
-
 /// Checks for the `INEFFICIENT_TO_STRING` lint
 pub fn check(
     cx: &LateContext<'_>,
@@ -49,18 +49,15 @@ pub fn check(
         );
     }
 }
-
 /// Returns whether `ty` specializes `ToString`.
 /// Currently, these are `str`, `String`, and `Cow<'_, str>`.
 fn specializes_tostring(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
     if let ty::Str = ty.kind() {
         return true;
     }
-
     if is_type_lang_item(cx, ty, hir::LangItem::String) {
         return true;
     }
-
     if let ty::Adt(adt, args) = ty.kind() {
         cx.tcx.is_diagnostic_item(sym::Cow, adt.did()) && args.type_at(1).is_str()
     } else {

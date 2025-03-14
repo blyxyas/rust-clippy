@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint, span_lint_and_then};
 use clippy_utils::is_in_test;
@@ -13,7 +15,6 @@ use rustc_hir::{Expr, Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::{BytePos, Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint warns when you use `println!("")` to
@@ -36,7 +37,6 @@ declare_clippy_lint! {
     style,
     "using `println!(\"\")` with an empty string"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint warns when you use `print!()` with a format
@@ -61,7 +61,6 @@ declare_clippy_lint! {
     style,
     "using `print!()` with a format string that ends in a single newline"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for printing on *stdout*. The purpose of this lint
@@ -83,7 +82,6 @@ declare_clippy_lint! {
     restriction,
     "printing on stdout"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for printing on *stderr*. The purpose of this lint
@@ -105,7 +103,6 @@ declare_clippy_lint! {
     restriction,
     "printing on stderr"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `Debug` formatting. The purpose of this
@@ -128,7 +125,6 @@ declare_clippy_lint! {
     restriction,
     "use of `Debug`-based formatting"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint warns about the use of literals as `print!`/`println!` args.
@@ -151,7 +147,6 @@ declare_clippy_lint! {
     style,
     "printing a literal with a format string"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint warns when you use `writeln!(buf, "")` to
@@ -178,7 +173,6 @@ declare_clippy_lint! {
     style,
     "using `writeln!(buf, \"\")` with an empty string"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint warns when you use `write!()` with a format
@@ -209,7 +203,6 @@ declare_clippy_lint! {
     style,
     "using `write!()` with a format string that ends in a single newline"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint warns about the use of literals as `write!`/`writeln!` args.
@@ -237,13 +230,11 @@ declare_clippy_lint! {
     style,
     "writing a literal with a format string"
 }
-
 pub struct Write {
     format_args: FormatArgsStorage,
     in_debug_impl: bool,
     allow_print_in_tests: bool,
 }
-
 impl Write {
     pub fn new(conf: &'static Conf, format_args: FormatArgsStorage) -> Self {
         Self {
@@ -253,7 +244,6 @@ impl Write {
         }
     }
 }
-
 impl_lint_pass!(Write => [
     PRINT_WITH_NEWLINE,
     PRINTLN_EMPTY_STRING,
@@ -265,20 +255,17 @@ impl_lint_pass!(Write => [
     WRITELN_EMPTY_STRING,
     WRITE_LITERAL,
 ]);
-
 impl<'tcx> LateLintPass<'tcx> for Write {
     fn check_item(&mut self, cx: &LateContext<'_>, item: &Item<'_>) {
         if is_debug_impl(cx, item) {
             self.in_debug_impl = true;
         }
     }
-
     fn check_item_post(&mut self, cx: &LateContext<'_>, item: &Item<'_>) {
         if is_debug_impl(cx, item) {
             self.in_debug_impl = false;
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         let Some(macro_call) = root_macro_call_first_node(cx, expr) else {
             return;
@@ -289,14 +276,12 @@ impl<'tcx> LateLintPass<'tcx> for Write {
         let Some(name) = diag_name.as_str().strip_suffix("_macro") else {
             return;
         };
-
         let is_build_script = cx
             .sess()
             .opts
             .crate_name
             .as_ref()
             .is_some_and(|crate_name| crate_name == "build_script_build");
-
         let allowed_in_tests = self.allow_print_in_tests && is_in_test(cx.tcx, expr.hir_id);
         match diag_name {
             sym::print_macro | sym::println_macro if !allowed_in_tests => {
@@ -310,13 +295,11 @@ impl<'tcx> LateLintPass<'tcx> for Write {
             sym::write_macro | sym::writeln_macro => {},
             _ => return,
         }
-
         if let Some(format_args) = self.format_args.get(cx, expr, macro_call.expn) {
             // ignore `writeln!(w)` and `write!(v, some_macro!())`
             if format_args.span.from_expansion() {
                 return;
             }
-
             match diag_name {
                 sym::print_macro | sym::eprint_macro | sym::write_macro => {
                     check_newline(cx, format_args, &macro_call, name);
@@ -326,9 +309,7 @@ impl<'tcx> LateLintPass<'tcx> for Write {
                 },
                 _ => {},
             }
-
             check_literal(cx, format_args, name);
-
             if !self.in_debug_impl {
                 for piece in &format_args.template {
                     if let &FormatArgsPiece::Placeholder(FormatPlaceholder {
@@ -344,7 +325,6 @@ impl<'tcx> LateLintPass<'tcx> for Write {
         }
     }
 }
-
 fn is_debug_impl(cx: &LateContext<'_>, item: &Item<'_>) -> bool {
     if let ItemKind::Impl(Impl {
         of_trait: Some(trait_ref),
@@ -357,12 +337,10 @@ fn is_debug_impl(cx: &LateContext<'_>, item: &Item<'_>) -> bool {
         false
     }
 }
-
 fn check_newline(cx: &LateContext<'_>, format_args: &FormatArgs, macro_call: &MacroCall, name: &str) {
     let Some(FormatArgsPiece::Literal(last)) = format_args.template.last() else {
         return;
     };
-
     let count_vertical_whitespace = || {
         format_args
             .template
@@ -375,21 +353,17 @@ fn check_newline(cx: &LateContext<'_>, format_args: &FormatArgs, macro_call: &Ma
             .filter(|ch| matches!(ch, '\r' | '\n'))
             .count()
     };
-
     if last.as_str().ends_with('\n')
         // ignore format strings with other internal vertical whitespace
         && count_vertical_whitespace() == 1
     {
         let mut format_string_span = format_args.span;
-
         let lint = if name == "write" {
             format_string_span = expand_past_previous_comma(cx, format_string_span);
-
             WRITE_WITH_NEWLINE
         } else {
             PRINT_WITH_NEWLINE
         };
-
         span_lint_and_then(
             cx,
             lint,
@@ -400,10 +374,8 @@ fn check_newline(cx: &LateContext<'_>, format_args: &FormatArgs, macro_call: &Ma
                 let Some(format_snippet) = format_string_span.get_source_text(cx) else {
                     return;
                 };
-
                 if format_args.template.len() == 1 && last.as_str() == "\n" {
                     // print!("\n"), write!(f, "\n")
-
                     diag.multipart_suggestion(
                         format!("use `{name}ln!` instead"),
                         vec![(name_span, format!("{name}ln")), (format_string_span, String::new())],
@@ -411,10 +383,8 @@ fn check_newline(cx: &LateContext<'_>, format_args: &FormatArgs, macro_call: &Ma
                     );
                 } else if format_snippet.ends_with("\\n\"") {
                     // print!("...\n"), write!(f, "...\n")
-
                     let hi = format_string_span.hi();
                     let newline_span = format_string_span.with_lo(hi - BytePos(3)).with_hi(hi - BytePos(1));
-
                     diag.multipart_suggestion(
                         format!("use `{name}ln!` instead"),
                         vec![(name_span, format!("{name}ln")), (newline_span, String::new())],
@@ -425,21 +395,17 @@ fn check_newline(cx: &LateContext<'_>, format_args: &FormatArgs, macro_call: &Ma
         );
     }
 }
-
 fn check_empty_string(cx: &LateContext<'_>, format_args: &FormatArgs, macro_call: &MacroCall, name: &str) {
     if let [FormatArgsPiece::Literal(literal)] = &format_args.template[..]
         && literal.as_str() == "\n"
     {
         let mut span = format_args.span;
-
         let lint = if name == "writeln" {
             span = expand_past_previous_comma(cx, span);
-
             WRITELN_EMPTY_STRING
         } else {
             PRINTLN_EMPTY_STRING
         };
-
         span_lint_and_then(
             cx,
             lint,
@@ -456,29 +422,24 @@ fn check_empty_string(cx: &LateContext<'_>, format_args: &FormatArgs, macro_call
         );
     }
 }
-
 fn check_literal(cx: &LateContext<'_>, format_args: &FormatArgs, name: &str) {
     let arg_index = |argument: &FormatArgPosition| argument.index.unwrap_or_else(|pos| pos);
-
     let lint_name = if name.starts_with("write") {
         WRITE_LITERAL
     } else {
         PRINT_LITERAL
     };
-
     let mut counts = vec![0u32; format_args.arguments.all_args().len()];
     for piece in &format_args.template {
         if let FormatArgsPiece::Placeholder(placeholder) = piece {
             counts[arg_index(&placeholder.argument)] += 1;
         }
     }
-
     let mut suggestion: Vec<(Span, String)> = vec![];
     // holds index of replaced positional arguments; used to decrement the index of the remaining
     // positional arguments.
     let mut replaced_position: Vec<usize> = vec![];
     let mut sug_span: Option<Span> = None;
-
     for piece in &format_args.template {
         if let FormatArgsPiece::Placeholder(FormatPlaceholder {
             argument,
@@ -514,12 +475,10 @@ fn check_literal(cx: &LateContext<'_>, format_args: &FormatArgs, name: &str) {
                 LitKind::Bool => (lit.symbol.to_string(), false),
                 _ => continue,
             };
-
             let Some(format_string_snippet) = format_args.span.get_source_text(cx) else {
                 continue;
             };
             let format_string_is_raw = format_string_snippet.starts_with('r');
-
             let replacement = match (format_string_is_raw, replace_raw) {
                 (false, false) => Some(replacement),
                 (false, true) => Some(replacement.replace('\\', "\\\\").replace('"', "\\\"")),
@@ -536,13 +495,10 @@ fn check_literal(cx: &LateContext<'_>, format_args: &FormatArgs, name: &str) {
                     }
                 },
             };
-
             sug_span = Some(sug_span.unwrap_or(arg.expr.span).to(arg.expr.span));
-
             if let Some((_, index)) = positional_arg_piece_span(piece) {
                 replaced_position.push(index);
             }
-
             if let Some(replacement) = replacement
                 // `format!("{}", "a")`, `format!("{named}", named = "b")
                 //              ~~~~~                      ~~~~~~~~~~~~~
@@ -554,7 +510,6 @@ fn check_literal(cx: &LateContext<'_>, format_args: &FormatArgs, name: &str) {
             }
         }
     }
-
     // Decrement the index of the remaining by the number of replaced positional arguments
     if !suggestion.is_empty() {
         for piece in &format_args.template {
@@ -566,7 +521,6 @@ fn check_literal(cx: &LateContext<'_>, format_args: &FormatArgs, name: &str) {
             }
         }
     }
-
     if let Some(span) = sug_span {
         span_lint_and_then(cx, lint_name, span, "literal with an empty format string", |diag| {
             if !suggestion.is_empty() {
@@ -575,7 +529,6 @@ fn check_literal(cx: &LateContext<'_>, format_args: &FormatArgs, name: &str) {
         });
     }
 }
-
 /// Extract Span and its index from the given `piece`, iff it's positional argument.
 fn positional_arg_piece_span(piece: &FormatArgsPiece) -> Option<(Span, usize)> {
     match piece {
@@ -592,7 +545,6 @@ fn positional_arg_piece_span(piece: &FormatArgsPiece) -> Option<(Span, usize)> {
         _ => None,
     }
 }
-
 /// Removes the raw marker, `#`s and quotes from a str, and returns if the literal is raw
 ///
 /// `r#"a"#` -> (`a`, true)
@@ -603,10 +555,8 @@ fn extract_str_literal(literal: &str) -> Option<(String, bool)> {
         Some(stripped) => (stripped.trim_matches('#'), true),
         None => (literal, false),
     };
-
     Some((literal.strip_prefix('"')?.strip_suffix('"')?.to_string(), raw))
 }
-
 enum UnescapeErr {
     /// Should still be linted, can be manually resolved by author, e.g.
     ///
@@ -621,13 +571,11 @@ enum UnescapeErr {
     /// ```
     Ignore,
 }
-
 /// Unescape a normal string into a raw string
 fn conservative_unescape(literal: &str) -> Result<String, UnescapeErr> {
     let mut unescaped = String::with_capacity(literal.len());
     let mut chars = literal.chars();
     let mut err = false;
-
     while let Some(ch) = chars.next() {
         match ch {
             '#' => err = true,
@@ -639,10 +587,8 @@ fn conservative_unescape(literal: &str) -> Result<String, UnescapeErr> {
             _ => unescaped.push(ch),
         }
     }
-
     if err { Err(UnescapeErr::Lint) } else { Ok(unescaped) }
 }
-
 /// Replaces `{` with `{{` and `}` with `}}`. If `preserve_unicode_escapes` is `true` the braces in
 /// `\u{xxxx}` are left unmodified
 #[expect(clippy::match_same_arms)]
@@ -653,10 +599,8 @@ fn escape_braces(literal: &str, preserve_unicode_escapes: bool) -> String {
         Backslash,
         UnicodeEscape,
     }
-
     let mut escaped = String::with_capacity(literal.len());
     let mut state = State::Normal;
-
     for ch in literal.chars() {
         state = match (ch, state) {
             // Escape braces outside of unicode escapes by doubling them up
@@ -680,9 +624,7 @@ fn escape_braces(literal: &str, preserve_unicode_escapes: bool) -> String {
             ('}', State::UnicodeEscape) => State::Normal,
             _ => state,
         };
-
         escaped.push(ch);
     }
-
     escaped
 }

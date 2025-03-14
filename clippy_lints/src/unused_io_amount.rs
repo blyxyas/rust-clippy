@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::macros::{is_panic, root_macro_call_first_node};
 use clippy_utils::{is_res_lang_ctor, is_trait_method, match_def_path, match_trait_method, paths, peel_blocks};
@@ -6,7 +8,6 @@ use rustc_hir as hir;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unused written/read amount.
@@ -51,9 +52,7 @@ declare_clippy_lint! {
     correctness,
     "unused written/read amount"
 }
-
 declare_lint_pass!(UnusedIoAmount => [UNUSED_IO_AMOUNT]);
-
 #[derive(Copy, Clone)]
 enum IoOp {
     AsyncWrite(bool),
@@ -61,7 +60,6 @@ enum IoOp {
     SyncRead(bool),
     SyncWrite(bool),
 }
-
 impl<'tcx> LateLintPass<'tcx> for UnusedIoAmount {
     /// We perform the check on the block level.
     /// If we want to catch match and if expressions that act as returns of the block
@@ -92,25 +90,21 @@ impl<'tcx> LateLintPass<'tcx> for UnusedIoAmount {
             if cx.tcx.is_diagnostic_item(sym::IoRead, trait_id) || cx.tcx.is_diagnostic_item(sym::IoWrite, trait_id) {
                 return;
             }
-
             let async_paths: [&[&str]; 4] = [
                 &paths::TOKIO_IO_ASYNCREADEXT,
                 &paths::TOKIO_IO_ASYNCWRITEEXT,
                 &paths::FUTURES_IO_ASYNCREADEXT,
                 &paths::FUTURES_IO_ASYNCWRITEEXT,
             ];
-
             if async_paths.into_iter().any(|path| match_def_path(cx, trait_id, path)) {
                 return;
             }
         }
-
         for stmt in block.stmts {
             if let hir::StmtKind::Semi(exp) = stmt.kind {
                 check_expr(cx, exp);
             }
         }
-
         if let Some(exp) = block.expr
             && matches!(
                 exp.kind,
@@ -121,7 +115,6 @@ impl<'tcx> LateLintPass<'tcx> for UnusedIoAmount {
         }
     }
 }
-
 fn non_consuming_err_arm<'a>(cx: &LateContext<'a>, arm: &hir::Arm<'a>) -> bool {
     // if there is a guard, we consider the result to be consumed
     if arm.guard.is_some() {
@@ -132,14 +125,11 @@ fn non_consuming_err_arm<'a>(cx: &LateContext<'a>, arm: &hir::Arm<'a>) -> bool {
         // we consider the result to be consumed
         return false;
     }
-
     if let PatKind::TupleStruct(ref path, [inner_pat], _) = arm.pat.kind {
         return is_res_lang_ctor(cx, cx.qpath_res(path, inner_pat.hir_id), hir::LangItem::ResultErr);
     }
-
     false
 }
-
 fn non_consuming_ok_arm<'a>(cx: &LateContext<'a>, arm: &hir::Arm<'a>) -> bool {
     // if there is a guard, we consider the result to be consumed
     if arm.guard.is_some() {
@@ -150,13 +140,11 @@ fn non_consuming_ok_arm<'a>(cx: &LateContext<'a>, arm: &hir::Arm<'a>) -> bool {
         // we consider the result to be consumed
         return false;
     }
-
     if is_ok_wild_or_dotdot_pattern(cx, arm.pat) {
         return true;
     }
     false
 }
-
 fn check_expr<'a>(cx: &LateContext<'a>, expr: &'a hir::Expr<'a>) {
     match expr.kind {
         ExprKind::If(cond, _, _)
@@ -184,7 +172,6 @@ fn check_expr<'a>(cx: &LateContext<'a>, expr: &'a hir::Expr<'a>) {
         _ => {},
     }
 }
-
 fn should_lint<'a>(cx: &LateContext<'a>, mut inner: &'a hir::Expr<'a>) -> Option<IoOp> {
     inner = unpack_match(inner);
     inner = unpack_try(inner);
@@ -194,11 +181,9 @@ fn should_lint<'a>(cx: &LateContext<'a>, mut inner: &'a hir::Expr<'a>) -> Option
     // and keep only the ones that are produce io amount
     check_io_mode(cx, inner)
 }
-
 fn is_ok_wild_or_dotdot_pattern<'a>(cx: &LateContext<'a>, pat: &hir::Pat<'a>) -> bool {
     // the if checks whether we are in a result Ok( ) pattern
     // and the return checks whether it is unhandled
-
     if let PatKind::TupleStruct(ref path, inner_pat, _) = pat.kind
         // we check against Result::Ok to avoid linting on Err(_) or something else.
         && is_res_lang_ctor(cx, cx.qpath_res(path, pat.hir_id), hir::LangItem::ResultOk)
@@ -206,7 +191,6 @@ fn is_ok_wild_or_dotdot_pattern<'a>(cx: &LateContext<'a>, pat: &hir::Pat<'a>) ->
         if matches!(inner_pat, []) {
             return true;
         }
-
         if let [cons_pat] = inner_pat
             && matches!(cons_pat.kind, PatKind::Wild)
         {
@@ -216,7 +200,6 @@ fn is_ok_wild_or_dotdot_pattern<'a>(cx: &LateContext<'a>, pat: &hir::Pat<'a>) ->
     }
     false
 }
-
 // this is partially taken from panic_unimplemented
 fn is_unreachable_or_panic(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> bool {
     let expr = peel_blocks(expr);
@@ -228,7 +211,6 @@ fn is_unreachable_or_panic(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> bool {
     }
     matches!(cx.tcx.item_name(macro_call.def_id).as_str(), "unreachable")
 }
-
 fn unpack_call_chain<'a>(mut expr: &'a hir::Expr<'a>) -> &'a hir::Expr<'a> {
     while let ExprKind::MethodCall(path, receiver, ..) = expr.kind {
         if matches!(
@@ -242,7 +224,6 @@ fn unpack_call_chain<'a>(mut expr: &'a hir::Expr<'a>) -> &'a hir::Expr<'a> {
     }
     expr
 }
-
 fn unpack_try<'a>(mut expr: &'a hir::Expr<'a>) -> &'a hir::Expr<'a> {
     while let ExprKind::Call(func, [arg_0]) = expr.kind
         && matches!(
@@ -254,14 +235,12 @@ fn unpack_try<'a>(mut expr: &'a hir::Expr<'a>) -> &'a hir::Expr<'a> {
     }
     expr
 }
-
 fn unpack_match<'a>(mut expr: &'a hir::Expr<'a>) -> &'a hir::Expr<'a> {
     while let ExprKind::Match(res, _, _) = expr.kind {
         expr = res;
     }
     expr
 }
-
 /// If `expr` is an (e).await, return the inner expression "e" that's being
 /// waited on.  Otherwise return None.
 fn unpack_await<'a>(expr: &'a hir::Expr<'a>) -> &'a hir::Expr<'a> {
@@ -277,13 +256,11 @@ fn unpack_await<'a>(expr: &'a hir::Expr<'a>) -> &'a hir::Expr<'a> {
     }
     expr
 }
-
 /// Check whether the current expr is a function call for an IO operation
 fn check_io_mode(cx: &LateContext<'_>, call: &hir::Expr<'_>) -> Option<IoOp> {
     let ExprKind::MethodCall(path, ..) = call.kind else {
         return None;
     };
-
     let vectorized = match path.ident.as_str() {
         "write_vectored" | "read_vectored" => true,
         "write" | "read" => false,
@@ -291,7 +268,6 @@ fn check_io_mode(cx: &LateContext<'_>, call: &hir::Expr<'_>) -> Option<IoOp> {
             return None;
         },
     };
-
     match (
         is_trait_method(cx, call, sym::IoRead),
         is_trait_method(cx, call, sym::IoWrite),
@@ -307,7 +283,6 @@ fn check_io_mode(cx: &LateContext<'_>, call: &hir::Expr<'_>) -> Option<IoOp> {
         _ => None,
     }
 }
-
 fn emit_lint(cx: &LateContext<'_>, span: Span, at: HirId, op: IoOp, wild_cards: &[Span]) {
     let (msg, help) = match op {
         IoOp::AsyncRead(false) => (
@@ -329,7 +304,6 @@ fn emit_lint(cx: &LateContext<'_>, span: Span, at: HirId, op: IoOp, wild_cards: 
         IoOp::SyncRead(true) | IoOp::AsyncRead(true) => ("read amount is not handled", None),
         IoOp::SyncWrite(true) | IoOp::AsyncWrite(true) => ("written amount is not handled", None),
     };
-
     span_lint_hir_and_then(cx, UNUSED_IO_AMOUNT, at, span, msg, |diag| {
         if let Some(help_str) = help {
             diag.help(help_str);

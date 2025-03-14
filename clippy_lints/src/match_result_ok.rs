@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -7,7 +9,6 @@ use rustc_hir::{Expr, ExprKind, LangItem, PatKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnecessary `ok()` in `while let`.
@@ -41,9 +42,7 @@ declare_clippy_lint! {
     style,
     "usage of `ok()` in `let Some(pat)` statements is unnecessary, match on `Ok(pat)` instead"
 }
-
 declare_lint_pass!(MatchResultOk => [MATCH_RESULT_OK]);
-
 impl<'tcx> LateLintPass<'tcx> for MatchResultOk {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         let (let_pat, let_expr, ifwhile) =
@@ -54,7 +53,6 @@ impl<'tcx> LateLintPass<'tcx> for MatchResultOk {
             } else {
                 return;
             };
-
         if let ExprKind::MethodCall(ok_path, recv, [], ..) = let_expr.kind //check is expr.ok() has type Result<T,E>.ok(, _)
             && let PatKind::TupleStruct(ref pat_path, [ok_pat], _)  = let_pat.kind //get operation
             && ok_path.ident.as_str() == "ok"

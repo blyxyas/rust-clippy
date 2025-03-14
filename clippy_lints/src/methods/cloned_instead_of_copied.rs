@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::CLONED_INSTEAD_OF_COPIED;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_trait_method;
 use clippy_utils::msrvs::{self, Msrv};
@@ -7,9 +10,6 @@ use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::{Span, sym};
-
-use super::CLONED_INSTEAD_OF_COPIED;
-
 pub fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, span: Span, msrv: Msrv) {
     let recv_ty = cx.typeck_results().expr_ty_adjusted(recv);
     let inner_ty = match recv_ty.kind() {

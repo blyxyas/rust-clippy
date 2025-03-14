@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::{IncrementVisitor, InitializeVisitor, MANUAL_MEMCPY};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
@@ -13,7 +15,6 @@ use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::symbol::sym;
 use std::fmt::Display;
-
 /// Checks for `for` loops that sequentially copy items from one slice-like
 /// object to another.
 pub(super) fn check<'tcx>(
@@ -35,12 +36,10 @@ pub(super) fn check<'tcx>(
                 id: canonical_id,
                 kind: StartKind::Range,
             }];
-
             // This is one of few ways to return different iterators
             // derived from: https://stackoverflow.com/questions/29760668/conditionally-iterate-over-one-of-several-possible-iterators/52064434#52064434
             let mut iter_a = None;
             let mut iter_b = None;
-
             if let ExprKind::Block(block, _) = body.kind {
                 if let Some(loop_counters) = get_loop_counters(cx, block, expr) {
                     starts.extend(loop_counters);
@@ -49,9 +48,7 @@ pub(super) fn check<'tcx>(
             } else {
                 iter_b = Some(get_assignment(body));
             }
-
             let assignments = iter_a.into_iter().flatten().chain(iter_b);
-
             let big_sugg = assignments
                 // The only statements in the for loops can be indexed assignments from
                 // indexed retrievals (except increments of loop counters).
@@ -91,7 +88,6 @@ pub(super) fn check<'tcx>(
                 .collect::<Option<Vec<_>>>()
                 .filter(|v| !v.is_empty())
                 .map(|v| v.join("\n    "));
-
             if let Some(big_sugg) = big_sugg {
                 span_lint_and_sugg(
                     cx,
@@ -108,7 +104,6 @@ pub(super) fn check<'tcx>(
     }
     false
 }
-
 fn build_manual_memcpy_suggestion<'tcx>(
     cx: &LateContext<'tcx>,
     start: &Expr<'_>,
@@ -125,7 +120,6 @@ fn build_manual_memcpy_suggestion<'tcx>(
             offset
         }
     }
-
     let print_limit = |end: &Expr<'_>, end_str: &str, base: &Expr<'_>, sugg: MinifyingSugg<'static>| {
         if let ExprKind::MethodCall(method, recv, [], _) = end.kind
             && method.ident.name == sym::len
@@ -143,10 +137,8 @@ fn build_manual_memcpy_suggestion<'tcx>(
             }
         }
     };
-
     let start_str = Sugg::hir(cx, start, "").into();
     let end_str: MinifyingSugg<'_> = Sugg::hir(cx, end, "").into();
-
     let print_offset_and_limit = |idx_expr: &IndexExpr<'_>| match idx_expr.idx {
         StartKind::Range => (
             print_offset(apply_offset(&start_str, &idx_expr.idx_offset)).into_sugg(),
@@ -172,13 +164,10 @@ fn build_manual_memcpy_suggestion<'tcx>(
             )
         },
     };
-
     let (dst_offset, dst_limit) = print_offset_and_limit(dst);
     let (src_offset, src_limit) = print_offset_and_limit(src);
-
     let dst_base_str = snippet(cx, dst.base.span, "???");
     let src_base_str = snippet(cx, src.base.span, "???");
-
     let dst = if (dst_offset == sugg::EMPTY && dst_limit == sugg::EMPTY)
         || is_array_length_equal_to_range(cx, start, end, dst.base)
     {
@@ -186,47 +175,39 @@ fn build_manual_memcpy_suggestion<'tcx>(
     } else {
         format!("{dst_base_str}[{}..{}]", dst_offset.maybe_par(), dst_limit.maybe_par()).into()
     };
-
     let method_str = if is_copy(cx, elem_ty) {
         "copy_from_slice"
     } else {
         "clone_from_slice"
     };
-
     let src = if is_array_length_equal_to_range(cx, start, end, src.base) {
         src_base_str
     } else {
         format!("{src_base_str}[{}..{}]", src_offset.maybe_par(), src_limit.maybe_par()).into()
     };
-
     format!("{dst}.{method_str}(&{src});")
 }
-
 /// a wrapper of `Sugg`. Besides what `Sugg` do, this removes unnecessary `0`;
 /// and also, it avoids subtracting a variable from the same one by replacing it with `0`.
 /// it exists for the convenience of the overloaded operators while normal functions can do the
 /// same.
 #[derive(Clone)]
 struct MinifyingSugg<'a>(Sugg<'a>);
-
 impl Display for MinifyingSugg<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }
 }
-
 impl<'a> MinifyingSugg<'a> {
     fn into_sugg(self) -> Sugg<'a> {
         self.0
     }
 }
-
 impl<'a> From<Sugg<'a>> for MinifyingSugg<'a> {
     fn from(sugg: Sugg<'a>) -> Self {
         Self(sugg)
     }
 }
-
 impl std::ops::Add for &MinifyingSugg<'static> {
     type Output = MinifyingSugg<'static>;
     fn add(self, rhs: &MinifyingSugg<'static>) -> MinifyingSugg<'static> {
@@ -237,7 +218,6 @@ impl std::ops::Add for &MinifyingSugg<'static> {
         }
     }
 }
-
 impl std::ops::Sub for &MinifyingSugg<'static> {
     type Output = MinifyingSugg<'static>;
     fn sub(self, rhs: &MinifyingSugg<'static>) -> MinifyingSugg<'static> {
@@ -249,7 +229,6 @@ impl std::ops::Sub for &MinifyingSugg<'static> {
         }
     }
 }
-
 impl std::ops::Add<&MinifyingSugg<'static>> for MinifyingSugg<'static> {
     type Output = MinifyingSugg<'static>;
     fn add(self, rhs: &MinifyingSugg<'static>) -> MinifyingSugg<'static> {
@@ -260,7 +239,6 @@ impl std::ops::Add<&MinifyingSugg<'static>> for MinifyingSugg<'static> {
         }
     }
 }
-
 impl std::ops::Sub<&MinifyingSugg<'static>> for MinifyingSugg<'static> {
     type Output = MinifyingSugg<'static>;
     fn sub(self, rhs: &MinifyingSugg<'static>) -> MinifyingSugg<'static> {
@@ -272,20 +250,17 @@ impl std::ops::Sub<&MinifyingSugg<'static>> for MinifyingSugg<'static> {
         }
     }
 }
-
 /// a wrapper around `MinifyingSugg`, which carries an operator like currying
 /// so that the suggested code become more efficient (e.g. `foo + -bar` `foo - bar`).
 struct Offset {
     value: MinifyingSugg<'static>,
     sign: OffsetSign,
 }
-
 #[derive(Clone, Copy)]
 enum OffsetSign {
     Positive,
     Negative,
 }
-
 impl Offset {
     fn negative(value: Sugg<'static>) -> Self {
         Self {
@@ -293,43 +268,36 @@ impl Offset {
             sign: OffsetSign::Negative,
         }
     }
-
     fn positive(value: Sugg<'static>) -> Self {
         Self {
             value: value.into(),
             sign: OffsetSign::Positive,
         }
     }
-
     fn empty() -> Self {
         Self::positive(sugg::ZERO)
     }
 }
-
 fn apply_offset(lhs: &MinifyingSugg<'static>, rhs: &Offset) -> MinifyingSugg<'static> {
     match rhs.sign {
         OffsetSign::Positive => lhs + &rhs.value,
         OffsetSign::Negative => lhs - &rhs.value,
     }
 }
-
 #[derive(Debug, Clone, Copy)]
 enum StartKind<'hir> {
     Range,
     Counter { initializer: &'hir Expr<'hir> },
 }
-
 struct IndexExpr<'hir> {
     base: &'hir Expr<'hir>,
     idx: StartKind<'hir>,
     idx_offset: Offset,
 }
-
 struct Start<'hir> {
     id: HirId,
     kind: StartKind<'hir>,
 }
-
 fn get_slice_like_element_ty<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
     match ty.kind() {
         ty::Adt(adt, subs) if cx.tcx.is_diagnostic_item(sym::Vec, adt.did()) => Some(subs.type_at(0)),
@@ -338,7 +306,6 @@ fn get_slice_like_element_ty<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Opti
         _ => None,
     }
 }
-
 fn fetch_cloned_expr<'tcx>(expr: &'tcx Expr<'tcx>) -> &'tcx Expr<'tcx> {
     if let ExprKind::MethodCall(method, arg, [], _) = expr.kind
         && method.ident.name == sym::clone
@@ -348,7 +315,6 @@ fn fetch_cloned_expr<'tcx>(expr: &'tcx Expr<'tcx>) -> &'tcx Expr<'tcx> {
         expr
     }
 }
-
 fn get_details_from_idx<'tcx>(
     cx: &LateContext<'tcx>,
     idx: &Expr<'_>,
@@ -358,7 +324,6 @@ fn get_details_from_idx<'tcx>(
         let id = path_to_local(e)?;
         starts.iter().find(|start| start.id == id).map(|start| start.kind)
     }
-
     fn get_offset<'tcx>(cx: &LateContext<'tcx>, e: &Expr<'_>, starts: &[Start<'tcx>]) -> Option<Sugg<'static>> {
         match &e.kind {
             ExprKind::Lit(l) => match l.node {
@@ -369,14 +334,12 @@ fn get_details_from_idx<'tcx>(
             _ => None,
         }
     }
-
     match idx.kind {
         ExprKind::Binary(op, lhs, rhs) => match op.node {
             BinOpKind::Add => {
                 let offset_opt = get_start(lhs, starts)
                     .and_then(|s| get_offset(cx, rhs, starts).map(|o| (s, o)))
                     .or_else(|| get_start(rhs, starts).and_then(|s| get_offset(cx, lhs, starts).map(|o| (s, o))));
-
                 offset_opt.map(|(s, o)| (s, Offset::positive(o)))
             },
             BinOpKind::Sub => {
@@ -388,7 +351,6 @@ fn get_details_from_idx<'tcx>(
         _ => None,
     }
 }
-
 fn get_assignment<'tcx>(e: &'tcx Expr<'tcx>) -> Option<(&'tcx Expr<'tcx>, &'tcx Expr<'tcx>)> {
     if let ExprKind::Assign(lhs, rhs, _) = e.kind {
         Some((lhs, rhs))
@@ -396,7 +358,6 @@ fn get_assignment<'tcx>(e: &'tcx Expr<'tcx>) -> Option<(&'tcx Expr<'tcx>, &'tcx 
         None
     }
 }
-
 /// Get assignments from the given block.
 /// The returned iterator yields `None` if no assignment expressions are there,
 /// filtering out the increments of the given whitelisted loop counters;
@@ -430,7 +391,6 @@ fn get_assignments<'a, 'tcx>(
         })
         .map(get_assignment)
 }
-
 fn get_loop_counters<'a, 'tcx>(
     cx: &'a LateContext<'tcx>,
     body: &'tcx Block<'tcx>,
@@ -439,7 +399,6 @@ fn get_loop_counters<'a, 'tcx>(
     // Look for variables that are incremented once per loop iteration.
     let mut increment_visitor = IncrementVisitor::new(cx);
     walk_block(&mut increment_visitor, body);
-
     // For each candidate, check the parent block to see if
     // it's initialized to zero at the start of the loop.
     get_enclosing_block(cx, expr.hir_id).and_then(|block| {
@@ -448,7 +407,6 @@ fn get_loop_counters<'a, 'tcx>(
             .filter_map(move |var_id| {
                 let mut initialize_visitor = InitializeVisitor::new(cx, expr, var_id);
                 walk_block(&mut initialize_visitor, block);
-
                 initialize_visitor.get_result().map(|(_, _, initializer)| Start {
                     id: var_id,
                     kind: StartKind::Counter { initializer },
@@ -457,7 +415,6 @@ fn get_loop_counters<'a, 'tcx>(
             .into()
     })
 }
-
 fn is_array_length_equal_to_range(cx: &LateContext<'_>, start: &Expr<'_>, end: &Expr<'_>, arr: &Expr<'_>) -> bool {
     fn extract_lit_value(expr: &Expr<'_>) -> Option<u128> {
         if let ExprKind::Lit(lit) = expr.kind
@@ -468,21 +425,17 @@ fn is_array_length_equal_to_range(cx: &LateContext<'_>, start: &Expr<'_>, end: &
             None
         }
     }
-
     let arr_ty = cx.typeck_results().expr_ty(arr).peel_refs();
-
     if let ty::Array(_, s) = arr_ty.kind() {
         let size: u128 = if let Some(size) = s.try_to_target_usize(cx.tcx) {
             size.into()
         } else {
             return false;
         };
-
         let range = match (extract_lit_value(start), extract_lit_value(end)) {
             (Some(start_value), Some(end_value)) => end_value - start_value,
             _ => return false,
         };
-
         size == range
     } else {
         false

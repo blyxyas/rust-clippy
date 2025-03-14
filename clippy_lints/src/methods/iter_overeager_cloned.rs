@@ -1,3 +1,7 @@
+use crate::HVec;
+
+use super::ITER_OVEREAGER_CLONED;
+use crate::redundant_clone::REDUNDANT_CLONE;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet_opt;
 use clippy_utils::ty::{implements_trait, is_copy};
@@ -9,30 +13,22 @@ use rustc_lint::LateContext;
 use rustc_middle::mir::{FakeReadCause, Mutability};
 use rustc_middle::ty::{self, BorrowKind};
 use rustc_span::sym;
-
-use super::ITER_OVEREAGER_CLONED;
-use crate::redundant_clone::REDUNDANT_CLONE;
-
 #[derive(Clone, Copy)]
 pub(super) enum Op<'a> {
     // rm `.cloned()`
     // e.g. `count`
     RmCloned,
-
     // rm `.cloned()`
     // e.g. `map` `for_each` `all` `any`
     NeedlessMove(&'a Expr<'a>),
-
     // later `.cloned()`
     // and add `&` to the parameter of closure parameter
     // e.g. `find` `filter`
     FixClosure(&'a str, &'a Expr<'a>),
-
     // later `.cloned()`
     // e.g. `skip` `take`
     LaterCloned,
 }
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -57,7 +53,6 @@ pub(super) fn check<'tcx>(
         {
             return;
         }
-
         if let Op::NeedlessMove(expr) = op {
             let ExprKind::Closure(closure) = expr.kind else {
                 return;
@@ -68,19 +63,15 @@ pub(super) fn check<'tcx>(
             let mut delegate = MoveDelegate {
                 used_move: HirIdSet::default(),
             };
-
             ExprUseVisitor::for_clippy(cx, closure.def_id, &mut delegate)
                 .consume_body(body)
                 .into_ok();
-
             let mut to_be_discarded = false;
-
             p.pat.walk(|it| {
                 if delegate.used_move.contains(&it.hir_id) {
                     to_be_discarded = true;
                     return false;
                 }
-
                 match it.kind {
                     PatKind::Binding(BindingMode(_, Mutability::Mut), _, _, _) | PatKind::Ref(_, Mutability::Mut) => {
                         to_be_discarded = true;
@@ -89,12 +80,10 @@ pub(super) fn check<'tcx>(
                     _ => true,
                 }
             });
-
             if to_be_discarded {
                 return;
             }
         }
-
         let (lint, msg, trailing_clone) = match op {
             Op::RmCloned | Op::NeedlessMove(_) => (REDUNDANT_CLONE, "unneeded cloning of iterator items", ""),
             Op::LaterCloned | Op::FixClosure(_, _) => (
@@ -103,7 +92,6 @@ pub(super) fn check<'tcx>(
                 ".cloned()",
             ),
         };
-
         span_lint_and_then(cx, lint, expr.span, msg, |diag| match op {
             Op::RmCloned | Op::LaterCloned => {
                 let method_span = expr.span.with_lo(cloned_call.span.hi());
@@ -135,21 +123,16 @@ pub(super) fn check<'tcx>(
         });
     }
 }
-
 struct MoveDelegate {
     used_move: HirIdSet,
 }
-
 impl<'tcx> Delegate<'tcx> for MoveDelegate {
     fn consume(&mut self, place_with_id: &PlaceWithHirId<'tcx>, _: HirId) {
         if let PlaceBase::Local(l) = place_with_id.place.base {
             self.used_move.insert(l);
         }
     }
-
     fn borrow(&mut self, _: &PlaceWithHirId<'tcx>, _: HirId, _: BorrowKind) {}
-
     fn mutate(&mut self, _: &PlaceWithHirId<'tcx>, _: HirId) {}
-
     fn fake_read(&mut self, _: &PlaceWithHirId<'tcx>, _: FakeReadCause, _: HirId) {}
 }

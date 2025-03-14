@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint, span_lint_and_help, span_lint_hir};
 use clippy_utils::is_bool;
@@ -9,7 +11,6 @@ use rustc_hir::{EnumDef, FieldDef, Item, ItemKind, OwnerId, Variant, VariantData
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::Symbol;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects enumeration variants that are prefixed or suffixed
@@ -46,7 +47,6 @@ declare_clippy_lint! {
     style,
     "enums where all variants share a prefix/postfix"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects public item names that are prefixed or suffixed by the
@@ -90,7 +90,6 @@ declare_clippy_lint! {
     restriction,
     "type names prefixed/postfixed with their containing module's name"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for modules that have the same name as their
@@ -156,7 +155,6 @@ declare_clippy_lint! {
     pedantic,
     "structs where all fields share a prefix/postfix or contain the name of the struct"
 }
-
 pub struct ItemNameRepetitions {
     modules: Vec<(Symbol, String, OwnerId)>,
     enum_threshold: u64,
@@ -165,7 +163,6 @@ pub struct ItemNameRepetitions {
     allow_private_module_inception: bool,
     allowed_prefixes: FxHashSet<String>,
 }
-
 impl ItemNameRepetitions {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -177,54 +174,44 @@ impl ItemNameRepetitions {
             allowed_prefixes: conf.allowed_prefixes.iter().map(|s| to_camel_case(s)).collect(),
         }
     }
-
     fn is_allowed_prefix(&self, prefix: &str) -> bool {
         self.allowed_prefixes.contains(prefix)
     }
 }
-
 impl_lint_pass!(ItemNameRepetitions => [
     ENUM_VARIANT_NAMES,
     STRUCT_FIELD_NAMES,
     MODULE_NAME_REPETITIONS,
     MODULE_INCEPTION
 ]);
-
 #[must_use]
 fn have_no_extra_prefix(prefixes: &[&str]) -> bool {
     prefixes.iter().all(|p| p == &"" || p == &"_")
 }
-
 impl ItemNameRepetitions {
     /// Lint the names of enum variants against the name of the enum.
     fn check_variants(&self, cx: &LateContext<'_>, item: &Item<'_>, def: &EnumDef<'_>) {
         if self.avoid_breaking_exported_api && cx.effective_visibilities.is_exported(item.owner_id.def_id) {
             return;
         }
-
         if (def.variants.len() as u64) < self.enum_threshold {
             return;
         }
-
         let item_name = item.ident.name.as_str();
         for var in def.variants {
             check_enum_start(cx, item_name, var);
             check_enum_end(cx, item_name, var);
         }
-
         Self::check_enum_common_affix(cx, item, def);
     }
-
     /// Lint the names of struct fields against the name of the struct.
     fn check_fields(&self, cx: &LateContext<'_>, item: &Item<'_>, fields: &[FieldDef<'_>]) {
         if (fields.len() as u64) < self.struct_threshold {
             return;
         }
-
         self.check_struct_name_repetition(cx, item, fields);
         self.check_struct_common_affix(cx, item, fields);
     }
-
     fn check_enum_common_affix(cx: &LateContext<'_>, item: &Item<'_>, def: &EnumDef<'_>) {
         let first = match def.variants.first() {
             Some(variant) => variant.ident.name.as_str(),
@@ -235,12 +222,10 @@ impl ItemNameRepetitions {
         post.reverse();
         for var in def.variants {
             let name = var.ident.name.as_str();
-
             let variant_split = camel_case_split(name);
             if variant_split.len() == 1 {
                 return;
             }
-
             pre = pre
                 .iter()
                 .zip(variant_split.iter())
@@ -274,14 +259,12 @@ impl ItemNameRepetitions {
             ),
         );
     }
-
     fn check_struct_common_affix(&self, cx: &LateContext<'_>, item: &Item<'_>, fields: &[FieldDef<'_>]) {
         // if the SyntaxContext of the identifiers of the fields and struct differ dont lint them.
         // this prevents linting in macros in which the location of the field identifier names differ
         if !fields.iter().all(|field| item.ident.span.eq_ctxt(field.ident.span)) {
             return;
         }
-
         if self.avoid_breaking_exported_api
             && fields
                 .iter()
@@ -289,7 +272,6 @@ impl ItemNameRepetitions {
         {
             return;
         }
-
         let mut pre: Vec<&str> = match fields.first() {
             Some(first_field) => first_field.ident.name.as_str().split('_').collect(),
             None => return,
@@ -301,7 +283,6 @@ impl ItemNameRepetitions {
             if field_split.len() == 1 {
                 return;
             }
-
             pre = pre
                 .into_iter()
                 .zip(field_split.iter())
@@ -344,7 +325,6 @@ impl ItemNameRepetitions {
             );
         }
     }
-
     fn check_struct_name_repetition(&self, cx: &LateContext<'_>, item: &Item<'_>, fields: &[FieldDef<'_>]) {
         let snake_name = to_snake_case(item.ident.name.as_str());
         let item_name_words: Vec<&str> = snake_name.split('_').collect();
@@ -352,12 +332,10 @@ impl ItemNameRepetitions {
             if self.avoid_breaking_exported_api && cx.effective_visibilities.is_exported(field.def_id) {
                 continue;
             }
-
             if !field.ident.span.eq_ctxt(item.ident.span) {
                 // consider linting only if the field identifier has the same SyntaxContext as the item(struct)
                 continue;
             }
-
             let field_words: Vec<&str> = field.ident.name.as_str().split('_').collect();
             if field_words.len() >= item_name_words.len() {
                 // if the field name is shorter than the struct name it cannot contain it
@@ -391,11 +369,9 @@ impl ItemNameRepetitions {
         }
     }
 }
-
 fn check_enum_start(cx: &LateContext<'_>, item_name: &str, variant: &Variant<'_>) {
     let name = variant.ident.name.as_str();
     let item_name_chars = item_name.chars().count();
-
     if count_match_start(item_name, name).char_count == item_name_chars
         && name.chars().nth(item_name_chars).is_some_and(|c| !c.is_lowercase())
         && name.chars().nth(item_name_chars + 1).is_some_and(|c| !c.is_numeric())
@@ -409,11 +385,9 @@ fn check_enum_start(cx: &LateContext<'_>, item_name: &str, variant: &Variant<'_>
         );
     }
 }
-
 fn check_enum_end(cx: &LateContext<'_>, item_name: &str, variant: &Variant<'_>) {
     let name = variant.ident.name.as_str();
     let item_name_chars = item_name.chars().count();
-
     if count_match_end(item_name, name).char_count == item_name_chars {
         span_lint_hir(
             cx,
@@ -424,13 +398,11 @@ fn check_enum_end(cx: &LateContext<'_>, item_name: &str, variant: &Variant<'_>) 
         );
     }
 }
-
 impl LateLintPass<'_> for ItemNameRepetitions {
     fn check_item_post(&mut self, _cx: &LateContext<'_>, _item: &Item<'_>) {
         let last = self.modules.pop();
         assert!(last.is_some());
     }
-
     fn check_item(&mut self, cx: &LateContext<'_>, item: &Item<'_>) {
         let item_name = item.ident.name.as_str();
         let item_camel = to_camel_case(item_name);
@@ -449,7 +421,6 @@ impl LateLintPass<'_> for ItemNameRepetitions {
                             "module has the same name as its containing module",
                         );
                     }
-
                     // The `module_name_repetitions` lint should only trigger if the item has the module in its
                     // name. Having the same name is accepted.
                     if cx.tcx.visibility(item.owner_id).is_public()
@@ -459,9 +430,7 @@ impl LateLintPass<'_> for ItemNameRepetitions {
                         let matching = count_match_start(mod_camel, &item_camel);
                         let rmatching = count_match_end(mod_camel, &item_camel);
                         let nchars = mod_camel.chars().count();
-
                         let is_word_beginning = |c: char| c == '_' || c.is_uppercase() || c.is_numeric();
-
                         if matching.char_count == nchars {
                             match item_camel.chars().nth(nchars) {
                                 Some(c) if is_word_beginning(c) => span_lint(
@@ -487,7 +456,6 @@ impl LateLintPass<'_> for ItemNameRepetitions {
                 }
             }
         }
-
         if span_is_local(item.span) {
             match item.kind {
                 ItemKind::Enum(def, _) => {
@@ -499,7 +467,6 @@ impl LateLintPass<'_> for ItemNameRepetitions {
                 _ => (),
             }
         }
-
         self.modules.push((item.ident.name, item_camel, item.owner_id));
     }
 }

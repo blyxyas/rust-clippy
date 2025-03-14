@@ -1,5 +1,6 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
+use super::SIGNIFICANT_DROP_IN_SCRUTINEE;
 use crate::FxHashSet;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::{first_line_of_span, indent_of, snippet};
@@ -14,9 +15,7 @@ use rustc_hir::{Arm, Expr, ExprKind, MatchSource};
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty::{GenericArgKind, Region, RegionKind, Ty, TyCtxt, TypeVisitable, TypeVisitor};
 use rustc_span::Span;
-
-use super::SIGNIFICANT_DROP_IN_SCRUTINEE;
-
+use std::ops::ControlFlow;
 pub(super) fn check_match<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -27,23 +26,18 @@ pub(super) fn check_match<'tcx>(
     if is_lint_allowed(cx, SIGNIFICANT_DROP_IN_SCRUTINEE, expr.hir_id) {
         return;
     }
-
     let scrutinee = match (source, &scrutinee.kind) {
         (MatchSource::ForLoopDesugar, ExprKind::Call(_, [e])) => e,
         _ => scrutinee,
     };
-
     let message = if source == MatchSource::Normal {
         "temporary with significant `Drop` in `match` scrutinee will live until the end of the `match` expression"
     } else {
         "temporary with significant `Drop` in `for` loop condition will live until the end of the `for` expression"
     };
-
     let arms = arms.iter().map(|arm| arm.body).collect::<Vec<_>>();
-
     check(cx, expr, scrutinee, &arms, message, Suggestion::Emit);
 }
-
 pub(super) fn check_if_let<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -54,17 +48,14 @@ pub(super) fn check_if_let<'tcx>(
     if is_lint_allowed(cx, SIGNIFICANT_DROP_IN_SCRUTINEE, expr.hir_id) {
         return;
     }
-
     let message =
         "temporary with significant `Drop` in `if let` scrutinee will live until the end of the `if let` expression";
-
     if let Some(if_else) = if_else {
         check(cx, expr, scrutinee, &[if_then, if_else], message, Suggestion::Emit);
     } else {
         check(cx, expr, scrutinee, &[if_then], message, Suggestion::Emit);
     }
 }
-
 pub(super) fn check_while_let<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -74,7 +65,6 @@ pub(super) fn check_while_let<'tcx>(
     if is_lint_allowed(cx, SIGNIFICANT_DROP_IN_SCRUTINEE, expr.hir_id) {
         return;
     }
-
     check(
         cx,
         expr,
@@ -86,13 +76,11 @@ pub(super) fn check_while_let<'tcx>(
         Suggestion::DontEmit,
     );
 }
-
 #[derive(Copy, Clone, Debug)]
 enum Suggestion {
     Emit,
     DontEmit,
 }
-
 fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -103,14 +91,12 @@ fn check<'tcx>(
 ) {
     let mut helper = SigDropHelper::new(cx);
     let suggestions = helper.find_sig_drop(scrutinee);
-
     for found in suggestions {
         span_lint_and_then(cx, SIGNIFICANT_DROP_IN_SCRUTINEE, found.found_span, message, |diag| {
             match sugg {
                 Suggestion::Emit => set_suggestion(diag, cx, expr, found),
                 Suggestion::DontEmit => (),
             }
-
             let s = Span::new(expr.span.hi(), expr.span.hi(), expr.span.ctxt(), None);
             diag.span_label(s, "temporary lives until here");
             for span in has_significant_drop_in_arms(cx, arms) {
@@ -120,11 +106,9 @@ fn check<'tcx>(
         });
     }
 }
-
 fn set_suggestion<'tcx>(diag: &mut Diag<'_, ()>, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, found: FoundSigDrop) {
     let original = snippet(cx, found.found_span, "..");
     let trailing_indent = " ".repeat(indent_of(cx, found.found_span).unwrap_or(0));
-
     let replacement = {
         let (def_part, deref_part) = if found.is_unit_return_val {
             ("", String::new())
@@ -133,13 +117,11 @@ fn set_suggestion<'tcx>(diag: &mut Diag<'_, ()>, cx: &LateContext<'tcx>, expr: &
         };
         format!("{def_part}{deref_part}{original};\n{trailing_indent}")
     };
-
     let suggestion_message = if found.peel_ref_times == 0 {
         "try moving the temporary above the match"
     } else {
         "try moving the temporary above the match and create a copy"
     };
-
     let scrutinee_replacement = if found.is_unit_return_val {
         "()".to_owned()
     } else if found.peel_ref_times == 0 {
@@ -148,7 +130,6 @@ fn set_suggestion<'tcx>(diag: &mut Diag<'_, ()>, cx: &LateContext<'tcx>, expr: &
         let ref_part = "&".repeat(found.peel_ref_times);
         format!("({ref_part}value)")
     };
-
     diag.multipart_suggestion(
         suggestion_message,
         vec![
@@ -158,12 +139,10 @@ fn set_suggestion<'tcx>(diag: &mut Diag<'_, ()>, cx: &LateContext<'tcx>, expr: &
         Applicability::MaybeIncorrect,
     );
 }
-
 struct SigDropChecker<'a, 'tcx> {
     seen_types: FxHashSet<Ty<'tcx>>,
     cx: &'a LateContext<'tcx>,
 }
-
 impl<'a, 'tcx> SigDropChecker<'a, 'tcx> {
     fn new(cx: &'a LateContext<'tcx>) -> SigDropChecker<'a, 'tcx> {
         SigDropChecker {
@@ -171,16 +150,13 @@ impl<'a, 'tcx> SigDropChecker<'a, 'tcx> {
             cx,
         }
     }
-
     fn is_sig_drop_expr(&mut self, ex: &'tcx Expr<'_>) -> bool {
         !ex.is_syntactic_place_expr() && self.has_sig_drop_attr(self.cx.typeck_results().expr_ty(ex))
     }
-
     fn has_sig_drop_attr(&mut self, ty: Ty<'tcx>) -> bool {
         self.seen_types.clear();
         self.has_sig_drop_attr_impl(ty)
     }
-
     fn has_sig_drop_attr_impl(&mut self, ty: Ty<'tcx>) -> bool {
         if let Some(adt) = ty.ty_adt_def() {
             if get_attr(
@@ -194,11 +170,9 @@ impl<'a, 'tcx> SigDropChecker<'a, 'tcx> {
                 return true;
             }
         }
-
         if !self.seen_types.insert(ty) {
             return false;
         }
-
         match ty.kind() {
             rustc_middle::ty::Adt(adt, args) => {
                 // if some field has significant drop,
@@ -226,7 +200,6 @@ impl<'a, 'tcx> SigDropChecker<'a, 'tcx> {
         }
     }
 }
-
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 enum SigDropHolder {
     /// No values with significant drop present in this expression.
@@ -244,13 +217,11 @@ enum SigDropHolder {
     /// This expression should be moved out to avoid significant drop in scrutinee.
     Moved,
 }
-
 impl Default for SigDropHolder {
     fn default() -> Self {
         Self::None
     }
 }
-
 struct SigDropHelper<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     parent_expr: Option<&'tcx Expr<'tcx>>,
@@ -258,14 +229,12 @@ struct SigDropHelper<'a, 'tcx> {
     sig_drop_spans: Vec<FoundSigDrop>,
     sig_drop_checker: SigDropChecker<'a, 'tcx>,
 }
-
 #[derive(Clone, Copy, Debug)]
 struct FoundSigDrop {
     found_span: Span,
     is_unit_return_val: bool,
     peel_ref_times: usize,
 }
-
 impl<'a, 'tcx> SigDropHelper<'a, 'tcx> {
     fn new(cx: &'a LateContext<'tcx>) -> SigDropHelper<'a, 'tcx> {
         SigDropHelper {
@@ -276,13 +245,10 @@ impl<'a, 'tcx> SigDropHelper<'a, 'tcx> {
             sig_drop_checker: SigDropChecker::new(cx),
         }
     }
-
     fn find_sig_drop(&mut self, match_expr: &'tcx Expr<'_>) -> Vec<FoundSigDrop> {
         self.visit_expr(match_expr);
-
         core::mem::take(&mut self.sig_drop_spans)
     }
-
     fn replace_current_sig_drop(&mut self, found_span: Span, is_unit_return_val: bool, peel_ref_times: usize) {
         self.sig_drop_spans.clear();
         self.sig_drop_spans.push(FoundSigDrop {
@@ -291,12 +257,10 @@ impl<'a, 'tcx> SigDropHelper<'a, 'tcx> {
             peel_ref_times,
         });
     }
-
     fn try_move_sig_drop(&mut self, expr: &'tcx Expr<'_>, parent_expr: &'tcx Expr<'_>) {
         if self.sig_drop_holder == SigDropHolder::Moved {
             self.sig_drop_holder = SigDropHolder::None;
         }
-
         if self.sig_drop_holder == SigDropHolder::DirectRef {
             self.sig_drop_holder = SigDropHolder::PackedRef;
             self.try_move_sig_drop_direct_ref(expr, parent_expr);
@@ -306,14 +270,12 @@ impl<'a, 'tcx> SigDropHelper<'a, 'tcx> {
             self.sig_drop_holder = SigDropHolder::None;
             self.try_move_sig_drop_direct_ref(expr, parent_expr);
         }
-
         if self.sig_drop_holder != SigDropHolder::None {
             let parent_ty = self.cx.typeck_results().expr_ty(parent_expr);
             if !ty_has_erased_regions(parent_ty) && !parent_expr.is_syntactic_place_expr() {
                 self.replace_current_sig_drop(parent_expr.span, parent_ty.is_unit(), 0);
                 self.sig_drop_holder = SigDropHolder::Moved;
             }
-
             let (peel_ref_ty, peel_ref_times) = ty_peel_refs(parent_ty);
             if !ty_has_erased_regions(peel_ref_ty) && is_copy(self.cx, peel_ref_ty) {
                 self.replace_current_sig_drop(parent_expr.span, peel_ref_ty.is_unit(), peel_ref_times);
@@ -321,7 +283,6 @@ impl<'a, 'tcx> SigDropHelper<'a, 'tcx> {
             }
         }
     }
-
     fn try_move_sig_drop_direct_ref(&mut self, expr: &'tcx Expr<'_>, parent_expr: &'tcx Expr<'_>) {
         let arg_idx = match parent_expr.kind {
             ExprKind::MethodCall(_, receiver, exprs, _) => std::iter::once(receiver)
@@ -347,13 +308,11 @@ impl<'a, 'tcx> SigDropHelper<'a, 'tcx> {
         let Some(arg_idx) = arg_idx else {
             return;
         };
-
         let fn_sig = if let Some(def_id) = self.cx.typeck_results().type_dependent_def_id(parent_expr.hir_id) {
             self.cx.tcx.fn_sig(def_id).instantiate_identity()
         } else {
             return;
         };
-
         let input_re = if let Some(input_ty) = fn_sig.skip_binder().inputs().get(arg_idx)
             && let rustc_middle::ty::Ref(input_re, _, _) = input_ty.kind()
         {
@@ -361,7 +320,6 @@ impl<'a, 'tcx> SigDropHelper<'a, 'tcx> {
         } else {
             return;
         };
-
         // Late bound lifetime parameters are not related to any constraints, so we can track them in a very
         // simple manner. For other lifetime parameters, we give up and update the state to `PackedRef`.
         let RegionKind::ReBound(_, input_re_bound) = input_re.kind() else {
@@ -375,7 +333,6 @@ impl<'a, 'tcx> SigDropHelper<'a, 'tcx> {
                 ControlFlow::Continue(())
             }
         };
-
         let output_ty = fn_sig.skip_binder().output();
         if let rustc_middle::ty::Ref(output_re, peel_ref_ty, _) = output_ty.kind()
             && input_re == output_re
@@ -395,7 +352,6 @@ impl<'a, 'tcx> SigDropHelper<'a, 'tcx> {
         }
     }
 }
-
 fn ty_peel_refs(mut ty: Ty<'_>) -> (Ty<'_>, usize) {
     let mut n = 0;
     while let rustc_middle::ty::Ref(_, new_ty, Mutability::Not) = ty.kind() {
@@ -404,13 +360,10 @@ fn ty_peel_refs(mut ty: Ty<'_>) -> (Ty<'_>, usize) {
     }
     (ty, n)
 }
-
 fn ty_has_erased_regions(ty: Ty<'_>) -> bool {
     struct V;
-
     impl<'tcx> TypeVisitor<TyCtxt<'tcx>> for V {
         type Result = ControlFlow<()>;
-
         fn visit_region(&mut self, region: Region<'tcx>) -> Self::Result {
             if region.is_erased() {
                 ControlFlow::Break(())
@@ -419,10 +372,8 @@ fn ty_has_erased_regions(ty: Ty<'_>) -> bool {
             }
         }
     }
-
     ty.visit_with(&mut V).is_break()
 }
-
 impl<'tcx> Visitor<'tcx> for SigDropHelper<'_, 'tcx> {
     fn visit_expr(&mut self, ex: &'tcx Expr<'_>) {
         // We've emitted a lint on some neighborhood expression. That lint will suggest to move out the
@@ -431,20 +382,17 @@ impl<'tcx> Visitor<'tcx> for SigDropHelper<'_, 'tcx> {
         if self.sig_drop_holder == SigDropHolder::Moved {
             return;
         }
-
         // These states are of neighborhood expressions. We save and clear them here, and we'll later merge
         // the states of the current expression with them at the end of the method.
         let sig_drop_holder_before = core::mem::take(&mut self.sig_drop_holder);
         let sig_drop_spans_before = core::mem::take(&mut self.sig_drop_spans);
         let parent_expr_before = self.parent_expr.replace(ex);
-
         match ex.kind {
             // Skip blocks because values in blocks will be dropped as usual, and await
             // desugaring because temporary insides the future will have been dropped.
             ExprKind::Block(..) | ExprKind::Match(_, _, MatchSource::AwaitDesugar) => (),
             _ => walk_expr(self, ex),
         }
-
         if let Some(parent_ex) = parent_expr_before {
             match parent_ex.kind {
                 ExprKind::Assign(lhs, _, _) | ExprKind::AssignOp(_, lhs, _)
@@ -458,9 +406,7 @@ impl<'tcx> Visitor<'tcx> for SigDropHelper<'_, 'tcx> {
                 },
             }
         }
-
         self.sig_drop_holder = std::cmp::max(self.sig_drop_holder, sig_drop_holder_before);
-
         // We do not need those old spans in neighborhood expressions if we emit a lint that suggests to
         // move out the _parent_ expression (i.e., `self.sig_drop_holder == SigDropHolder::Moved`).
         if self.sig_drop_holder != SigDropHolder::Moved {
@@ -468,16 +414,13 @@ impl<'tcx> Visitor<'tcx> for SigDropHelper<'_, 'tcx> {
             sig_drop_spans.append(&mut self.sig_drop_spans);
             self.sig_drop_spans = sig_drop_spans;
         }
-
         self.parent_expr = parent_expr_before;
     }
 }
-
 struct ArmSigDropHelper<'a, 'tcx> {
     sig_drop_checker: SigDropChecker<'a, 'tcx>,
     found_sig_drop_spans: FxIndexSet<Span>,
 }
-
 impl<'a, 'tcx> ArmSigDropHelper<'a, 'tcx> {
     fn new(cx: &'a LateContext<'tcx>) -> ArmSigDropHelper<'a, 'tcx> {
         ArmSigDropHelper {
@@ -486,7 +429,6 @@ impl<'a, 'tcx> ArmSigDropHelper<'a, 'tcx> {
         }
     }
 }
-
 fn has_significant_drop_in_arms<'tcx>(cx: &LateContext<'tcx>, arms: &[&'tcx Expr<'_>]) -> FxIndexSet<Span> {
     let mut helper = ArmSigDropHelper::new(cx);
     for arm in arms {
@@ -494,7 +436,6 @@ fn has_significant_drop_in_arms<'tcx>(cx: &LateContext<'tcx>, arms: &[&'tcx Expr
     }
     helper.found_sig_drop_spans
 }
-
 impl<'tcx> Visitor<'tcx> for ArmSigDropHelper<'_, 'tcx> {
     fn visit_expr(&mut self, ex: &'tcx Expr<'tcx>) {
         if self.sig_drop_checker.is_sig_drop_expr(ex) {

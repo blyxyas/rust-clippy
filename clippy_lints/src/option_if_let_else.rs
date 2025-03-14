@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::{
@@ -13,7 +15,6 @@ use rustc_hir::{
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::SyntaxContext;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Lints usage of `if let Some(v) = ... { y } else { x }` and
@@ -72,9 +73,7 @@ declare_clippy_lint! {
     nursery,
     "reimplementation of Option::map_or"
 }
-
 declare_lint_pass!(OptionIfLetElse => [OPTION_IF_LET_ELSE]);
-
 /// A struct containing information about occurrences of construct that this lint detects
 ///
 /// Such as:
@@ -95,7 +94,6 @@ struct OptionOccurrence {
     some_expr: String,
     none_expr: String,
 }
-
 fn format_option_in_sugg(cond_sugg: Sugg<'_>, as_ref: bool, as_mut: bool) -> String {
     format!(
         "{}{}",
@@ -109,7 +107,6 @@ fn format_option_in_sugg(cond_sugg: Sugg<'_>, as_ref: bool, as_mut: bool) -> Str
         }
     )
 }
-
 fn try_get_option_occurrence<'tcx>(
     cx: &LateContext<'tcx>,
     ctxt: SyntaxContext,
@@ -155,7 +152,6 @@ fn try_get_option_occurrence<'tcx>(
                 bind_annotation == BindingMode::REF_MUT,
             ),
         };
-
         // Check if captures the closure will need conflict with borrows made in the scrutinee.
         // TODO: check all the references made in the scrutinee expression. This will require interacting
         // with the borrow checker. Currently only `<local>[.<field>]*` is checked for.
@@ -183,14 +179,11 @@ fn try_get_option_occurrence<'tcx>(
                 }
             }
         }
-
         let mut app = Applicability::Unspecified;
-
         let (none_body, is_argless_call) = match none_body.kind {
             ExprKind::Call(call_expr, []) if !none_body.span.from_expansion() => (call_expr, true),
             _ => (none_body, false),
         };
-
         return Some(OptionOccurrence {
             option: format_option_in_sugg(
                 Sugg::hir_with_context(cx, cond_expr, ctxt, "..", &mut app),
@@ -215,10 +208,8 @@ fn try_get_option_occurrence<'tcx>(
             ),
         });
     }
-
     None
 }
-
 fn try_get_inner_pat_and_is_result<'tcx>(cx: &LateContext<'tcx>, pat: &Pat<'tcx>) -> Option<(&'tcx Pat<'tcx>, bool)> {
     if let PatKind::TupleStruct(ref qpath, [inner_pat], ..) = pat.kind {
         let res = cx.qpath_res(qpath, pat.hir_id);
@@ -230,7 +221,6 @@ fn try_get_inner_pat_and_is_result<'tcx>(cx: &LateContext<'tcx>, pat: &Pat<'tcx>
     }
     None
 }
-
 /// If this expression is the option if let/else construct we're detecting, then
 /// this function returns an `OptionOccurrence` struct with details if
 /// this construct is found, or None if this construct is not found.
@@ -250,7 +240,6 @@ fn detect_option_if_let_else<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) ->
         None
     }
 }
-
 fn detect_option_match<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> Option<OptionOccurrence> {
     if let ExprKind::Match(ex, arms, MatchSource::Normal) = expr.kind
         && !cx.typeck_results().expr_ty(expr).is_unit()
@@ -261,7 +250,6 @@ fn detect_option_match<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> Optio
         None
     }
 }
-
 fn try_convert_match<'tcx>(
     cx: &LateContext<'tcx>,
     arms: &[Arm<'tcx>],
@@ -280,7 +268,6 @@ fn try_convert_match<'tcx>(
     }
     None
 }
-
 fn is_none_or_err_arm(cx: &LateContext<'_>, arm: &Arm<'_>) -> bool {
     match arm.pat.kind {
         PatKind::Expr(PatExpr {
@@ -296,14 +283,12 @@ fn is_none_or_err_arm(cx: &LateContext<'_>, arm: &Arm<'_>) -> bool {
         _ => false,
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for OptionIfLetElse {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
         // Don't lint macros and constants
         if expr.span.from_expansion() || is_in_const_context(cx) {
             return;
         }
-
         let detection = detect_option_if_let_else(cx, expr).or_else(|| detect_option_match(cx, expr));
         if let Some(det) = detection {
             span_lint_and_sugg(

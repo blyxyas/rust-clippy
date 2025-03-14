@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::SpanRangeExt;
 use rustc_ast::LitKind;
@@ -7,7 +9,6 @@ use rustc_hir::{PatExpr, PatExprKind, PatKind, RangeEnd};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::declare_lint_pass;
 use rustc_span::{DUMMY_SP, Span};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for combined OR patterns that are all contained in a specific range,
@@ -36,7 +37,6 @@ declare_clippy_lint! {
     "manually writing range patterns using a combined OR pattern (`|`)"
 }
 declare_lint_pass!(ManualRangePatterns => [MANUAL_RANGE_PATTERNS]);
-
 fn expr_as_i128(expr: &PatExpr<'_>) -> Option<i128> {
     if let PatExprKind::Lit { lit, negated } = expr.kind
         && let LitKind::Int(num, _) = lit.node
@@ -48,13 +48,11 @@ fn expr_as_i128(expr: &PatExpr<'_>) -> Option<i128> {
         None
     }
 }
-
 #[derive(Copy, Clone)]
 struct Num {
     val: i128,
     span: Span,
 }
-
 impl Num {
     fn new(expr: &PatExpr<'_>) -> Option<Self> {
         Some(Self {
@@ -62,16 +60,13 @@ impl Num {
             span: expr.span,
         })
     }
-
     fn dummy(val: i128) -> Self {
         Self { val, span: DUMMY_SP }
     }
-
     fn min(self, other: Self) -> Self {
         if self.val < other.val { self } else { other }
     }
 }
-
 impl LateLintPass<'_> for ManualRangePatterns {
     fn check_pat(&mut self, cx: &LateContext<'_>, pat: &'_ rustc_hir::Pat<'_>) {
         // a pattern like 1 | 2 seems fine, lint if there are at least 3 alternatives
@@ -86,13 +81,11 @@ impl LateLintPass<'_> for ManualRangePatterns {
             let mut range_kind = RangeEnd::Included;
             let mut numbers_found = FxHashSet::default();
             let mut ranges_found = Vec::new();
-
             for pat in pats {
                 if let PatKind::Expr(lit) = pat.kind
                     && let Some(num) = Num::new(lit)
                 {
                     numbers_found.insert(num.val);
-
                     min = min.min(num);
                     if num.val >= max.val {
                         max = num;
@@ -105,7 +98,6 @@ impl LateLintPass<'_> for ManualRangePatterns {
                     if let RangeEnd::Excluded = end {
                         right.val -= 1;
                     }
-
                     min = min.min(left);
                     if right.val > max.val {
                         max = right;
@@ -116,7 +108,6 @@ impl LateLintPass<'_> for ManualRangePatterns {
                     return;
                 }
             }
-
             let mut num = min.val;
             while num <= max.val {
                 if numbers_found.contains(&num) {
@@ -135,7 +126,6 @@ impl LateLintPass<'_> for ManualRangePatterns {
                     return;
                 }
             }
-
             span_lint_and_then(
                 cx,
                 MANUAL_RANGE_PATTERNS,

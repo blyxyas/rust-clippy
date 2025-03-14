@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::is_in_test;
@@ -10,7 +12,6 @@ use rustc_middle::ty::TyCtxt;
 use rustc_session::impl_lint_pass;
 use rustc_span::def_id::DefId;
 use rustc_span::{ExpnKind, Span};
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -38,15 +39,12 @@ declare_clippy_lint! {
     suspicious,
     "ensures that all items used in the crate are available for the current MSRV"
 }
-
 pub struct IncompatibleMsrv {
     msrv: Msrv,
     is_above_msrv: FxHashMap<DefId, RustcVersion>,
     check_in_tests: bool,
 }
-
 impl_lint_pass!(IncompatibleMsrv => [INCOMPATIBLE_MSRV]);
-
 impl IncompatibleMsrv {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -55,7 +53,6 @@ impl IncompatibleMsrv {
             check_in_tests: conf.check_incompatible_msrv_in_tests,
         }
     }
-
     fn get_def_id_version(&mut self, tcx: TyCtxt<'_>, def_id: DefId) -> RustcVersion {
         if let Some(version) = self.is_above_msrv.get(&def_id) {
             return *version;
@@ -82,7 +79,6 @@ impl IncompatibleMsrv {
         self.is_above_msrv.insert(def_id, version);
         version
     }
-
     fn emit_lint_if_under_msrv(&mut self, cx: &LateContext<'_>, def_id: DefId, node: HirId, span: Span) {
         if def_id.is_local() {
             // We don't check local items since their MSRV is supposed to always be valid.
@@ -109,7 +105,6 @@ impl IncompatibleMsrv {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for IncompatibleMsrv {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         match expr.kind {

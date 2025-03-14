@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::EXPECT_FUN_CALL;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::macros::{FormatArgsStorage, format_args_inputs_span, root_macro_call_first_node};
 use clippy_utils::source::snippet_with_applicability;
@@ -9,9 +12,6 @@ use rustc_middle::ty;
 use rustc_span::Span;
 use rustc_span::symbol::sym;
 use std::borrow::Cow;
-
-use super::EXPECT_FUN_CALL;
-
 /// Checks for the `EXPECT_FUN_CALL` lint.
 #[allow(clippy::too_many_lines)]
 pub(super) fn check<'tcx>(
@@ -46,7 +46,6 @@ pub(super) fn check<'tcx>(
         }
         arg_root
     }
-
     // Only `&'static str` or `String` can be used directly in the `panic!`. Other types should be
     // converted to string.
     fn requires_to_string(cx: &LateContext<'_>, arg: &hir::Expr<'_>) -> bool {
@@ -61,7 +60,6 @@ pub(super) fn check<'tcx>(
         }
         true
     }
-
     // Check if an expression could have type `&'static str`, knowing that it
     // has type `&str` for some lifetime.
     fn can_be_static_str(cx: &LateContext<'_>, arg: &hir::Expr<'_>) -> bool {
@@ -97,7 +95,6 @@ pub(super) fn check<'tcx>(
             _ => false,
         }
     }
-
     fn is_call(node: &hir::ExprKind<'_>) -> bool {
         match node {
             hir::ExprKind::AddrOf(hir::BorrowKind::Ref, _, expr) => {
@@ -112,11 +109,9 @@ pub(super) fn check<'tcx>(
             _ => false,
         }
     }
-
     if args.len() != 1 || name != "expect" || !is_call(&args[0].kind) {
         return;
     }
-
     let receiver_type = cx.typeck_results().expr_ty_adjusted(receiver);
     let closure_args = if is_type_diagnostic_item(cx, receiver_type, sym::Option) {
         "||"
@@ -125,13 +120,9 @@ pub(super) fn check<'tcx>(
     } else {
         return;
     };
-
     let arg_root = get_arg_root(cx, &args[0]);
-
     let span_replace_word = method_span.with_hi(expr.span.hi());
-
     let mut applicability = Applicability::MachineApplicable;
-
     // Special handling for `format!` as arg_root
     if let Some(macro_call) = root_macro_call_first_node(cx, arg_root) {
         if cx.tcx.is_diagnostic_item(sym::format_macro, macro_call.def_id)
@@ -151,12 +142,10 @@ pub(super) fn check<'tcx>(
         }
         return;
     }
-
     let mut arg_root_snippet: Cow<'_, _> = snippet_with_applicability(cx, arg_root.span, "..", &mut applicability);
     if requires_to_string(cx, arg_root) {
         arg_root_snippet.to_mut().push_str(".to_string()");
     }
-
     span_lint_and_sugg(
         cx,
         EXPECT_FUN_CALL,

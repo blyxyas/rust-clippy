@@ -1,8 +1,9 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_ast::ast::{Item, ItemKind};
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks whether some but not all fields of a `struct` are public.
@@ -38,13 +39,11 @@ declare_clippy_lint! {
     "partial fields of a struct are public"
 }
 declare_lint_pass!(PartialPubFields => [PARTIAL_PUB_FIELDS]);
-
 impl EarlyLintPass for PartialPubFields {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         let ItemKind::Struct(ref st, _) = item.kind else {
             return;
         };
-
         let mut fields = st.fields().iter();
         let Some(first_field) = fields.next() else {
             // Empty struct.
@@ -52,9 +51,7 @@ impl EarlyLintPass for PartialPubFields {
         };
         let all_pub = first_field.vis.kind.is_pub();
         let all_priv = !all_pub;
-
         let msg = "mixed usage of pub and non-pub fields";
-
         for field in fields {
             if all_priv && field.vis.kind.is_pub() {
                 #[expect(clippy::collapsible_span_lint_calls, reason = "rust-clippy#7797")]

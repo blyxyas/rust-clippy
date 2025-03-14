@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::TRANSMUTE_FLOAT_TO_INT;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
@@ -7,7 +9,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, UnOp};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
-
 /// Checks for `transmute_float_to_int` lint.
 /// Returns `true` if it's triggered, otherwise returns `false`.
 pub(super) fn check<'tcx>(
@@ -30,11 +31,9 @@ pub(super) fn check<'tcx>(
                 format!("transmute from a `{from_ty}` to a `{to_ty}`"),
                 |diag| {
                     let mut sugg = sugg::Sugg::hir(cx, arg, "..");
-
                     if let ExprKind::Unary(UnOp::Neg, inner_expr) = &arg.kind {
                         arg = inner_expr;
                     }
-
                     if let ExprKind::Lit(lit) = &arg.kind
                         // if the expression is a float literal and it is unsuffixed then
                         // add a suffix so the suggestion is valid and unambiguous
@@ -46,16 +45,13 @@ pub(super) fn check<'tcx>(
                             _ => sugg = sugg::Sugg::NonParen(op),
                         }
                     }
-
                     sugg = sugg::Sugg::NonParen(format!("{}.to_bits()", sugg.maybe_par()).into());
-
                     // cast the result of `to_bits` if `to_ty` is signed
                     sugg = if let ty::Int(int_ty) = to_ty.kind() {
                         sugg.as_ty(int_ty.name_str().to_string())
                     } else {
                         sugg
                     };
-
                     diag.span_suggestion(e.span, "consider using", sugg, Applicability::Unspecified);
                 },
             );

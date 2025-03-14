@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::TRY_ERR;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -8,9 +11,6 @@ use rustc_hir::{Expr, ExprKind, LangItem, MatchSource, QPath};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::{hygiene, sym};
-
-use super::TRY_ERR;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, scrutinee: &'tcx Expr<'_>) {
     // Looks for a structure like this:
     // match ::std::ops::Try::into_result(Err(5)) {
@@ -31,7 +31,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, scrutine
         let prefix;
         let suffix;
         let err_ty;
-
         if let Some(ty) = result_error_type(cx, return_ty) {
             prefix = "Err(";
             suffix = ")";
@@ -47,7 +46,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, scrutine
         } else {
             return;
         }
-
         span_lint_and_then(
             cx,
             TRY_ERR,
@@ -73,7 +71,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, scrutine
         );
     }
 }
-
 /// Finds function return type by examining return expressions in match arms.
 fn find_return_type<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx ExprKind<'_>) -> Option<Ty<'tcx>> {
     if let ExprKind::Match(_, arms, MatchSource::TryDesugar(_)) = expr {
@@ -85,7 +82,6 @@ fn find_return_type<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx ExprKind<'_>) -> O
     }
     None
 }
-
 /// Extracts the error type from Result<T, E>.
 fn result_error_type<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
     if let ty::Adt(_, subst) = ty.kind()
@@ -96,7 +92,6 @@ fn result_error_type<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'t
         None
     }
 }
-
 /// Extracts the error type from Poll<Result<T, E>>.
 fn poll_result_error_type<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
     if let ty::Adt(def, subst) = ty.kind()
@@ -110,7 +105,6 @@ fn poll_result_error_type<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<
         None
     }
 }
-
 /// Extracts the error type from Poll<Option<Result<T, E>>>.
 fn poll_option_result_error_type<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
     if let ty::Adt(def, subst) = ty.kind()

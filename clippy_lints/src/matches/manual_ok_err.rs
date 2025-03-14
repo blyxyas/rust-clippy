@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_OK_ERR;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::{indent_of, reindent_multiline};
 use clippy_utils::sugg::Sugg;
@@ -11,9 +14,6 @@ use rustc_hir::{Arm, Expr, ExprKind, Pat, PatExpr, PatExprKind, PatKind, Path, Q
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty::Ty;
 use rustc_span::symbol::Ident;
-
-use super::MANUAL_OK_ERR;
-
 pub(crate) fn check_if_let(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -30,7 +30,6 @@ pub(crate) fn check_if_let(
         apply_lint(cx, expr, let_expr, is_ok);
     }
 }
-
 pub(crate) fn check_match(cx: &LateContext<'_>, expr: &Expr<'_>, scrutinee: &Expr<'_>, arms: &[Arm<'_>]) {
     if let Some(inner_expr_ty) = option_arg_ty(cx, cx.typeck_results().expr_ty(expr))
         && arms.len() == 2
@@ -54,7 +53,6 @@ pub(crate) fn check_match(cx: &LateContext<'_>, expr: &Expr<'_>, scrutinee: &Exp
         apply_lint(cx, expr, scrutinee, is_ok);
     }
 }
-
 /// Check that `pat` applied to a `Result` only matches `Ok(_)`, `Err(_)`, not a subset or a
 /// superset of it. If `can_be_wild` is `true`, wildcards are also accepted. In the case of
 /// a non-wildcard, `must_match_err` indicates whether the `Err` or the `Ok` variant should be
@@ -80,7 +78,6 @@ fn is_variant_or_wildcard(cx: &LateContext<'_>, pat: &Pat<'_>, can_be_wild: bool
         _ => false,
     }
 }
-
 /// Return `Some((true, IDENT))` if `pat` contains `Ok(IDENT)`, `Some((false, IDENT))` if it
 /// contains `Err(IDENT)`, `None` otherwise.
 fn is_ok_or_err<'hir>(cx: &LateContext<'_>, pat: &Pat<'hir>) -> Option<(bool, &'hir Ident)> {
@@ -99,7 +96,6 @@ fn is_ok_or_err<'hir>(cx: &LateContext<'_>, pat: &Pat<'hir>) -> Option<(bool, &'
     }
     None
 }
-
 /// Check if `expr` contains `Some(ident)`, possibly as a block
 fn is_some_ident<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>, ident: &Ident, ty: Ty<'tcx>) -> bool {
     if let ExprKind::Call(body_callee, [body_arg]) = peel_blocks(expr).kind
@@ -117,12 +113,10 @@ fn is_some_ident<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>, ident: &Ident, t
         false
     }
 }
-
 /// Check if `expr` is `None`, possibly as a block
 fn is_none(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     is_res_lang_ctor(cx, path_res(cx, peel_blocks(expr)), OptionNone)
 }
-
 /// Suggest replacing `expr` by `scrutinee.METHOD()`, where `METHOD` is either `ok` or
 /// `err`, depending on `is_ok`.
 fn apply_lint(cx: &LateContext<'_>, expr: &Expr<'_>, scrutinee: &Expr<'_>, is_ok: bool) {

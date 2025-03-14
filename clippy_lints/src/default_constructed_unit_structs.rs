@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_ty_alias;
 use hir::ExprKind;
@@ -8,7 +10,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for construction on unit struct using `default`.
@@ -45,7 +46,6 @@ declare_clippy_lint! {
     "unit structs can be constructed without calling `default`"
 }
 declare_lint_pass!(DefaultConstructedUnitStructs => [DEFAULT_CONSTRUCTED_UNIT_STRUCTS]);
-
 fn is_alias(ty: hir::Ty<'_>) -> bool {
     if let hir::TyKind::Path(ref qpath) = ty.kind {
         is_ty_alias(qpath)
@@ -53,7 +53,6 @@ fn is_alias(ty: hir::Ty<'_>) -> bool {
         false
     }
 }
-
 impl LateLintPass<'_> for DefaultConstructedUnitStructs {
     fn check_expr<'tcx>(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'tcx>) {
         if let ExprKind::Call(fn_expr, &[]) = expr.kind

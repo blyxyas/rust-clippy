@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::{method_chain_args, path_def_id};
@@ -5,7 +7,6 @@ use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::{LateContext, Lint};
 use rustc_middle::ty;
-
 /// Wrapper fn for `CHARS_NEXT_CMP` and `CHARS_LAST_CMP` lints.
 pub(super) fn check(
     cx: &LateContext<'_>,
@@ -21,11 +22,9 @@ pub(super) fn check(
     {
         let mut applicability = Applicability::MachineApplicable;
         let self_ty = cx.typeck_results().expr_ty_adjusted(args[0].0).peel_refs();
-
         if *self_ty.kind() != ty::Str {
             return false;
         }
-
         span_lint_and_sugg(
             cx,
             lint,
@@ -40,9 +39,7 @@ pub(super) fn check(
             ),
             applicability,
         );
-
         return true;
     }
-
     false
 }

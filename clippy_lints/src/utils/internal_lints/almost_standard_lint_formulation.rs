@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use crate::utils::internal_lints::lint_without_lint_pass::is_lint_ref_type;
 use clippy_utils::diagnostics::span_lint_and_help;
 use regex::Regex;
 use rustc_hir::{Attribute, Item, ItemKind, Mutability};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if lint formulations have a standardized format.
@@ -18,19 +19,15 @@ declare_clippy_lint! {
     internal,
     "lint formulations must have a standardized format."
 }
-
 impl_lint_pass!(AlmostStandardFormulation => [ALMOST_STANDARD_LINT_FORMULATION]);
-
 pub struct AlmostStandardFormulation {
     standard_formulations: Vec<StandardFormulations<'static>>,
 }
-
 #[derive(Debug)]
 struct StandardFormulations<'a> {
     wrong_pattern: Regex,
     correction: &'a str,
 }
-
 impl AlmostStandardFormulation {
     pub fn new() -> Self {
         let standard_formulations = vec![StandardFormulations {
@@ -40,7 +37,6 @@ impl AlmostStandardFormulation {
         Self { standard_formulations }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for AlmostStandardFormulation {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         let mut check_next = false;

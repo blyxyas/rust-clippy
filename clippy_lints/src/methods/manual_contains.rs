@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_CONTAINS;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::eager_or_lazy::switch_to_eager_eval;
 use clippy_utils::peel_hir_pat_refs;
@@ -10,12 +13,8 @@ use rustc_hir::{BinOpKind, Body, Expr, ExprKind, HirId, QPath};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self};
 use rustc_span::source_map::Spanned;
-
-use super::MANUAL_CONTAINS;
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, closure_arg: &Expr<'_>) {
     let mut app = Applicability::MachineApplicable;
-
     if !expr.span.from_expansion()
         // check if `iter().any()` can be replaced with `contains()`
         && let ExprKind::Closure(closure) = closure_arg.kind
@@ -43,12 +42,10 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, clos
         );
     }
 }
-
 enum EligibleArg {
     IsClosureArg,
     ContainsArg(String),
 }
-
 fn try_get_eligible_arg<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -59,7 +56,6 @@ fn try_get_eligible_arg<'tcx>(
         let sugg = Sugg::hir_with_applicability(cx, expr, "_", applicability);
         EligibleArg::ContainsArg((if needs_borrow { sugg.addr() } else { sugg }).to_string())
     };
-
     match expr.kind {
         ExprKind::Path(QPath::Resolved(_, path)) => {
             if path.res == Res::Local(closure_arg_id) {
@@ -88,7 +84,6 @@ fn try_get_eligible_arg<'tcx>(
         },
     }
 }
-
 fn can_replace_with_contains<'tcx>(
     cx: &LateContext<'tcx>,
     bin_op: Spanned<BinOpKind>,
@@ -100,7 +95,6 @@ fn can_replace_with_contains<'tcx>(
     if bin_op.node != BinOpKind::Eq {
         return None;
     }
-
     let left_candidate = try_get_eligible_arg(cx, left_expr, closure_arg_id, applicability)?;
     let right_candidate = try_get_eligible_arg(cx, right_expr, closure_arg_id, applicability)?;
     match (left_candidate, right_candidate) {

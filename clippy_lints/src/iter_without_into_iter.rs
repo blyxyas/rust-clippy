@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::get_parent_as_impl;
 use clippy_utils::source::snippet;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::ty::{self, Ty};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for `iter` and `iter_mut` methods without an associated `IntoIterator for (&|&mut) Type` implementation.
@@ -53,7 +54,6 @@ declare_clippy_lint! {
     pedantic,
     "implementing `iter(_mut)` without an associated `IntoIterator for (&|&mut) Type` impl"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// This is the opposite of the `iter_without_into_iter` lint.
@@ -105,9 +105,7 @@ declare_clippy_lint! {
     pedantic,
     "implementing `IntoIterator for (&|&mut) Type` without an inherent `iter(_mut)` method"
 }
-
 declare_lint_pass!(IterWithoutIntoIter => [ITER_WITHOUT_INTO_ITER, INTO_ITER_WITHOUT_ITER]);
-
 /// Checks if a given type is nameable in a trait (impl).
 /// RPIT is stable, but impl Trait in traits is not (yet), so when we have
 /// a function such as `fn iter(&self) -> impl IntoIterator`, we can't
@@ -115,13 +113,11 @@ declare_lint_pass!(IterWithoutIntoIter => [ITER_WITHOUT_INTO_ITER, INTO_ITER_WIT
 fn is_nameable_in_impl_trait(ty: &rustc_hir::Ty<'_>) -> bool {
     !matches!(ty.kind, TyKind::OpaqueDef(..))
 }
-
 fn is_ty_exported(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
     ty.ty_adt_def()
         .and_then(|adt| adt.did().as_local())
         .is_some_and(|did| cx.effective_visibilities.is_exported(did))
 }
-
 impl LateLintPass<'_> for IterWithoutIntoIter {
     fn check_item(&mut self, cx: &LateContext<'_>, item: &rustc_hir::Item<'_>) {
         if let ItemKind::Impl(imp) = item.kind
@@ -170,7 +166,6 @@ impl {self_ty_without_ref} {{
                         ref_self = mtbl.ref_prefix_str(),
                         iter_ty = snippet(cx, iter_assoc_span, ".."),
                     );
-
                     diag.span_suggestion_verbose(
                         item.span.shrink_to_lo(),
                         format!("consider implementing `{expected_method_name}`"),
@@ -183,7 +178,6 @@ impl {self_ty_without_ref} {{
             );
         }
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'_>, item: &rustc_hir::ImplItem<'_>) {
         let item_did = item.owner_id.to_def_id();
         let (borrow_prefix, expected_implicit_self) = match item.ident.name {
@@ -191,7 +185,6 @@ impl {self_ty_without_ref} {{
             sym::iter_mut => ("&mut ", ImplicitSelfKind::RefMut),
             _ => return,
         };
-
         if !item.span.in_external_macro(cx.sess().source_map())
             && let ImplItemKind::Fn(sig, _) = item.kind
             && let FnRetTy::Return(ret) = sig.decl.output
@@ -224,7 +217,6 @@ impl {self_ty_without_ref} {{
             && is_ty_exported(cx, ref_ty.peel_refs())
         {
             let self_ty_snippet = format!("{borrow_prefix}{}", snippet(cx, imp.self_ty.span, ".."));
-
             span_lint_and_then(
                 cx,
                 ITER_WITHOUT_INTO_ITER,
@@ -242,7 +234,6 @@ impl {self_ty_without_ref} {{
                         .tcx
                         .def_span(cx.tcx.parent_hir_id(item.hir_id()).owner.def_id)
                         .shrink_to_lo();
-
                     let sugg = format!(
                         "
 impl IntoIterator for {self_ty_snippet} {{

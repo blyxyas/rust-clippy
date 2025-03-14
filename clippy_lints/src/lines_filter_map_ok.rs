@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
@@ -8,17 +10,14 @@ use rustc_hir::{Body, Closure, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
-
 pub struct LinesFilterMapOk {
     msrv: Msrv,
 }
-
 impl LinesFilterMapOk {
     pub fn new(conf: &Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `lines.filter_map(Result::ok)` or `lines.flat_map(Result::ok)`
@@ -67,9 +66,7 @@ declare_clippy_lint! {
     suspicious,
     "filtering `std::io::Lines` with `filter_map()`, `flat_map()`, or `flatten()` might cause an infinite loop"
 }
-
 impl_lint_pass!(LinesFilterMapOk => [LINES_FILTER_MAP_OK]);
-
 impl LateLintPass<'_> for LinesFilterMapOk {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         if let ExprKind::MethodCall(fm_method, fm_receiver, fm_args, fm_span) = expr.kind
@@ -100,7 +97,6 @@ impl LateLintPass<'_> for LinesFilterMapOk {
         }
     }
 }
-
 fn should_lint(cx: &LateContext<'_>, args: &[Expr<'_>], method_str: &str) -> bool {
     match args {
         [] => method_str == "flatten",

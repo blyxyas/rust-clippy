@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::{CAST_ENUM_TRUNCATION, CAST_POSSIBLE_TRUNCATION, utils};
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint, span_lint_and_then};
 use clippy_utils::expr_or_init;
@@ -11,9 +14,6 @@ use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, FloatTy, Ty};
 use rustc_span::Span;
-
-use super::{CAST_ENUM_TRUNCATION, CAST_POSSIBLE_TRUNCATION, utils};
-
 fn constant_int(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<u128> {
     if let Some(Constant::Int(c)) = ConstEvalCtxt::new(cx).eval(expr) {
         Some(c)
@@ -21,11 +21,9 @@ fn constant_int(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<u128> {
         None
     }
 }
-
 fn get_constant_bits(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<u64> {
     constant_int(cx, expr).map(|c| u64::from(128 - c.leading_zeros()))
 }
-
 fn apply_reductions(cx: &LateContext<'_>, nbits: u64, expr: &Expr<'_>, signed: bool) -> u64 {
     match expr_or_init(cx, expr).kind {
         ExprKind::Cast(inner, _) => apply_reductions(cx, nbits, inner, signed),
@@ -82,7 +80,6 @@ fn apply_reductions(cx: &LateContext<'_>, nbits: u64, expr: &Expr<'_>, signed: b
         _ => nbits,
     }
 }
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -100,7 +97,6 @@ pub(super) fn check(
                 cast_from.is_signed(),
             );
             let to_nbits = utils::int_ty_to_nbits(cast_to, cx.tcx);
-
             let (should_lint, suffix) = match (is_isize_or_usize(cast_from), is_isize_or_usize(cast_to)) {
                 (true, true) | (false, false) => (to_nbits < from_nbits, ""),
                 (true, false) => (
@@ -113,14 +109,11 @@ pub(super) fn check(
                 ),
                 (false, true) => (from_nbits == 64, " on targets with 32-bit wide pointers"),
             };
-
             if !should_lint {
                 return;
             }
-
             format!("casting `{cast_from}` to `{cast_to}` may truncate the value{suffix}",)
         },
-
         (ty::Adt(def, _), true) if def.is_enum() => {
             let (from_nbits, variant) = if let ExprKind::Path(p) = &cast_expr.kind
                 && let Res::Def(DefKind::Ctor(..), id) = cx.qpath_res(p, cast_expr.hir_id)
@@ -133,7 +126,6 @@ pub(super) fn check(
                 (utils::enum_ty_to_nbits(*def, cx.tcx), None)
             };
             let to_nbits = utils::int_ty_to_nbits(cast_to, cx.tcx);
-
             let cast_from_ptr_size = def.repr().int.is_none_or(|ty| matches!(ty, IntegerType::Pointer(_),));
             let suffix = match (cast_from_ptr_size, is_isize_or_usize(cast_to)) {
                 (_, false) if from_nbits > to_nbits => "",
@@ -141,7 +133,6 @@ pub(super) fn check(
                 (false, true) if from_nbits > 32 => " on targets with 32-bit wide pointers",
                 _ => return,
             };
-
             if let Some(variant) = variant {
                 span_lint(
                     cx,
@@ -156,18 +147,14 @@ pub(super) fn check(
             }
             format!("casting `{cast_from}` to `{cast_to}` may truncate the value{suffix}")
         },
-
         (ty::Float(_), true) => {
             format!("casting `{cast_from}` to `{cast_to}` may truncate the value")
         },
-
         (ty::Float(FloatTy::F64), false) if matches!(cast_to.kind(), &ty::Float(FloatTy::F32)) => {
             "casting `f64` to `f32` may truncate the value".to_string()
         },
-
         _ => return,
     };
-
     span_lint_and_then(cx, CAST_POSSIBLE_TRUNCATION, expr.span, msg, |diag| {
         diag.help("if this is intentional allow the lint with `#[allow(clippy::cast_possible_truncation)]` ...");
         if !cast_from.is_floating_point() {
@@ -175,7 +162,6 @@ pub(super) fn check(
         }
     });
 }
-
 fn offer_suggestion(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -189,7 +175,6 @@ fn offer_suggestion(
     } else {
         format!("{cast_to_snip}::try_from({})", Sugg::hir(cx, cast_expr, ".."))
     };
-
     diag.span_suggestion_verbose(
         expr.span,
         "... or use `try_from` and handle the error accordingly",

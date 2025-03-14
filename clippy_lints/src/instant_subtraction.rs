@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
@@ -10,7 +12,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::source_map::Spanned;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Lints subtraction between `Instant::now()` and another `Instant`.
@@ -38,7 +39,6 @@ declare_clippy_lint! {
     pedantic,
     "subtraction between `Instant::now()` and previous `Instant`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Lints subtraction between an `Instant` and a `Duration`.
@@ -63,19 +63,15 @@ declare_clippy_lint! {
     pedantic,
     "finds unchecked subtraction of a 'Duration' from an 'Instant'"
 }
-
 pub struct InstantSubtraction {
     msrv: Msrv,
 }
-
 impl InstantSubtraction {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(InstantSubtraction => [MANUAL_INSTANT_ELAPSED, UNCHECKED_DURATION_SUBTRACTION]);
-
 impl LateLintPass<'_> for InstantSubtraction {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &'_ Expr<'_>) {
         if let ExprKind::Binary(
@@ -89,7 +85,6 @@ impl LateLintPass<'_> for InstantSubtraction {
             && ty::is_type_diagnostic_item(cx, typeck.expr_ty(lhs), sym::Instant)
         {
             let rhs_ty = typeck.expr_ty(rhs);
-
             if is_instant_now_call(cx, lhs)
                 && ty::is_type_diagnostic_item(cx, rhs_ty, sym::Instant)
                 && let Some(sugg) = Sugg::hir_opt(cx, rhs)
@@ -104,7 +99,6 @@ impl LateLintPass<'_> for InstantSubtraction {
         }
     }
 }
-
 fn is_instant_now_call(cx: &LateContext<'_>, expr_block: &'_ Expr<'_>) -> bool {
     if let ExprKind::Call(fn_expr, []) = expr_block.kind
         && let Some(fn_id) = clippy_utils::path_def_id(cx, fn_expr)
@@ -115,7 +109,6 @@ fn is_instant_now_call(cx: &LateContext<'_>, expr_block: &'_ Expr<'_>) -> bool {
         false
     }
 }
-
 fn print_manual_instant_elapsed_sugg(cx: &LateContext<'_>, expr: &Expr<'_>, sugg: Sugg<'_>) {
     span_lint_and_sugg(
         cx,
@@ -127,7 +120,6 @@ fn print_manual_instant_elapsed_sugg(cx: &LateContext<'_>, expr: &Expr<'_>, sugg
         Applicability::MachineApplicable,
     );
 }
-
 fn print_unchecked_duration_subtraction_sugg(
     cx: &LateContext<'_>,
     left_expr: &Expr<'_>,
@@ -135,11 +127,9 @@ fn print_unchecked_duration_subtraction_sugg(
     expr: &Expr<'_>,
 ) {
     let mut applicability = Applicability::MachineApplicable;
-
     let ctxt = expr.span.ctxt();
     let left_expr = snippet_with_context(cx, left_expr.span, ctxt, "<instant>", &mut applicability).0;
     let right_expr = snippet_with_context(cx, right_expr.span, ctxt, "<duration>", &mut applicability).0;
-
     span_lint_and_sugg(
         cx,
         UNCHECKED_DURATION_SUBTRACTION,

@@ -1,11 +1,11 @@
+use crate::HVec;
+
+use super::NEEDLESS_BITWISE_BOOL;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::SpanRangeExt;
 use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::LateContext;
-
-use super::NEEDLESS_BITWISE_BOOL;
-
 pub(super) fn check(cx: &LateContext<'_>, e: &Expr<'_>, op: BinOpKind, lhs: &Expr<'_>, rhs: &Expr<'_>) {
     let op_str = match op {
         BinOpKind::BitAnd => "&&",

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::USELESS_TRANSMUTE;
 use clippy_utils::diagnostics::{span_lint, span_lint_and_then};
 use clippy_utils::sugg;
@@ -5,7 +7,6 @@ use rustc_errors::Applicability;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty, TypeVisitableExt};
-
 /// Checks for `useless_transmute` lint.
 /// Returns `true` if it's triggered, otherwise returns `false`.
 pub(super) fn check<'tcx>(
@@ -40,7 +41,6 @@ pub(super) fn check<'tcx>(
                             } else {
                                 arg.as_ty(Ty::new_ptr(cx.tcx, rty, rty_mutbl)).as_ty(to_ty)
                             };
-
                             diag.span_suggestion(e.span, "try", sugg, Applicability::Unspecified);
                         }
                     },

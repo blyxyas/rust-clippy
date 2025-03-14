@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use rustc_hir::{BorrowKind, Expr, ExprKind, Mutability};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, Ty};
 use rustc_session::declare_lint_pass;
 use std::iter;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects passing a mutable reference to a function that only
@@ -32,16 +33,13 @@ declare_clippy_lint! {
     style,
     "an argument passed as a mutable reference although the callee only demands an immutable reference"
 }
-
 declare_lint_pass!(UnnecessaryMutPassed => [UNNECESSARY_MUT_PASSED]);
-
 impl<'tcx> LateLintPass<'tcx> for UnnecessaryMutPassed {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         if e.span.from_expansion() {
             // Issue #11268
             return;
         }
-
         match e.kind {
             ExprKind::Call(fn_expr, arguments) => {
                 if let ExprKind::Path(ref path) = fn_expr.kind {
@@ -71,7 +69,6 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessaryMutPassed {
         }
     }
 }
-
 fn check_arguments<'tcx>(
     cx: &LateContext<'tcx>,
     arguments: &mut dyn Iterator<Item = &'tcx Expr<'tcx>>,

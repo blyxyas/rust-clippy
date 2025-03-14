@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::ITER_CLONED_COLLECT;
 use crate::methods::utils::derefs_to_slice;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -5,9 +8,6 @@ use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::ITER_CLONED_COLLECT;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, method_name: &str, expr: &hir::Expr<'_>, recv: &'tcx hir::Expr<'_>) {
     if is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(expr), sym::Vec)
         && let Some(slice) = derefs_to_slice(cx, recv, cx.typeck_results().expr_ty(recv))

@@ -1,5 +1,6 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
+use super::READ_LINE_WITHOUT_TRIM;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::get_parent_expr;
 use clippy_utils::source::snippet;
@@ -12,9 +13,7 @@ use rustc_hir::{BinOpKind, Expr, ExprKind, QPath};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::sym;
-
-use super::READ_LINE_WITHOUT_TRIM;
-
+use std::ops::ControlFlow;
 fn expr_is_string_literal_without_trailing_newline(expr: &Expr<'_>) -> bool {
     if let ExprKind::Lit(lit) = expr.kind
         && let LitKind::Str(sym, _) = lit.node
@@ -24,13 +23,11 @@ fn expr_is_string_literal_without_trailing_newline(expr: &Expr<'_>) -> bool {
         false
     }
 }
-
 /// Will a `.parse::<ty>()` call fail if the input has a trailing newline?
 fn parse_fails_on_trailing_newline(ty: Ty<'_>) -> bool {
     // only allow a very limited set of types for now, for which we 100% know parsing will fail
     matches!(ty.kind(), ty::Float(_) | ty::Bool | ty::Int(_) | ty::Uint(_))
 }
-
 pub fn check(cx: &LateContext<'_>, call: &Expr<'_>, recv: &Expr<'_>, arg: &Expr<'_>) {
     if let Some(recv_adt) = cx.typeck_results().expr_ty(recv).ty_adt_def()
         && cx.tcx.is_diagnostic_item(sym::Stdin, recv_adt.did())
@@ -87,11 +84,9 @@ pub fn check(cx: &LateContext<'_>, call: &Expr<'_>, recv: &Expr<'_>, arg: &Expr<
                 } else {
                     None
                 };
-
                 if let Some((primary_span, lint_message, operation)) = data {
                     span_lint_and_then(cx, READ_LINE_WITHOUT_TRIM, primary_span, lint_message, |diag| {
                         let local_snippet = snippet(cx, expr.span, "<expr>");
-
                         diag.span_note(
                             call.span,
                             format!(
@@ -100,7 +95,6 @@ pub fn check(cx: &LateContext<'_>, call: &Expr<'_>, recv: &Expr<'_>, arg: &Expr<
                                 which in turn will cause the {operation} to always fail"
                             ),
                         );
-
                         diag.span_suggestion(
                             expr.span,
                             "try",
@@ -110,7 +104,6 @@ pub fn check(cx: &LateContext<'_>, call: &Expr<'_>, recv: &Expr<'_>, arg: &Expr<
                     });
                 }
             }
-
             // only consider the first use to prevent this scenario:
             // ```
             // let mut s = String::new();

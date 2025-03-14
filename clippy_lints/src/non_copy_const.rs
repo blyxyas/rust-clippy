@@ -1,4 +1,4 @@
-use std::ptr;
+use crate::HVec;
 
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -17,7 +17,7 @@ use rustc_middle::ty::adjustment::Adjust;
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_session::impl_lint_pass;
 use rustc_span::{DUMMY_SP, Span, sym};
-
+use std::ptr;
 // FIXME: this is a correctness problem but there's no suitable
 // warn-by-default category.
 declare_clippy_lint! {
@@ -73,7 +73,6 @@ declare_clippy_lint! {
     style,
     "declaring `const` with interior mutability"
 }
-
 // FIXME: this is a correctness problem but there's no suitable
 // warn-by-default category.
 declare_clippy_lint! {
@@ -112,14 +111,12 @@ declare_clippy_lint! {
     style,
     "referencing `const` with interior mutability"
 }
-
 #[derive(Copy, Clone)]
 enum Source<'tcx> {
     Item { item: Span, ty: Ty<'tcx> },
     Assoc { item: Span },
     Expr { expr: Span },
 }
-
 impl Source<'_> {
     #[must_use]
     fn lint(&self) -> (&'static Lint, &'static str, Span) {
@@ -137,7 +134,6 @@ impl Source<'_> {
         }
     }
 }
-
 fn lint<'tcx>(cx: &LateContext<'tcx>, source: Source<'tcx>) {
     let (lint, msg, span) = source.lint();
     span_lint_and_then(cx, lint, span, msg, |diag| {
@@ -164,20 +160,16 @@ fn lint<'tcx>(cx: &LateContext<'tcx>, source: Source<'tcx>) {
         }
     });
 }
-
 pub struct NonCopyConst<'tcx> {
     interior_mut: InteriorMut<'tcx>,
 }
-
 impl_lint_pass!(NonCopyConst<'_> => [DECLARE_INTERIOR_MUTABLE_CONST, BORROW_INTERIOR_MUTABLE_CONST]);
-
 impl<'tcx> NonCopyConst<'tcx> {
     pub fn new(tcx: TyCtxt<'tcx>, conf: &'static Conf) -> Self {
         Self {
             interior_mut: InteriorMut::without_pointers(tcx, &conf.ignore_interior_mutability),
         }
     }
-
     fn is_value_unfrozen_raw_inner(cx: &LateContext<'tcx>, val: ty::ValTree<'tcx>, ty: Ty<'tcx>) -> bool {
         // No branch that we check (yet) should continue if val isn't a branch
         let Some(branched_val) = val.try_to_branch() else {
@@ -225,7 +217,6 @@ impl<'tcx> NonCopyConst<'tcx> {
             _ => false,
         }
     }
-
     fn is_value_unfrozen_raw(
         cx: &LateContext<'tcx>,
         result: Result<Result<ty::ValTree<'tcx>, Ty<'tcx>>, ErrorHandled>,
@@ -259,7 +250,6 @@ impl<'tcx> NonCopyConst<'tcx> {
             |val| val.map_or(true, |val| Self::is_value_unfrozen_raw_inner(cx, val, ty)),
         )
     }
-
     fn is_value_unfrozen_poly(cx: &LateContext<'tcx>, body_id: BodyId, ty: Ty<'tcx>) -> bool {
         let def_id = body_id.hir_id.owner.to_def_id();
         let args = ty::GenericArgs::identity_for_item(cx.tcx, def_id);
@@ -272,10 +262,8 @@ impl<'tcx> NonCopyConst<'tcx> {
         let result = cx.tcx.const_eval_global_id_for_typeck(typing_env, cid, DUMMY_SP);
         Self::is_value_unfrozen_raw(cx, result, ty)
     }
-
     fn is_value_unfrozen_expr(cx: &LateContext<'tcx>, hir_id: HirId, def_id: DefId, ty: Ty<'tcx>) -> bool {
         let args = cx.typeck_results().node_args(hir_id);
-
         let result = Self::const_eval_resolve(
             cx.tcx,
             cx.typing_env(),
@@ -284,7 +272,6 @@ impl<'tcx> NonCopyConst<'tcx> {
         );
         Self::is_value_unfrozen_raw(cx, result, ty)
     }
-
     pub fn const_eval_resolve(
         tcx: TyCtxt<'tcx>,
         typing_env: ty::TypingEnv<'tcx>,
@@ -307,7 +294,6 @@ impl<'tcx> NonCopyConst<'tcx> {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for NonCopyConst<'tcx> {
     fn check_item(&mut self, cx: &LateContext<'tcx>, it: &'tcx Item<'_>) {
         if let ItemKind::Const(.., body_id) = it.kind {
@@ -320,11 +306,9 @@ impl<'tcx> LateLintPass<'tcx> for NonCopyConst<'tcx> {
             }
         }
     }
-
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, trait_item: &'tcx TraitItem<'_>) {
         if let TraitItemKind::Const(_, body_id_opt) = &trait_item.kind {
             let ty = cx.tcx.type_of(trait_item.owner_id).instantiate_identity();
-
             // Normalize assoc types because ones originated from generic params
             // bounded other traits could have their bound.
             let normalized = cx.tcx.normalize_erasing_regions(cx.typing_env(), ty);
@@ -347,12 +331,10 @@ impl<'tcx> LateLintPass<'tcx> for NonCopyConst<'tcx> {
             }
         }
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, impl_item: &'tcx ImplItem<'_>) {
         if let ImplItemKind::Const(_, body_id) = &impl_item.kind {
             let item_def_id = cx.tcx.hir_get_parent_item(impl_item.hir_id()).def_id;
             let item = cx.tcx.hir().expect_item(item_def_id);
-
             match &item.kind {
                 ItemKind::Impl(Impl {
                     of_trait: Some(of_trait_ref),
@@ -393,7 +375,6 @@ impl<'tcx> LateLintPass<'tcx> for NonCopyConst<'tcx> {
                     let ty = cx.tcx.type_of(impl_item.owner_id).instantiate_identity();
                     // Normalize assoc types originated from generic params.
                     let normalized = cx.tcx.normalize_erasing_regions(cx.typing_env(), ty);
-
                     if self.interior_mut.is_interior_mut_ty(cx, normalized)
                         && Self::is_value_unfrozen_poly(cx, *body_id, normalized)
                     {
@@ -404,19 +385,16 @@ impl<'tcx> LateLintPass<'tcx> for NonCopyConst<'tcx> {
             }
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Path(qpath) = &expr.kind {
             // Only lint if we use the const item inside a function.
             if is_in_const_context(cx) {
                 return;
             }
-
             // Make sure it is a const item.
             let Res::Def(DefKind::Const | DefKind::AssocConst, item_def_id) = cx.qpath_res(qpath, expr.hir_id) else {
                 return;
             };
-
             // Climb up to resolve any field access and explicit referencing.
             let mut cur_expr = expr;
             let mut dereferenced_expr = expr;
@@ -434,7 +412,6 @@ impl<'tcx> LateLintPass<'tcx> for NonCopyConst<'tcx> {
                         },
                         ExprKind::Field(..) => {
                             needs_check_adjustment = true;
-
                             // Check whether implicit dereferences happened;
                             // if so, no need to go further up
                             // because of the same reason as the `ExprKind::Unary` case.
@@ -446,7 +423,6 @@ impl<'tcx> LateLintPass<'tcx> for NonCopyConst<'tcx> {
                             {
                                 break;
                             }
-
                             dereferenced_expr = parent_expr;
                         },
                         ExprKind::Index(e, _, _) if ptr::eq(&**e, cur_expr) => {
@@ -470,7 +446,6 @@ impl<'tcx> LateLintPass<'tcx> for NonCopyConst<'tcx> {
                     break;
                 }
             }
-
             let ty = if needs_check_adjustment {
                 let adjustments = cx.typeck_results().expr_adjustments(dereferenced_expr);
                 if let Some(i) = adjustments
@@ -489,7 +464,6 @@ impl<'tcx> LateLintPass<'tcx> for NonCopyConst<'tcx> {
             } else {
                 cx.typeck_results().expr_ty(dereferenced_expr)
             };
-
             if self.interior_mut.is_interior_mut_ty(cx, ty)
                 && Self::is_value_unfrozen_expr(cx, expr.hir_id, item_def_id, ty)
             {
@@ -498,7 +472,6 @@ impl<'tcx> LateLintPass<'tcx> for NonCopyConst<'tcx> {
         }
     }
 }
-
 fn ignored_macro(cx: &LateContext<'_>, it: &Item<'_>) -> bool {
     macro_backtrace(it.span).any(|macro_call| {
         matches!(

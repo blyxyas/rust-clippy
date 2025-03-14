@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::msrvs::{self, Msrv};
@@ -8,7 +10,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, symbol};
 use std::f64::consts as f64;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for floating point literals that approximate
@@ -39,7 +40,6 @@ declare_clippy_lint! {
     correctness,
     "the approximate of a known float constant (in `std::fXX::consts`)"
 }
-
 // Tuples are of the form (constant, name, min_digits, msrv)
 const KNOWN_CONSTS: [(f64, &str, usize, Option<RustcVersion>); 19] = [
     (f64::E, "E", 4, None),
@@ -62,17 +62,14 @@ const KNOWN_CONSTS: [(f64, &str, usize, Option<RustcVersion>); 19] = [
     (f64::SQRT_2, "SQRT_2", 5, None),
     (f64::TAU, "TAU", 3, Some(msrvs::TAU)),
 ];
-
 pub struct ApproxConstant {
     msrv: Msrv,
 }
-
 impl ApproxConstant {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl LateLintPass<'_> for ApproxConstant {
     fn check_lit(&mut self, cx: &LateContext<'_>, _hir_id: HirId, lit: &Lit, _negated: bool) {
         match lit.node {
@@ -88,7 +85,6 @@ impl LateLintPass<'_> for ApproxConstant {
         }
     }
 }
-
 impl ApproxConstant {
     fn check_known_consts(&self, cx: &LateContext<'_>, span: Span, s: symbol::Symbol, module: &str) {
         let s = s.as_str();
@@ -109,9 +105,7 @@ impl ApproxConstant {
         }
     }
 }
-
 impl_lint_pass!(ApproxConstant => [APPROX_CONSTANT]);
-
 /// Returns `false` if the number of significant figures in `value` are
 /// less than `min_digits`; otherwise, returns true if `value` is equal
 /// to `constant`, rounded to the number of digits present in `value`.

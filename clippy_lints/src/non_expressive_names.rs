@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint, span_lint_and_then};
 use rustc_ast::ast::{
@@ -9,7 +11,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::symbol::{Ident, Symbol};
 use rustc_span::{Span, sym};
 use std::cmp::Ordering;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for names that are very similar and thus confusing.
@@ -32,7 +33,6 @@ declare_clippy_lint! {
     pedantic,
     "similarly named items and bindings"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for too many variables whose name consists of a
@@ -51,7 +51,6 @@ declare_clippy_lint! {
     pedantic,
     "too many single character bindings"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if you have variables whose name consists of just
@@ -72,13 +71,10 @@ declare_clippy_lint! {
     style,
     "unclear name"
 }
-
 pub struct NonExpressiveNames {
     pub single_char_binding_names_threshold: u64,
 }
-
 impl_lint_pass!(NonExpressiveNames => [SIMILAR_NAMES, MANY_SINGLE_CHAR_NAMES, JUST_UNDERSCORES_AND_DIGITS]);
-
 impl NonExpressiveNames {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -86,29 +82,24 @@ impl NonExpressiveNames {
         }
     }
 }
-
 struct ExistingName {
     interned: Symbol,
     span: Span,
     len: usize,
     exemptions: &'static [&'static str],
 }
-
 struct SimilarNamesLocalVisitor<'a, 'tcx> {
     names: Vec<ExistingName>,
     cx: &'a EarlyContext<'tcx>,
     threshold: u64,
-
     /// A stack of scopes containing the single-character bindings in each scope.
     single_char_names: Vec<Vec<Ident>>,
 }
-
 impl SimilarNamesLocalVisitor<'_, '_> {
     fn check_single_char_names(&self) {
         if self.single_char_names.last().map(Vec::len) == Some(0) {
             return;
         }
-
         let num_single_char_names = self.single_char_names.iter().flatten().count();
         if num_single_char_names as u64 > self.threshold {
             let span = self
@@ -126,7 +117,6 @@ impl SimilarNamesLocalVisitor<'_, '_> {
         }
     }
 }
-
 // this list contains lists of names that are allowed to be similar
 // the assumption is that no name is ever contained in multiple lists.
 const ALLOWED_TO_BE_SIMILAR: &[&[&str]] = &[
@@ -140,17 +130,13 @@ const ALLOWED_TO_BE_SIMILAR: &[&[&str]] = &[
     &["wparam", "lparam"],
     &["iter", "item"],
 ];
-
 /// Characters that look visually similar
 const SIMILAR_CHARS: &[(char, char)] = &[('l', 'i'), ('l', '1'), ('i', '1'), ('u', 'v')];
-
 /// Return true if two characters are visually similar
 fn chars_are_similar(a: char, b: char) -> bool {
     a == b || SIMILAR_CHARS.contains(&(a, b)) || SIMILAR_CHARS.contains(&(b, a))
 }
-
 struct SimilarNamesNameVisitor<'a, 'tcx, 'b>(&'b mut SimilarNamesLocalVisitor<'a, 'tcx>);
-
 impl<'tcx> Visitor<'tcx> for SimilarNamesNameVisitor<'_, 'tcx, '_> {
     fn visit_pat(&mut self, pat: &'tcx Pat) {
         match pat.kind {
@@ -173,7 +159,6 @@ impl<'tcx> Visitor<'tcx> for SimilarNamesNameVisitor<'_, 'tcx, '_> {
         }
     }
 }
-
 #[must_use]
 fn get_exemptions(interned_name: &str) -> Option<&'static [&'static str]> {
     ALLOWED_TO_BE_SIMILAR
@@ -181,13 +166,11 @@ fn get_exemptions(interned_name: &str) -> Option<&'static [&'static str]> {
         .find(|&&list| allowed_to_be_similar(interned_name, list))
         .copied()
 }
-
 #[must_use]
 fn allowed_to_be_similar(interned_name: &str, list: &[&str]) -> bool {
     list.iter()
         .any(|&name| interned_name.starts_with(name) || interned_name.ends_with(name))
 }
-
 impl SimilarNamesNameVisitor<'_, '_, '_> {
     fn check_short_ident(&mut self, ident: Ident) {
         // Ignore shadowing
@@ -200,12 +183,10 @@ impl SimilarNamesNameVisitor<'_, '_, '_> {
         {
             return;
         }
-
         if let Some(scope) = &mut self.0.single_char_names.last_mut() {
             scope.push(ident);
         }
     }
-
     fn check_ident(&mut self, ident: Ident) {
         let interned_name = ident.name.as_str();
         // name can be empty if it comes from recovery
@@ -236,9 +217,7 @@ impl SimilarNamesNameVisitor<'_, '_, '_> {
             if allowed_to_be_similar(interned_name, existing_name.exemptions) {
                 continue;
             }
-
             let existing_str = existing_name.interned.as_str();
-
             // The first char being different is usually enough to set identifiers apart, as long
             // as the characters aren't too similar.
             if !chars_are_similar(
@@ -247,17 +226,14 @@ impl SimilarNamesNameVisitor<'_, '_, '_> {
             ) {
                 continue;
             }
-
             let dissimilar = match existing_name.len.cmp(&count) {
                 Ordering::Greater => existing_name.len - count != 1 || levenstein_not_1(interned_name, existing_str),
                 Ordering::Less => count - existing_name.len != 1 || levenstein_not_1(existing_str, interned_name),
                 Ordering::Equal => Self::equal_length_strs_not_similar(interned_name, existing_str),
             };
-
             if dissimilar {
                 continue;
             }
-
             span_lint_and_then(
                 self.0.cx,
                 SIMILAR_NAMES,
@@ -276,14 +252,12 @@ impl SimilarNamesNameVisitor<'_, '_, '_> {
             exemptions: get_exemptions(interned_name).unwrap_or(&[]),
         });
     }
-
     fn equal_length_strs_not_similar(interned_name: &str, existing_name: &str) -> bool {
         let mut interned_chars = interned_name.chars();
         let mut existing_chars = existing_name.chars();
         let first_i = interned_chars.next().expect("we know we have at least one char");
         let first_e = existing_chars.next().expect("we know we have at least one char");
         let eq_or_numeric = |(a, b): (char, char)| a == b || a.is_numeric() && b.is_numeric();
-
         if eq_or_numeric((first_i, first_e)) {
             let last_i = interned_chars.next_back().expect("we know we have at least two chars");
             let last_e = existing_chars.next_back().expect("we know we have at least two chars");
@@ -324,11 +298,9 @@ impl SimilarNamesNameVisitor<'_, '_, '_> {
                 return true;
             }
         }
-
         false
     }
 }
-
 impl SimilarNamesLocalVisitor<'_, '_> {
     /// ensure scoping rules work
     fn apply<F: for<'c> Fn(&'c mut Self)>(&mut self, f: F) {
@@ -339,7 +311,6 @@ impl SimilarNamesLocalVisitor<'_, '_> {
         self.single_char_names.truncate(single_char_count);
     }
 }
-
 impl<'tcx> Visitor<'tcx> for SimilarNamesLocalVisitor<'_, 'tcx> {
     fn visit_local(&mut self, local: &'tcx Local) {
         if let Some((init, els)) = &local.kind.init_else_opt() {
@@ -355,22 +326,18 @@ impl<'tcx> Visitor<'tcx> for SimilarNamesLocalVisitor<'_, 'tcx> {
     }
     fn visit_block(&mut self, blk: &'tcx Block) {
         self.single_char_names.push(vec![]);
-
         self.apply(|this| walk_block(this, blk));
-
         self.check_single_char_names();
         self.single_char_names.pop();
     }
     fn visit_arm(&mut self, arm: &'tcx Arm) {
         self.single_char_names.push(vec![]);
-
         self.apply(|this| {
             SimilarNamesNameVisitor(this).visit_pat(&arm.pat);
             if let Some(body) = &arm.body {
                 this.apply(|this| walk_expr(this, body));
             }
         });
-
         self.check_single_char_names();
         self.single_char_names.pop();
     }
@@ -378,13 +345,11 @@ impl<'tcx> Visitor<'tcx> for SimilarNamesLocalVisitor<'_, 'tcx> {
         // do not recurse into inner items
     }
 }
-
 impl EarlyLintPass for NonExpressiveNames {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         if item.span.in_external_macro(cx.sess().source_map()) {
             return;
         }
-
         if let ItemKind::Fn(box ast::Fn {
             ref sig,
             body: Some(ref blk),
@@ -394,12 +359,10 @@ impl EarlyLintPass for NonExpressiveNames {
             do_check(self, cx, &item.attrs, &sig.decl, blk);
         }
     }
-
     fn check_impl_item(&mut self, cx: &EarlyContext<'_>, item: &AssocItem) {
         if item.span.in_external_macro(cx.sess().source_map()) {
             return;
         }
-
         if let AssocItemKind::Fn(box ast::Fn {
             ref sig,
             body: Some(ref blk),
@@ -410,7 +373,6 @@ impl EarlyLintPass for NonExpressiveNames {
         }
     }
 }
-
 fn do_check(lint: &NonExpressiveNames, cx: &EarlyContext<'_>, attrs: &[Attribute], decl: &FnDecl, blk: &Block) {
     if !attrs.iter().any(|attr| attr.has_name(sym::test)) {
         let mut visitor = SimilarNamesLocalVisitor {
@@ -419,18 +381,15 @@ fn do_check(lint: &NonExpressiveNames, cx: &EarlyContext<'_>, attrs: &[Attribute
             threshold: lint.single_char_binding_names_threshold,
             single_char_names: vec![vec![]],
         };
-
         // initialize with function arguments
         for arg in &decl.inputs {
             SimilarNamesNameVisitor(&mut visitor).visit_pat(&arg.pat);
         }
         // walk all other bindings
         walk_block(&mut visitor, blk);
-
         visitor.check_single_char_names();
     }
 }
-
 /// Precondition: `a_name.chars().count() < b_name.chars().count()`.
 #[must_use]
 fn levenstein_not_1(a_name: &str, b_name: &str) -> bool {

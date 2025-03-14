@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
@@ -14,9 +16,7 @@ use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
 use rustc_span::symbol::Symbol;
-
 use std::borrow::Cow;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for interning symbols that have already been pre-interned and defined as constants.
@@ -37,7 +37,6 @@ declare_clippy_lint! {
     internal,
     "interning a symbol that is pre-interned and defined as a constant"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnecessary conversion from Symbol to a string.
@@ -58,21 +57,17 @@ declare_clippy_lint! {
     internal,
     "unnecessary conversion between Symbol and string"
 }
-
 #[derive(Default)]
 pub struct InterningDefinedSymbol {
     // Maps the symbol value to the constant DefId.
     symbol_map: FxHashMap<u32, DefId>,
 }
-
 impl_lint_pass!(InterningDefinedSymbol => [INTERNING_DEFINED_SYMBOL, UNNECESSARY_SYMBOL_STR]);
-
 impl<'tcx> LateLintPass<'tcx> for InterningDefinedSymbol {
     fn check_crate(&mut self, cx: &LateContext<'_>) {
         if !self.symbol_map.is_empty() {
             return;
         }
-
         for &module in &[&paths::KW_MODULE, &paths::SYM_MODULE] {
             for def_id in def_path_def_ids(cx.tcx, module) {
                 for item in cx.tcx.module_children(def_id) {
@@ -88,7 +83,6 @@ impl<'tcx> LateLintPass<'tcx> for InterningDefinedSymbol {
             }
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Call(func, [arg]) = &expr.kind
             && let ty::FnDef(def_id, _) = cx.typeck_results().expr_ty(func).kind()
@@ -153,7 +147,6 @@ impl<'tcx> LateLintPass<'tcx> for InterningDefinedSymbol {
         }
     }
 }
-
 impl InterningDefinedSymbol {
     fn symbol_str_expr<'tcx>(&self, expr: &'tcx Expr<'tcx>, cx: &LateContext<'tcx>) -> Option<SymbolStrExpr<'tcx>> {
         static IDENT_STR_PATHS: &[&[&str]] = &[&paths::IDENT_AS_STR];
@@ -209,7 +202,6 @@ impl InterningDefinedSymbol {
         None
     }
 }
-
 enum SymbolStrExpr<'tcx> {
     /// a string constant with a corresponding symbol constant
     Const(DefId),
@@ -222,7 +214,6 @@ enum SymbolStrExpr<'tcx> {
         is_to_owned: bool,
     },
 }
-
 impl<'tcx> SymbolStrExpr<'tcx> {
     /// Returns a snippet that evaluates to a `Symbol` and is const if possible
     fn as_symbol_snippet(&self, cx: &LateContext<'_>) -> Cow<'tcx, str> {

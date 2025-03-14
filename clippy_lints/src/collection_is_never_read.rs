@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::ty::{get_type_diagnostic_name, is_type_lang_item};
 use clippy_utils::visitors::{Visitable, for_each_expr};
@@ -7,7 +9,6 @@ use rustc_hir::{Body, ExprKind, HirId, LangItem, LetStmt, Node, PatKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::symbol::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for collections that are never queried.
@@ -42,7 +43,6 @@ declare_clippy_lint! {
     "a collection is never queried"
 }
 declare_lint_pass!(CollectionIsNeverRead => [COLLECTION_IS_NEVER_READ]);
-
 impl<'tcx> LateLintPass<'tcx> for CollectionIsNeverRead {
     fn check_local(&mut self, cx: &LateContext<'tcx>, local: &'tcx LetStmt<'tcx>) {
         // Look for local variables whose type is a container. Search surrounding block for read access.
@@ -55,7 +55,6 @@ impl<'tcx> LateLintPass<'tcx> for CollectionIsNeverRead {
         }
     }
 }
-
 fn match_acceptable_type(cx: &LateContext<'_>, local: &LetStmt<'_>) -> bool {
     let ty = cx.typeck_results().pat_ty(local.pat);
     matches!(
@@ -73,21 +72,17 @@ fn match_acceptable_type(cx: &LateContext<'_>, local: &LetStmt<'_>) -> bool {
         )
     ) || is_type_lang_item(cx, ty, LangItem::String)
 }
-
 fn has_no_read_access<'tcx, T: Visitable<'tcx>>(cx: &LateContext<'tcx>, id: HirId, block: T) -> bool {
     let mut has_access = false;
     let mut has_read_access = false;
-
     // Inspect all expressions and sub-expressions in the block.
     for_each_expr(cx, block, |expr| {
         // Ignore expressions that are not simply `id`.
         if !path_to_local_id(expr, id) {
             return ControlFlow::Continue(());
         }
-
         // `id` is being accessed. Investigate if it's a read access.
         has_access = true;
-
         // `id` appearing in the left-hand side of an assignment is not a read access:
         //
         // id = ...; // Not reading `id`.
@@ -97,7 +92,6 @@ fn has_no_read_access<'tcx, T: Visitable<'tcx>>(cx: &LateContext<'tcx>, id: HirI
         {
             return ControlFlow::Continue(());
         }
-
         // Look for method call with receiver `id`. It might be a non-read access:
         //
         // id.foo(args)
@@ -129,14 +123,12 @@ fn has_no_read_access<'tcx, T: Visitable<'tcx>>(cx: &LateContext<'tcx>, id: HirI
                 has_read_access = true;
                 return ControlFlow::Break(());
             }
-
             // The method call is a statement, so the return value is not used. That's not a read access:
             //
             // id.foo(args);
             if let Node::Stmt(..) = cx.tcx.parent_hir_node(parent.hir_id) {
                 return ControlFlow::Continue(());
             }
-
             // The method call is not a statement, so its return value is used somehow but its type is the
             // unit type, so this is not a real read access. Examples:
             //
@@ -146,12 +138,10 @@ fn has_no_read_access<'tcx, T: Visitable<'tcx>>(cx: &LateContext<'tcx>, id: HirI
                 return ControlFlow::Continue(());
             }
         }
-
         // Any other access to `id` is a read access. Stop searching.
         has_read_access = true;
         ControlFlow::Break(())
     });
-
     // Ignore collections that have no access at all. Other lints should catch them.
     has_access && !has_read_access
 }

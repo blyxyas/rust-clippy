@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use crate::reference::DEREF_ADDROF;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::SpanRangeExt;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::mir::Mutability;
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `&*(&T)`.
@@ -44,9 +45,7 @@ declare_clippy_lint! {
     complexity,
     "deref on an immutable reference returns the same type as itself"
 }
-
 declare_lint_pass!(BorrowDerefRef => [BORROW_DEREF_REF]);
-
 impl<'tcx> LateLintPass<'tcx> for BorrowDerefRef {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &rustc_hir::Expr<'tcx>) {
         if let ExprKind::AddrOf(BorrowKind::Ref, Mutability::Not, addrof_target) = e.kind
@@ -87,7 +86,6 @@ impl<'tcx> LateLintPass<'tcx> for BorrowDerefRef {
                         deref_text.as_str(),
                         Applicability::MachineApplicable,
                     );
-
                     // has deref trait -> give 2 help
                     // doesn't have deref trait -> give 1 help
                     if let Some(deref_trait_id) = cx.tcx.lang_items().deref_trait() {
@@ -95,7 +93,6 @@ impl<'tcx> LateLintPass<'tcx> for BorrowDerefRef {
                             return;
                         }
                     }
-
                     diag.span_suggestion(
                         e.span,
                         "if you would like to deref, try using `&**`",

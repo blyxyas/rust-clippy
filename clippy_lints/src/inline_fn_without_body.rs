@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::sugg::DiagExt;
 use rustc_errors::Applicability;
@@ -5,7 +7,6 @@ use rustc_hir::{TraitFn, TraitItem, TraitItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `#[inline]` on trait methods without bodies
@@ -26,9 +27,7 @@ declare_clippy_lint! {
     correctness,
     "use of `#[inline]` on trait methods without bodies"
 }
-
 declare_lint_pass!(InlineFnWithoutBody => [INLINE_FN_WITHOUT_BODY]);
-
 impl<'tcx> LateLintPass<'tcx> for InlineFnWithoutBody {
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx TraitItem<'_>) {
         if let TraitItemKind::Fn(_, TraitFn::Required(_)) = item.kind

@@ -1,9 +1,10 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::{get_trait_def_id, paths};
 use rustc_hir::{Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for misuses of the serde API.
@@ -20,9 +21,7 @@ declare_clippy_lint! {
     correctness,
     "various things that will negatively affect your serde experience"
 }
-
 declare_lint_pass!(SerdeApi => [SERDE_API_MISUSE]);
-
 impl<'tcx> LateLintPass<'tcx> for SerdeApi {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         if let ItemKind::Impl(Impl {

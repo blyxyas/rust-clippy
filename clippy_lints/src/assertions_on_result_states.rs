@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::macros::{PanicExpn, find_assert_args, root_macro_call_first_node};
 use clippy_utils::source::snippet_with_context;
@@ -11,7 +13,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, Ty};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `assert!(r.is_ok())` or `assert!(r.is_err())` calls.
@@ -44,9 +45,7 @@ declare_clippy_lint! {
     restriction,
     "`assert!(r.is_ok())` or `assert!(r.is_err())` gives worse panic messages than directly calling `r.unwrap()` or `r.unwrap_err()`"
 }
-
 declare_lint_pass!(AssertionsOnResultStates => [ASSERTIONS_ON_RESULT_STATES]);
-
 impl<'tcx> LateLintPass<'tcx> for AssertionsOnResultStates {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         if let Some(macro_call) = root_macro_call_first_node(cx, e)
@@ -93,7 +92,6 @@ impl<'tcx> LateLintPass<'tcx> for AssertionsOnResultStates {
         }
     }
 }
-
 fn type_suitable_to_unwrap<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> bool {
     has_debug_impl(cx, ty) && !ty.is_unit() && !ty.is_never()
 }

@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MAP_CLONE;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source::snippet_with_applicability;
@@ -12,9 +15,6 @@ use rustc_middle::ty;
 use rustc_middle::ty::adjustment::Adjust;
 use rustc_span::symbol::Ident;
 use rustc_span::{Span, sym};
-
-use super::MAP_CLONE;
-
 // If this `map` is called on an `Option` or a `Result` and the previous call is `as_ref`, we don't
 // run this lint because it would overlap with `useless_asref` which provides a better suggestion
 // in this case.
@@ -37,10 +37,8 @@ fn should_run_lint(cx: &LateContext<'_>, e: &hir::Expr<'_>, method_id: DefId) ->
     {
         return path2.ident.name != sym::as_ref || path1.ident.name != sym::map;
     }
-
     true
 }
-
 pub(super) fn check(cx: &LateContext<'_>, e: &hir::Expr<'_>, recv: &hir::Expr<'_>, arg: &hir::Expr<'_>, msrv: Msrv) {
     if let Some(method_id) = cx.typeck_results().type_dependent_def_id(e.hir_id)
         && should_run_lint(cx, e, method_id)
@@ -104,7 +102,6 @@ pub(super) fn check(cx: &LateContext<'_>, e: &hir::Expr<'_>, recv: &hir::Expr<'_
         }
     }
 }
-
 fn handle_path(
     cx: &LateContext<'_>,
     arg: &hir::Expr<'_>,
@@ -129,7 +126,6 @@ fn handle_path(
         }
     }
 }
-
 fn ident_eq(name: Ident, path: &hir::Expr<'_>) -> bool {
     if let hir::ExprKind::Path(hir::QPath::Resolved(None, path)) = path.kind {
         path.segments.len() == 1 && path.segments[0].ident == name
@@ -137,7 +133,6 @@ fn ident_eq(name: Ident, path: &hir::Expr<'_>) -> bool {
         false
     }
 }
-
 fn lint_needless_cloning(cx: &LateContext<'_>, root: Span, receiver: Span) {
     span_lint_and_sugg(
         cx,
@@ -149,12 +144,9 @@ fn lint_needless_cloning(cx: &LateContext<'_>, root: Span, receiver: Span) {
         Applicability::MachineApplicable,
     );
 }
-
 fn lint_path(cx: &LateContext<'_>, replace: Span, root: Span, is_copy: bool) {
     let mut applicability = Applicability::MachineApplicable;
-
     let replacement = if is_copy { "copied" } else { "cloned" };
-
     span_lint_and_sugg(
         cx,
         MAP_CLONE,
@@ -168,16 +160,13 @@ fn lint_path(cx: &LateContext<'_>, replace: Span, root: Span, is_copy: bool) {
         applicability,
     );
 }
-
 fn lint_explicit_closure(cx: &LateContext<'_>, replace: Span, root: Span, is_copy: bool, msrv: Msrv) {
     let mut applicability = Applicability::MachineApplicable;
-
     let (message, sugg_method) = if is_copy && msrv.meets(cx, msrvs::ITERATOR_COPIED) {
         ("you are using an explicit closure for copying elements", "copied")
     } else {
         ("you are using an explicit closure for cloning elements", "cloned")
     };
-
     span_lint_and_sugg(
         cx,
         MAP_CLONE,

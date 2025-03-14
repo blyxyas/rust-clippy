@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use rustc_ast::ast::{Item, ItemKind, UseTree, UseTreeKind};
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::symbol::Ident;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for imports that remove "unsafe" from an item's
@@ -26,9 +27,7 @@ declare_clippy_lint! {
     style,
     "`unsafe` removed from API names on import"
 }
-
 declare_lint_pass!(UnsafeNameRemoval => [UNSAFE_REMOVED_FROM_NAME]);
-
 impl EarlyLintPass for UnsafeNameRemoval {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         if let ItemKind::Use(ref use_tree) = item.kind {
@@ -36,7 +35,6 @@ impl EarlyLintPass for UnsafeNameRemoval {
         }
     }
 }
-
 fn check_use_tree(use_tree: &UseTree, cx: &EarlyContext<'_>, span: Span) {
     match use_tree.kind {
         UseTreeKind::Simple(Some(new_name)) => {
@@ -56,7 +54,6 @@ fn check_use_tree(use_tree: &UseTree, cx: &EarlyContext<'_>, span: Span) {
         },
     }
 }
-
 fn unsafe_to_safe_check(old_name: Ident, new_name: Ident, cx: &EarlyContext<'_>, span: Span) {
     let old_str = old_name.name.as_str();
     let new_str = new_name.name.as_str();
@@ -69,7 +66,6 @@ fn unsafe_to_safe_check(old_name: Ident, new_name: Ident, cx: &EarlyContext<'_>,
         );
     }
 }
-
 #[must_use]
 fn contains_unsafe(name: &str) -> bool {
     name.contains("Unsafe") || name.contains("unsafe")

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::leaks_droppable_temporary_with_limited_lifetime;
 use rustc_errors::Applicability;
@@ -5,7 +7,6 @@ use rustc_hir::{Block, ExprKind, HirId, MatchSource, Stmt, StmtKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::edition::Edition::Edition2021;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the presence of a semicolon at the end of
@@ -34,14 +35,11 @@ declare_clippy_lint! {
     pedantic,
     "unnecessary semicolon after expression returning `()`"
 }
-
 #[derive(Default)]
 pub struct UnnecessarySemicolon {
     last_statements: Vec<(HirId, bool)>,
 }
-
 impl_lint_pass!(UnnecessarySemicolon => [UNNECESSARY_SEMICOLON]);
-
 impl UnnecessarySemicolon {
     /// Enter or leave a block, remembering the last statement of the block.
     fn handle_block(&mut self, cx: &LateContext<'_>, block: &Block<'_>, enter: bool) {
@@ -57,7 +55,6 @@ impl UnnecessarySemicolon {
             }
         }
     }
-
     /// Checks if `stmt` is the last statement in an expressionless block. In this case,
     /// return `Some` with a boolean which is `true` if the block type is `()`.
     fn is_last_in_block(&self, stmt: &Stmt<'_>) -> Option<bool> {
@@ -66,16 +63,13 @@ impl UnnecessarySemicolon {
             .and_then(|&(stmt_id, is_unit)| (stmt_id == stmt.hir_id).then_some(is_unit))
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for UnnecessarySemicolon {
     fn check_block(&mut self, cx: &LateContext<'_>, block: &Block<'_>) {
         self.handle_block(cx, block, true);
     }
-
     fn check_block_post(&mut self, cx: &LateContext<'_>, block: &Block<'_>) {
         self.handle_block(cx, block, false);
     }
-
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &Stmt<'tcx>) {
         // rustfmt already takes care of removing semicolons at the end
         // of loops.
@@ -95,7 +89,6 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessarySemicolon {
                     // not lint this situation.
                     return;
                 }
-
                 if !block_is_unit {
                     // Although the expression returns `()`, the block doesn't. This may happen if the expression
                     // returns early in all code paths, such as a `return value` in the condition of an `if` statement,
@@ -105,7 +98,6 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessarySemicolon {
                     return;
                 }
             }
-
             let semi_span = expr.span.shrink_to_hi().to(stmt.span.shrink_to_hi());
             span_lint_and_sugg(
                 cx,

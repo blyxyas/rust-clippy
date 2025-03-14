@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_block_with_applicability;
 use clippy_utils::{contains_return, higher, is_from_proc_macro};
@@ -5,7 +7,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{BlockCheckMode, Expr, ExprKind, MatchSource};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `if` and `match` conditions that use blocks containing an
@@ -46,17 +47,13 @@ declare_clippy_lint! {
     style,
     "useless or complex blocks that can be eliminated in conditions"
 }
-
 declare_lint_pass!(BlocksInConditions => [BLOCKS_IN_CONDITIONS]);
-
 const BRACED_EXPR_MESSAGE: &str = "omit braces around single expression condition";
-
 impl<'tcx> LateLintPass<'tcx> for BlocksInConditions {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if expr.span.in_external_macro(cx.sess().source_map()) {
             return;
         }
-
         let Some((cond, keyword, desc)) = higher::If::hir(expr)
             .map(|hif| (hif.cond, "if", "an `if` condition"))
             .or(if let ExprKind::Match(match_ex, _, MatchSource::Normal) = expr.kind {
@@ -71,7 +68,6 @@ impl<'tcx> LateLintPass<'tcx> for BlocksInConditions {
             "in {desc}, avoid complex blocks or closures with blocks; \
             instead, move the block or closure higher and bind it with a `let`",
         );
-
         if let ExprKind::Block(block, _) = &cond.kind {
             if !block.span.eq_ctxt(expr.span) {
                 // If the block comes from a macro, or as an argument to a macro,
@@ -86,13 +82,11 @@ impl<'tcx> LateLintPass<'tcx> for BlocksInConditions {
                         if expr.span.from_expansion() || ex.span.from_expansion() {
                             return;
                         }
-
                         // Linting should not be triggered to cases where `return` is included in the condition.
                         // #9911
                         if contains_return(block.expr) {
                             return;
                         }
-
                         let mut applicability = Applicability::MachineApplicable;
                         span_lint_and_sugg(
                             cx,

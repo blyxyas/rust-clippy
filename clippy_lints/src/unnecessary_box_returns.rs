@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::ty::approx_ty_size;
@@ -7,7 +9,6 @@ use rustc_hir::{FnDecl, FnRetTy, ImplItemKind, Item, ItemKind, Node, TraitItem, 
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Symbol;
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -39,14 +40,11 @@ declare_clippy_lint! {
     pedantic,
     "Needlessly returning a Box"
 }
-
 pub struct UnnecessaryBoxReturns {
     avoid_breaking_exported_api: bool,
     maximum_size: u64,
 }
-
 impl_lint_pass!(UnnecessaryBoxReturns => [UNNECESSARY_BOX_RETURNS]);
-
 impl UnnecessaryBoxReturns {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -54,31 +52,25 @@ impl UnnecessaryBoxReturns {
             maximum_size: conf.unnecessary_box_size,
         }
     }
-
     fn check_fn_item(&mut self, cx: &LateContext<'_>, decl: &FnDecl<'_>, def_id: LocalDefId, name: Symbol) {
         // we don't want to tell someone to break an exported function if they ask us not to
         if self.avoid_breaking_exported_api && cx.effective_visibilities.is_exported(def_id) {
             return;
         }
-
         // functions which contain the word "box" are exempt from this lint
         if name.as_str().contains("box") {
             return;
         }
-
         let FnRetTy::Return(return_ty_hir) = &decl.output else {
             return;
         };
-
         let return_ty = cx
             .tcx
             .instantiate_bound_regions_with_erased(cx.tcx.fn_sig(def_id).skip_binder())
             .output();
-
         let Some(boxed_ty) = return_ty.boxed_ty() else {
             return;
         };
-
         // It's sometimes useful to return Box<T> if T is unsized, so don't lint those.
         // Also, don't lint if we know that T is very large, in which case returning
         // a Box<T> may be beneficial.
@@ -103,7 +95,6 @@ impl UnnecessaryBoxReturns {
         }
     }
 }
-
 impl LateLintPass<'_> for UnnecessaryBoxReturns {
     fn check_trait_item(&mut self, cx: &LateContext<'_>, item: &TraitItem<'_>) {
         let TraitItemKind::Fn(signature, _) = &item.kind else {
@@ -111,7 +102,6 @@ impl LateLintPass<'_> for UnnecessaryBoxReturns {
         };
         self.check_fn_item(cx, signature.decl, item.owner_id.def_id, item.ident.name);
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'_>, item: &rustc_hir::ImplItem<'_>) {
         // Ignore implementations of traits, because the lint should be on the
         // trait, not on the implementation of it.
@@ -122,13 +112,11 @@ impl LateLintPass<'_> for UnnecessaryBoxReturns {
         if parent.of_trait.is_some() {
             return;
         }
-
         let ImplItemKind::Fn(signature, ..) = &item.kind else {
             return;
         };
         self.check_fn_item(cx, signature.decl, item.owner_id.def_id, item.ident.name);
     }
-
     fn check_item(&mut self, cx: &LateContext<'_>, item: &Item<'_>) {
         let ItemKind::Fn { sig, .. } = &item.kind else {
             return;

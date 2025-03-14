@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::CAST_PTR_ALIGNMENT;
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::ty::is_c_void;
 use clippy_utils::{get_parent_expr, is_hir_ty_cfg_dependant};
@@ -6,9 +9,6 @@ use rustc_lint::LateContext;
 use rustc_middle::ty::layout::LayoutOf;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::sym;
-
-use super::CAST_PTR_ALIGNMENT;
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>) {
     if let ExprKind::Cast(cast_expr, cast_to) = expr.kind {
         if is_hir_ty_cfg_dependant(cx, cast_to) {
@@ -31,7 +31,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>) {
         }
     }
 }
-
 fn lint_cast_ptr_alignment<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>, cast_from: Ty<'tcx>, cast_to: Ty<'tcx>) {
     if let ty::RawPtr(from_ptr_ty, _) = *cast_from.kind()
         && let ty::RawPtr(to_ptr_ty, _) = *cast_to.kind()
@@ -56,7 +55,6 @@ fn lint_cast_ptr_alignment<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>, cast_f
         );
     }
 }
-
 fn is_used_as_unaligned(cx: &LateContext<'_>, e: &Expr<'_>) -> bool {
     let Some(parent) = get_parent_expr(cx, e) else {
         return false;

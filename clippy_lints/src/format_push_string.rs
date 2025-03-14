@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::higher;
 use clippy_utils::ty::is_type_lang_item;
@@ -5,7 +7,6 @@ use rustc_hir::{BinOpKind, Expr, ExprKind, LangItem, MatchSource};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects cases where the result of a `format!` call is
@@ -39,13 +40,11 @@ declare_clippy_lint! {
     "`format!(..)` appended to existing `String`"
 }
 declare_lint_pass!(FormatPushString => [FORMAT_PUSH_STRING]);
-
 fn is_string(cx: &LateContext<'_>, e: &Expr<'_>) -> bool {
     is_type_lang_item(cx, cx.typeck_results().expr_ty(e).peel_refs(), LangItem::String)
 }
 fn is_format(cx: &LateContext<'_>, e: &Expr<'_>) -> bool {
     let e = e.peel_blocks().peel_borrows();
-
     if e.span.from_expansion()
         && let Some(macro_def_id) = e.span.ctxt().outer_expn_data().macro_def_id
     {
@@ -64,7 +63,6 @@ fn is_format(cx: &LateContext<'_>, e: &Expr<'_>) -> bool {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for FormatPushString {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         let arg = match expr.kind {

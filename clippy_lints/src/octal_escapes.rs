@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::SpanRangeExt;
 use rustc_ast::token::LitKind;
@@ -6,7 +8,6 @@ use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass, LintContext};
 use rustc_session::declare_lint_pass;
 use rustc_span::{BytePos, Pos, SpanData};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `\0` escapes in string and byte literals that look like octal
@@ -46,9 +47,7 @@ declare_clippy_lint! {
     suspicious,
     "string escape sequences looking like octal characters"
 }
-
 declare_lint_pass!(OctalEscapes => [OCTAL_ESCAPES]);
-
 impl EarlyLintPass for OctalEscapes {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
         if let ExprKind::Lit(lit) = &expr.kind
@@ -83,7 +82,6 @@ impl EarlyLintPass for OctalEscapes {
                         ..data
                     }
                     .span();
-
                     // Last check to make sure the source text matches what we read from the string.
                     // Macros are involved somehow if this doesn't match.
                     if span.check_source_text(cx, |src| match *src.as_bytes() {

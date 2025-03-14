@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint, span_lint_and_help};
 use rustc_hir::def_id::DefId;
 use rustc_hir::{Closure, Expr, ExprKind, StmtKind};
@@ -6,7 +8,6 @@ use rustc_middle::ty;
 use rustc_middle::ty::{ClauseKind, GenericPredicates, ProjectionPredicate, TraitPredicate};
 use rustc_session::declare_lint_pass;
 use rustc_span::{BytePos, Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions that expect closures of type
@@ -33,9 +34,7 @@ declare_clippy_lint! {
     correctness,
     "fn arguments of type Fn(...) -> Ord returning the unit type ()."
 }
-
 declare_lint_pass!(UnitReturnExpectingOrd => [UNIT_RETURN_EXPECTING_ORD]);
-
 fn get_trait_predicates_for_trait_id<'tcx>(
     cx: &LateContext<'tcx>,
     generics: GenericPredicates<'tcx>,
@@ -55,7 +54,6 @@ fn get_trait_predicates_for_trait_id<'tcx>(
     }
     preds
 }
-
 fn get_projection_pred<'tcx>(
     cx: &LateContext<'tcx>,
     generics: GenericPredicates<'tcx>,
@@ -73,7 +71,6 @@ fn get_projection_pred<'tcx>(
         None
     })
 }
-
 fn get_args_to_check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> Vec<(usize, String)> {
     let mut args_to_check = Vec::new();
     if let Some(def_id) = cx.typeck_results().type_dependent_def_id(expr.hir_id) {
@@ -115,7 +112,6 @@ fn get_args_to_check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> Ve
     }
     args_to_check
 }
-
 fn check_arg<'tcx>(cx: &LateContext<'tcx>, arg: &'tcx Expr<'tcx>) -> Option<(Span, Option<Span>)> {
     if let ExprKind::Closure(&Closure { body, fn_decl_span, .. }) = arg.kind
         && let ty::Closure(_def_id, args) = &cx.typeck_results().node_type(arg.hir_id).kind()
@@ -139,7 +135,6 @@ fn check_arg<'tcx>(cx: &LateContext<'tcx>, arg: &'tcx Expr<'tcx>) -> Option<(Spa
         None
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for UnitReturnExpectingOrd {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let ExprKind::MethodCall(_, receiver, args, _) = expr.kind {

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::source::{SpanRangeExt, snippet_with_context};
 use clippy_utils::sugg::{Sugg, has_enclosing_paren};
@@ -19,7 +21,6 @@ use rustc_span::source_map::Spanned;
 use rustc_span::symbol::sym;
 use rustc_span::{Span, Symbol};
 use rustc_trait_selection::traits::supertrait_def_ids;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for getting the length of something via `.len()`
@@ -54,7 +55,6 @@ declare_clippy_lint! {
     style,
     "checking `.len() == 0` or `.len() > 0` (or similar) when `.is_empty()` could be used instead"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for items that implement `.len()` but not
@@ -80,7 +80,6 @@ declare_clippy_lint! {
     style,
     "traits or impls with a public `len` method but no corresponding `is_empty` method"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for comparing to an empty slice such as `""` or `[]`,
@@ -118,9 +117,7 @@ declare_clippy_lint! {
     style,
     "checking `x == \"\"` or `x == []` (or similar) when `.is_empty()` could be used instead"
 }
-
 declare_lint_pass!(LenZero => [LEN_ZERO, LEN_WITHOUT_IS_EMPTY, COMPARISON_TO_EMPTY]);
-
 impl<'tcx> LateLintPass<'tcx> for LenZero {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         if let ItemKind::Trait(_, _, _, _, trait_items) = item.kind
@@ -129,7 +126,6 @@ impl<'tcx> LateLintPass<'tcx> for LenZero {
             check_trait_items(cx, item, trait_items);
         }
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx ImplItem<'_>) {
         if item.ident.name == sym::len
             && let ImplItemKind::Fn(sig, _) = &item.kind
@@ -160,7 +156,6 @@ impl<'tcx> LateLintPass<'tcx> for LenZero {
             check_for_is_empty(cx, sig.span, sig.decl.implicit_self, output, ty_id, name, kind);
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Let(lt) = expr.kind
             && match lt.pat.kind {
@@ -178,10 +173,8 @@ impl<'tcx> LateLintPass<'tcx> for LenZero {
             && has_is_empty(cx, lt.init)
         {
             let mut applicability = Applicability::MachineApplicable;
-
             let lit1 = peel_ref_operators(cx, lt.init);
             let lit_str = Sugg::hir_with_context(cx, lit1, lt.span.ctxt(), "_", &mut applicability).maybe_par();
-
             span_lint_and_sugg(
                 cx,
                 COMPARISON_TO_EMPTY,
@@ -192,7 +185,6 @@ impl<'tcx> LateLintPass<'tcx> for LenZero {
                 applicability,
             );
         }
-
         if let ExprKind::MethodCall(method, lhs_expr, [rhs_expr], _) = expr.kind
             && is_trait_method(cx, expr, sym::PartialEq)
             && !expr.span.from_expansion()
@@ -205,7 +197,6 @@ impl<'tcx> LateLintPass<'tcx> for LenZero {
                 (method.ident.name == sym::ne).then_some("!").unwrap_or_default(),
             );
         }
-
         if let ExprKind::Binary(Spanned { node: cmp, .. }, left, right) = expr.kind
             && !expr.span.from_expansion()
         {
@@ -235,7 +226,6 @@ impl<'tcx> LateLintPass<'tcx> for LenZero {
         }
     }
 }
-
 fn span_without_enclosing_paren(cx: &LateContext<'_>, span: Span) -> Span {
     let Some(snippet) = span.get_source_text(cx) else {
         return span;
@@ -249,7 +239,6 @@ fn span_without_enclosing_paren(cx: &LateContext<'_>, span: Span) -> Span {
         span
     }
 }
-
 fn check_trait_items(cx: &LateContext<'_>, visited_trait: &Item<'_>, trait_items: &[TraitItemRef]) {
     fn is_named_self(cx: &LateContext<'_>, item: &TraitItemRef, name: Symbol) -> bool {
         item.ident.name == name
@@ -267,7 +256,6 @@ fn check_trait_items(cx: &LateContext<'_>, visited_trait: &Item<'_>, trait_items
                 false
             }
     }
-
     // fill the set with current and super traits
     fn fill_trait_set(traitt: DefId, set: &mut DefIdSet, cx: &LateContext<'_>) {
         if set.insert(traitt) {
@@ -276,14 +264,12 @@ fn check_trait_items(cx: &LateContext<'_>, visited_trait: &Item<'_>, trait_items
             }
         }
     }
-
     if cx.effective_visibilities.is_exported(visited_trait.owner_id.def_id)
         && trait_items.iter().any(|i| is_named_self(cx, i, sym::len))
     {
         let mut current_and_super_traits = DefIdSet::default();
         fill_trait_set(visited_trait.owner_id.to_def_id(), &mut current_and_super_traits, cx);
         let is_empty = sym!(is_empty);
-
         let is_empty_method_found = current_and_super_traits
             .items()
             .flat_map(|&i| cx.tcx.associated_items(i).filter_by_name_unhygienic(is_empty))
@@ -292,7 +278,6 @@ fn check_trait_items(cx: &LateContext<'_>, visited_trait: &Item<'_>, trait_items
                     && i.fn_has_self_parameter
                     && cx.tcx.fn_sig(i.def_id).skip_binder().inputs().skip_binder().len() == 1
             });
-
         if !is_empty_method_found {
             span_lint(
                 cx,
@@ -306,14 +291,12 @@ fn check_trait_items(cx: &LateContext<'_>, visited_trait: &Item<'_>, trait_items
         }
     }
 }
-
 #[derive(Debug, Clone, Copy)]
 enum LenOutput {
     Integral,
     Option(DefId),
     Result(DefId),
 }
-
 fn extract_future_output<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<&'tcx PathSegment<'tcx>> {
     if let ty::Alias(_, alias_ty) = ty.kind()
         && let Some(Node::OpaqueTy(opaque)) = cx.tcx.hir_get_if_local(alias_ty.def_id)
@@ -328,10 +311,8 @@ fn extract_future_output<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<&
     {
         return Some(segment);
     }
-
     None
 }
-
 fn is_first_generic_integral<'tcx>(segment: &'tcx PathSegment<'tcx>) -> bool {
     if let Some(generic_args) = segment.args {
         if generic_args.args.is_empty() {
@@ -351,18 +332,14 @@ fn is_first_generic_integral<'tcx>(segment: &'tcx PathSegment<'tcx>) -> bool {
             }
         }
     }
-
     false
 }
-
 fn parse_len_output<'tcx>(cx: &LateContext<'tcx>, sig: FnSig<'tcx>) -> Option<LenOutput> {
     if let Some(segment) = extract_future_output(cx, sig.output()) {
         let res = segment.res;
-
         if matches!(res, Res::PrimTy(PrimTy::Uint(_))) || matches!(res, Res::PrimTy(PrimTy::Int(_))) {
             return Some(LenOutput::Integral);
         }
-
         if let Res::Def(_, def_id) = res {
             if cx.tcx.is_diagnostic_item(sym::Option, def_id) && is_first_generic_integral(segment) {
                 return Some(LenOutput::Option(def_id));
@@ -370,10 +347,8 @@ fn parse_len_output<'tcx>(cx: &LateContext<'tcx>, sig: FnSig<'tcx>) -> Option<Le
                 return Some(LenOutput::Result(def_id));
             }
         }
-
         return None;
     }
-
     match *sig.output().kind() {
         ty::Int(_) | ty::Uint(_) => Some(LenOutput::Integral),
         ty::Adt(adt, subs) if cx.tcx.is_diagnostic_item(sym::Option, adt.did()) => {
@@ -385,7 +360,6 @@ fn parse_len_output<'tcx>(cx: &LateContext<'tcx>, sig: FnSig<'tcx>) -> Option<Le
         _ => None,
     }
 }
-
 impl LenOutput {
     fn matches_is_empty_output<'tcx>(self, cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> bool {
         if let Some(segment) = extract_future_output(cx, ty) {
@@ -396,7 +370,6 @@ impl LenOutput {
                 _ => false,
             };
         }
-
         match (self, ty.kind()) {
             (_, &ty::Bool) => true,
             (Self::Option(id), &ty::Adt(adt, subs)) if id == adt.did() => subs.type_at(0).is_bool(),
@@ -404,7 +377,6 @@ impl LenOutput {
             _ => false,
         }
     }
-
     fn expected_sig(self, self_kind: ImplicitSelfKind) -> String {
         let self_ref = match self_kind {
             ImplicitSelfKind::RefImm => "&",
@@ -422,7 +394,6 @@ impl LenOutput {
         }
     }
 }
-
 /// Checks if the given signature matches the expectations for `is_empty`
 fn check_is_empty_sig<'tcx>(
     cx: &LateContext<'tcx>,
@@ -441,7 +412,6 @@ fn check_is_empty_sig<'tcx>(
         _ => false,
     }
 }
-
 /// Checks if the given type has an `is_empty` method with the appropriate signature.
 fn check_for_is_empty(
     cx: &LateContext<'_>,
@@ -459,7 +429,6 @@ fn check_for_is_empty(
     } else {
         return;
     };
-
     let is_empty = Symbol::intern("is_empty");
     let is_empty = cx
         .tcx
@@ -467,7 +436,6 @@ fn check_for_is_empty(
         .iter()
         .flat_map(|&id| cx.tcx.associated_items(id).filter_by_name_unhygienic(is_empty))
         .find(|item| item.kind == AssocKind::Fn);
-
     let (msg, is_empty_span, self_kind) = match is_empty {
         None => (
             format!(
@@ -505,7 +473,6 @@ fn check_for_is_empty(
         },
         Some(_) => return,
     };
-
     span_lint_and_then(cx, LEN_WITHOUT_IS_EMPTY, span, msg, |db| {
         if let Some(span) = is_empty_span {
             db.span_note(span, "`is_empty` defined here");
@@ -515,12 +482,10 @@ fn check_for_is_empty(
         }
     });
 }
-
 fn check_cmp(cx: &LateContext<'_>, span: Span, method: &Expr<'_>, lit: &Expr<'_>, op: &str, compare_to: u32) {
     if method.span.from_expansion() {
         return;
     }
-
     if let (&ExprKind::MethodCall(method_path, receiver, [], _), ExprKind::Lit(lit)) = (&method.kind, &lit.kind) {
         // check if we are in an is_empty() method
         if let Some(name) = get_item_name(cx, method) {
@@ -528,13 +493,11 @@ fn check_cmp(cx: &LateContext<'_>, span: Span, method: &Expr<'_>, lit: &Expr<'_>
                 return;
             }
         }
-
         check_len(cx, span, method_path.ident.name, receiver, &lit.node, op, compare_to);
     } else {
         check_empty_expr(cx, span, method, lit, op);
     }
 }
-
 fn check_len(
     cx: &LateContext<'_>,
     span: Span,
@@ -549,7 +512,6 @@ fn check_len(
         if lit != u128::from(compare_to) {
             return;
         }
-
         if method_name == sym::len && has_is_empty(cx, receiver) {
             let mut applicability = Applicability::MachineApplicable;
             span_lint_and_sugg(
@@ -567,14 +529,11 @@ fn check_len(
         }
     }
 }
-
 fn check_empty_expr(cx: &LateContext<'_>, span: Span, lit1: &Expr<'_>, lit2: &Expr<'_>, op: &str) {
     if (is_empty_array(lit2) || is_empty_string(lit2)) && has_is_empty(cx, lit1) {
         let mut applicability = Applicability::MachineApplicable;
-
         let lit1 = peel_ref_operators(cx, lit1);
         let lit_str = Sugg::hir_with_context(cx, lit1, span.ctxt(), "_", &mut applicability).maybe_par();
-
         span_lint_and_sugg(
             cx,
             COMPARISON_TO_EMPTY,
@@ -586,7 +545,6 @@ fn check_empty_expr(cx: &LateContext<'_>, span: Span, lit1: &Expr<'_>, lit2: &Ex
         );
     }
 }
-
 fn is_empty_string(expr: &Expr<'_>) -> bool {
     if let ExprKind::Lit(lit) = expr.kind {
         if let LitKind::Str(lit, _) = lit.node {
@@ -596,14 +554,12 @@ fn is_empty_string(expr: &Expr<'_>) -> bool {
     }
     false
 }
-
 fn is_empty_array(expr: &Expr<'_>) -> bool {
     if let ExprKind::Array(arr) = expr.kind {
         return arr.is_empty();
     }
     false
 }
-
 /// Checks if this type has an `is_empty` method.
 fn has_is_empty(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     /// Gets an `AssocItem` and return true if it matches `is_empty(self)`.
@@ -616,7 +572,6 @@ fn has_is_empty(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
             false
         }
     }
-
     /// Checks the inherent impl's items for an `is_empty(self)` method.
     fn has_is_empty_impl(cx: &LateContext<'_>, id: DefId) -> bool {
         let is_empty = sym!(is_empty);
@@ -627,7 +582,6 @@ fn has_is_empty(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
                 .any(|item| is_is_empty(cx, item))
         })
     }
-
     fn ty_has_is_empty<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>, depth: usize) -> bool {
         match ty.kind() {
             ty::Dynamic(tt, ..) => tt.principal().is_some_and(|principal| {
@@ -652,6 +606,5 @@ fn has_is_empty(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
             _ => false,
         }
     }
-
     ty_has_is_empty(cx, cx.typeck_results().expr_ty(expr).peel_refs(), 0)
 }

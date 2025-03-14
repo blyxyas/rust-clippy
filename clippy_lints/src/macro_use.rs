@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::source::snippet;
 use hir::def::{DefKind, Res};
@@ -9,7 +11,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::edition::Edition;
 use rustc_span::{Span, sym};
 use std::collections::BTreeMap;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `#[macro_use] use...`.
@@ -42,19 +43,16 @@ declare_clippy_lint! {
     pedantic,
     "#[macro_use] is no longer needed"
 }
-
 /// `MacroRefData` includes the name of the macro.
 #[derive(Debug, Clone)]
 pub struct MacroRefData {
     name: String,
 }
-
 impl MacroRefData {
     pub fn new(name: String) -> Self {
         Self { name }
     }
 }
-
 #[derive(Default)]
 pub struct MacroUseImports {
     /// the actual import path used and the span of the attribute above it. The value is
@@ -64,9 +62,7 @@ pub struct MacroUseImports {
     collected: FxHashSet<Span>,
     mac_refs: Vec<MacroRefData>,
 }
-
 impl_lint_pass!(MacroUseImports => [MACRO_USE_IMPORTS]);
-
 impl MacroUseImports {
     fn push_unique_macro(&mut self, cx: &LateContext<'_>, span: Span) {
         let call_site = span.source_callsite();
@@ -77,12 +73,10 @@ impl MacroUseImports {
             } else {
                 name.to_string()
             };
-
             self.mac_refs.push(MacroRefData::new(name));
             self.collected.insert(call_site);
         }
     }
-
     fn push_unique_macro_pat_ty(&mut self, cx: &LateContext<'_>, span: Span) {
         let call_site = span.source_callsite();
         let name = snippet(cx, cx.sess().source_map().span_until_char(call_site, '!'), "_");
@@ -92,7 +86,6 @@ impl MacroUseImports {
         }
     }
 }
-
 impl LateLintPass<'_> for MacroUseImports {
     fn check_item(&mut self, cx: &LateContext<'_>, item: &hir::Item<'_>) {
         if cx.sess().opts.edition >= Edition::Edition2018
@@ -142,11 +135,9 @@ impl LateLintPass<'_> for MacroUseImports {
         let mut check_dup = vec![];
         for (import, span, hir_id) in &self.imports {
             let found_idx = self.mac_refs.iter().position(|mac| import.ends_with(&mac.name));
-
             if let Some(idx) = found_idx {
                 self.mac_refs.remove(idx);
                 let seg = import.split("::").collect::<Vec<_>>();
-
                 match seg.as_slice() {
                     // an empty path is impossible
                     // a path should always consist of 2 or more segments
@@ -186,7 +177,6 @@ impl LateLintPass<'_> for MacroUseImports {
                 }
             }
         }
-
         // If mac_refs is not empty we have encountered an import we could not handle
         // such as `std::prelude::v1::foo` or some other macro that expands to an import.
         if self.mac_refs.is_empty() {
@@ -196,7 +186,6 @@ impl LateLintPass<'_> for MacroUseImports {
                 } else {
                     format!("{root}::{{{}}}", path.join(", "))
                 };
-
                 span_lint_hir_and_then(
                     cx,
                     MACRO_USE_IMPORTS,

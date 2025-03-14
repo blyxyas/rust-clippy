@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::numeric_literal;
 use rustc_ast::ast::{self, LitFloatType, LitKind};
@@ -7,7 +9,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, FloatTy};
 use rustc_session::declare_lint_pass;
 use std::fmt;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for float literals with a precision greater
@@ -32,7 +33,6 @@ declare_clippy_lint! {
     style,
     "excessive precision for float literal"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for whole number float literals that
@@ -57,9 +57,7 @@ declare_clippy_lint! {
     restriction,
     "lossy whole number float literals"
 }
-
 declare_lint_pass!(FloatLiteral => [EXCESSIVE_PRECISION, LOSSY_FLOAT_LITERAL]);
-
 impl<'tcx> LateLintPass<'tcx> for FloatLiteral {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) {
         if let hir::ExprKind::Lit(lit) = expr.kind
@@ -88,20 +86,16 @@ impl<'tcx> LateLintPass<'tcx> for FloatLiteral {
                 },
                 FloatTy::F32 => {
                     let value = sym_str.parse::<f32>().unwrap();
-
                     (value.fract() == 0.0, value.is_infinite(), formatter.format(value))
                 },
                 FloatTy::F64 => {
                     let value = sym_str.parse::<f64>().unwrap();
-
                     (value.fract() == 0.0, value.is_infinite(), formatter.format(value))
                 },
             };
-
             if is_inf {
                 return;
             }
-
             if is_whole && !sym_str.contains(['e', 'E']) {
                 // Normalize the literal by stripping the fractional portion
                 if sym_str.split('.').next().unwrap() != float_str {
@@ -145,7 +139,6 @@ impl<'tcx> LateLintPass<'tcx> for FloatLiteral {
         }
     }
 }
-
 #[must_use]
 fn max_digits(fty: FloatTy) -> u32 {
     match fty {
@@ -155,7 +148,6 @@ fn max_digits(fty: FloatTy) -> u32 {
         FloatTy::F128 => f128::DIGITS,
     }
 }
-
 /// Counts the digits excluding leading zeros
 #[must_use]
 fn count_digits(s: &str) -> usize {
@@ -168,7 +160,6 @@ fn count_digits(s: &str) -> usize {
             if c == '0' && count == 0 { count } else { count + 1 }
         })
 }
-
 enum FloatFormat {
     LowerExp,
     UpperExp,

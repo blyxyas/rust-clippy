@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_UNWRAP_OR;
 use clippy_utils::consts::ConstEvalCtxt;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::{SpanRangeExt, indent_of, reindent_multiline};
@@ -11,9 +14,6 @@ use rustc_hir::{Arm, Expr, Pat, PatExpr, PatExprKind, PatKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::Ty;
 use rustc_span::sym;
-
-use super::MANUAL_UNWRAP_OR;
-
 pub(super) fn check_match<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -25,7 +25,6 @@ pub(super) fn check_match<'tcx>(
         check_and_lint(cx, expr, unwrap_arm.pat, scrutinee, unwrap_arm.body, or_arm.body, ty);
     }
 }
-
 pub(super) fn check_if_let<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -48,7 +47,6 @@ pub(super) fn check_if_let<'tcx>(
     }
     check_and_lint(cx, expr, let_pat, let_expr, then_expr, peel_blocks(else_expr), ty);
 }
-
 fn check_and_lint<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -74,7 +72,6 @@ fn check_and_lint<'tcx>(
         lint(cx, expr, let_expr, ty_name, &or_body_snippet, indent);
     }
 }
-
 fn find_type_name<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<&'static str> {
     if is_type_diagnostic_item(cx, ty, sym::Option) {
         Some("Option")
@@ -84,7 +81,6 @@ fn find_type_name<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<&'static
         None
     }
 }
-
 fn applicable_or_arm<'a>(cx: &LateContext<'_>, arms: &'a [Arm<'a>]) -> Option<(&'a Arm<'a>, &'a Arm<'a>)> {
     if arms.len() == 2
         && arms.iter().all(|arm| arm.guard.is_none())
@@ -108,7 +104,6 @@ fn applicable_or_arm<'a>(cx: &LateContext<'_>, arms: &'a [Arm<'a>]) -> Option<(&
         None
     }
 }
-
 fn lint<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &Expr<'tcx>,
@@ -118,7 +113,6 @@ fn lint<'tcx>(
     indent: usize,
 ) {
     let reindented_or_body = reindent_multiline(or_body_snippet, true, Some(indent));
-
     let mut app = Applicability::MachineApplicable;
     let suggestion = sugg::Sugg::hir_with_context(cx, scrutinee, expr.span.ctxt(), "..", &mut app).maybe_par();
     span_lint_and_sugg(

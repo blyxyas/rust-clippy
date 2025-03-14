@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::{path_def_id, peel_middle_ty_refs};
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -52,7 +53,6 @@ declare_clippy_lint! {
     "Argument to `size_of_val()` is a double-reference, which is almost certainly unintended"
 }
 declare_lint_pass!(SizeOfRef => [SIZE_OF_REF]);
-
 impl LateLintPass<'_> for SizeOfRef {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &'_ Expr<'_>) {
         if let ExprKind::Call(path, [arg]) = expr.kind

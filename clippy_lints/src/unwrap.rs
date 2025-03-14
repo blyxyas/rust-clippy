@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::usage::is_potentially_local_place;
@@ -13,7 +15,6 @@ use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_session::declare_lint_pass;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls of `unwrap[_err]()` that cannot fail.
@@ -44,7 +45,6 @@ declare_clippy_lint! {
     complexity,
     "checks for calls of `unwrap[_err]()` that cannot fail"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls of `unwrap[_err]()` that will always fail.
@@ -71,20 +71,17 @@ declare_clippy_lint! {
     correctness,
     "checks for calls of `unwrap[_err]()` that will always fail"
 }
-
 /// Visitor that keeps track of which variables are unwrappable.
 struct UnwrappableVariablesVisitor<'a, 'tcx> {
     unwrappables: Vec<UnwrapInfo<'tcx>>,
     cx: &'a LateContext<'tcx>,
 }
-
 /// What kind of unwrappable this is.
 #[derive(Copy, Clone, Debug)]
 enum UnwrappableKind {
     Option,
     Result,
 }
-
 impl UnwrappableKind {
     fn success_variant_pattern(self) -> &'static str {
         match self {
@@ -92,7 +89,6 @@ impl UnwrappableKind {
             UnwrappableKind::Result => "Ok(<item>)",
         }
     }
-
     fn error_variant_pattern(self) -> &'static str {
         match self {
             UnwrappableKind::Option => "None",
@@ -100,7 +96,6 @@ impl UnwrappableKind {
         }
     }
 }
-
 /// Contains information about whether a variable can be unwrapped.
 #[derive(Copy, Clone, Debug)]
 struct UnwrapInfo<'tcx> {
@@ -122,7 +117,6 @@ struct UnwrapInfo<'tcx> {
     /// x.is_ok()`)
     is_entire_condition: bool,
 }
-
 /// Collects the information about unwrappable variables from an if condition
 /// The `invert` argument tells us whether the condition is negated.
 fn collect_unwrap_info<'tcx>(
@@ -136,11 +130,9 @@ fn collect_unwrap_info<'tcx>(
     fn is_relevant_option_call(cx: &LateContext<'_>, ty: Ty<'_>, method_name: &str) -> bool {
         is_type_diagnostic_item(cx, ty, sym::Option) && ["is_some", "is_none"].contains(&method_name)
     }
-
     fn is_relevant_result_call(cx: &LateContext<'_>, ty: Ty<'_>, method_name: &str) -> bool {
         is_type_diagnostic_item(cx, ty, sym::Result) && ["is_ok", "is_err"].contains(&method_name)
     }
-
     if let ExprKind::Binary(op, left, right) = &expr.kind {
         match (invert, op.node) {
             (false, BinOpKind::And | BinOpKind::BitAnd) | (true, BinOpKind::Or | BinOpKind::BitOr) => {
@@ -169,7 +161,6 @@ fn collect_unwrap_info<'tcx>(
         } else {
             UnwrappableKind::Result
         };
-
         return vec![UnwrapInfo {
             local_id,
             if_expr,
@@ -183,7 +174,6 @@ fn collect_unwrap_info<'tcx>(
     }
     Vec::new()
 }
-
 /// A HIR visitor delegate that checks if a local variable of type `Option<_>` is mutated,
 /// *except* for if `Option::as_mut` is called.
 /// The reason for why we allow that one specifically is that `.as_mut()` cannot change
@@ -196,7 +186,6 @@ struct MutationVisitor<'tcx> {
     local_id: HirId,
     tcx: TyCtxt<'tcx>,
 }
-
 /// Checks if the parent of the expression pointed at by the given `HirId` is a call to
 /// `Option::as_mut`.
 ///
@@ -213,7 +202,6 @@ fn is_option_as_mut_use(tcx: TyCtxt<'_>, expr_id: HirId) -> bool {
         false
     }
 }
-
 impl<'tcx> Delegate<'tcx> for MutationVisitor<'tcx> {
     fn borrow(&mut self, cat: &PlaceWithHirId<'tcx>, diag_expr_id: HirId, bk: ty::BorrowKind) {
         if let ty::BorrowKind::Mutable = bk
@@ -223,16 +211,12 @@ impl<'tcx> Delegate<'tcx> for MutationVisitor<'tcx> {
             self.is_mutated = true;
         }
     }
-
     fn mutate(&mut self, _: &PlaceWithHirId<'tcx>, _: HirId) {
         self.is_mutated = true;
     }
-
     fn consume(&mut self, _: &PlaceWithHirId<'tcx>, _: HirId) {}
-
     fn fake_read(&mut self, _: &PlaceWithHirId<'tcx>, _: FakeReadCause, _: HirId) {}
 }
-
 impl<'tcx> UnwrappableVariablesVisitor<'_, 'tcx> {
     fn visit_branch(
         &mut self,
@@ -248,11 +232,9 @@ impl<'tcx> UnwrappableVariablesVisitor<'_, 'tcx> {
                 local_id: unwrap_info.local_id,
                 tcx: self.cx.tcx,
             };
-
             let vis = ExprUseVisitor::for_clippy(self.cx, cond.hir_id.owner.def_id, &mut delegate);
             vis.walk_expr(cond).into_ok();
             vis.walk_expr(branch).into_ok();
-
             if delegate.is_mutated {
                 // if the variable is mutated, we don't know whether it can be unwrapped.
                 // it might have been changed to `None` in between `is_some` + `unwrap`.
@@ -264,12 +246,10 @@ impl<'tcx> UnwrappableVariablesVisitor<'_, 'tcx> {
         self.unwrappables.truncate(prev_len);
     }
 }
-
 enum AsRefKind {
     AsRef,
     AsMut,
 }
-
 /// Checks if the expression is a method call to `as_{ref,mut}` and returns the receiver of it.
 /// If it isn't, the expression itself is returned.
 fn consume_option_as_ref<'tcx>(expr: &'tcx Expr<'tcx>) -> (&'tcx Expr<'tcx>, Option<AsRefKind>) {
@@ -285,10 +265,8 @@ fn consume_option_as_ref<'tcx>(expr: &'tcx Expr<'tcx>) -> (&'tcx Expr<'tcx>, Opt
         (expr, None)
     }
 }
-
 impl<'tcx> Visitor<'tcx> for UnwrappableVariablesVisitor<'_, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         // Shouldn't lint when `expr` is in macro.
         if expr.span.in_external_macro(self.cx.tcx.sess.source_map()) {
@@ -322,7 +300,6 @@ impl<'tcx> Visitor<'tcx> for UnwrappableVariablesVisitor<'_, 'tcx> {
                     } else {
                         unwrappable.kind.error_variant_pattern()
                     };
-
                     span_lint_hir_and_then(
                         self.cx,
                         UNNECESSARY_UNWRAP,
@@ -373,14 +350,11 @@ impl<'tcx> Visitor<'tcx> for UnwrappableVariablesVisitor<'_, 'tcx> {
             walk_expr(self, expr);
         }
     }
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }
 }
-
 declare_lint_pass!(Unwrap => [PANICKING_UNWRAP, UNNECESSARY_UNWRAP]);
-
 impl<'tcx> LateLintPass<'tcx> for Unwrap {
     fn check_fn(
         &mut self,
@@ -394,12 +368,10 @@ impl<'tcx> LateLintPass<'tcx> for Unwrap {
         if span.from_expansion() {
             return;
         }
-
         let mut v = UnwrappableVariablesVisitor {
             unwrappables: Vec::new(),
             cx,
         };
-
         walk_fn(&mut v, kind, decl, body.id(), fn_id);
     }
 }

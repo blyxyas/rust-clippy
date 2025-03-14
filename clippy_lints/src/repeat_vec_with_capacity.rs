@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -11,17 +13,14 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, sym};
-
 pub struct RepeatVecWithCapacity {
     msrv: Msrv,
 }
-
 impl RepeatVecWithCapacity {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for patterns such as `vec![Vec::with_capacity(x); n]` or `iter::repeat(Vec::with_capacity(x))`.
@@ -59,9 +58,7 @@ declare_clippy_lint! {
     suspicious,
     "repeating a `Vec::with_capacity` expression which does not retain capacity"
 }
-
 impl_lint_pass!(RepeatVecWithCapacity => [REPEAT_VEC_WITH_CAPACITY]);
-
 fn emit_lint(cx: &LateContext<'_>, span: Span, kind: &str, note: &'static str, sugg_msg: &'static str, sugg: String) {
     span_lint_and_then(
         cx,
@@ -74,7 +71,6 @@ fn emit_lint(cx: &LateContext<'_>, span: Span, kind: &str, note: &'static str, s
         },
     );
 }
-
 /// Checks `vec![Vec::with_capacity(x); n]`
 fn check_vec_macro(cx: &LateContext<'_>, expr: &Expr<'_>) {
     if matching_root_macro_call(cx, expr.span, sym::vec_macro).is_some()
@@ -97,7 +93,6 @@ fn check_vec_macro(cx: &LateContext<'_>, expr: &Expr<'_>) {
         );
     }
 }
-
 /// Checks `iter::repeat(Vec::with_capacity(x))`
 fn check_repeat_fn(cx: &LateContext<'_>, expr: &Expr<'_>, msrv: Msrv) {
     if !expr.span.from_expansion()
@@ -121,7 +116,6 @@ fn check_repeat_fn(cx: &LateContext<'_>, expr: &Expr<'_>, msrv: Msrv) {
         );
     }
 }
-
 impl LateLintPass<'_> for RepeatVecWithCapacity {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         check_vec_macro(cx, expr);

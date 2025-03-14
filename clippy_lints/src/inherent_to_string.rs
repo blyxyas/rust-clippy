@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::ty::{implements_trait, is_type_lang_item};
 use clippy_utils::{return_ty, trait_ref_of_method};
@@ -6,7 +8,6 @@ use rustc_hir::{GenericParamKind, ImplItem, ImplItemKind, LangItem};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the definition of inherent methods with a signature of `to_string(&self) -> String`.
@@ -42,7 +43,6 @@ declare_clippy_lint! {
     style,
     "type implements inherent method `to_string()`, but should instead implement the `Display` trait"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the definition of inherent methods with a signature of `to_string(&self) -> String` and if the type implementing this method also implements the `Display` trait.
@@ -86,9 +86,7 @@ declare_clippy_lint! {
     correctness,
     "type implements inherent method `to_string()`, which gets shadowed by the implementation of the `Display` trait"
 }
-
 declare_lint_pass!(InherentToString => [INHERENT_TO_STRING, INHERENT_TO_STRING_SHADOW_DISPLAY]);
-
 impl<'tcx> LateLintPass<'tcx> for InherentToString {
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, impl_item: &'tcx ImplItem<'_>) {
         // Check if item is a method called `to_string` and has a parameter 'self'
@@ -112,17 +110,14 @@ impl<'tcx> LateLintPass<'tcx> for InherentToString {
         }
     }
 }
-
 fn show_lint(cx: &LateContext<'_>, item: &ImplItem<'_>) {
     let display_trait_id = cx
         .tcx
         .get_diagnostic_item(sym::Display)
         .expect("Failed to get trait ID of `Display`!");
-
     // Get the real type of 'self'
     let self_type = cx.tcx.fn_sig(item.owner_id).skip_binder().input(0);
     let self_type = self_type.skip_binder().peel_refs();
-
     // Emit either a warning or an error
     if implements_trait(cx, self_type, display_trait_id, &[]) {
         span_lint_and_help(

@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::PATH_BUF_PUSH_OVERWRITE;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::ty::is_type_diagnostic_item;
 use rustc_ast::ast::LitKind;
@@ -6,9 +9,6 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_span::symbol::sym;
 use std::path::{Component, Path};
-
-use super::PATH_BUF_PUSH_OVERWRITE;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, arg: &'tcx Expr<'_>) {
     if let Some(method_id) = cx.typeck_results().type_dependent_def_id(expr.hir_id)
         && let Some(impl_id) = cx.tcx.impl_of_method(method_id)

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_self;
 use clippy_utils::ptr::get_spans;
@@ -22,7 +24,6 @@ use rustc_span::symbol::kw;
 use rustc_span::{Span, sym};
 use rustc_trait_selection::traits;
 use rustc_trait_selection::traits::misc::type_allowed_to_implement_copy;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions taking arguments by value, but not
@@ -56,9 +57,7 @@ declare_clippy_lint! {
     pedantic,
     "functions taking arguments by value, but not consuming them in its body"
 }
-
 declare_lint_pass!(NeedlessPassByValue => [NEEDLESS_PASS_BY_VALUE]);
-
 macro_rules! need {
     ($e: expr) => {
         if let Some(x) = $e {
@@ -68,7 +67,6 @@ macro_rules! need {
         }
     };
 }
-
 impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
     #[expect(clippy::too_many_lines)]
     fn check_fn(
@@ -83,9 +81,7 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
         if span.from_expansion() {
             return;
         }
-
         let hir_id = cx.tcx.local_def_id_to_hir_id(fn_def_id);
-
         match kind {
             FnKind::ItemFn(.., header) => {
                 let attrs = cx.tcx.hir().attrs(hir_id);
@@ -96,7 +92,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
             FnKind::Method(..) => (),
             FnKind::Closure => return,
         }
-
         // Exclude non-inherent impls
         if let Node::Item(item) = cx.tcx.parent_hir_node(hir_id) {
             if matches!(
@@ -106,7 +101,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                 return;
             }
         }
-
         // Allow `Borrow` or functions to be taken by value
         let allowed_traits = [
             need!(cx.tcx.lang_items().fn_trait()),
@@ -114,9 +108,7 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
             need!(cx.tcx.lang_items().fn_mut_trait()),
             need!(cx.tcx.get_diagnostic_item(sym::RangeBounds)),
         ];
-
         let sized_trait = need!(cx.tcx.lang_items().sized_trait());
-
         let preds = traits::elaborate(cx.tcx, cx.param_env.caller_bounds().iter())
             .filter(|p| !p.is_global())
             .filter_map(|pred| {
@@ -127,7 +119,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                 }
             })
             .collect::<Vec<_>>();
-
         // Collect moved variables and spans which will need dereferencing from the
         // function body.
         let MovedVariablesCtxt { moved_vars } = {
@@ -137,16 +128,13 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                 .into_ok();
             ctx
         };
-
         let fn_sig = cx.tcx.fn_sig(fn_def_id).instantiate_identity();
         let fn_sig = cx.tcx.liberate_late_bound_regions(fn_def_id.to_def_id(), fn_sig);
-
         for (idx, ((input, &ty), arg)) in decl.inputs.iter().zip(fn_sig.inputs()).zip(body.params).enumerate() {
             // All spans generated from a proc-macro invocation are the same...
             if span == input.span {
                 return;
             }
-
             // Ignore `self`s and params whose variable name starts with an underscore
             if let PatKind::Binding(.., ident, _) = arg.pat.kind {
                 if idx == 0 && ident.name == kw::SelfLower {
@@ -156,14 +144,12 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                     continue;
                 }
             }
-
             //
             // * Exclude a type that is specifically bounded by `Borrow`.
             // * Exclude a type whose reference also fulfills its bound. (e.g., `std::convert::AsRef`,
             //   `serde::Serialize`)
             let (implements_borrow_trait, all_borrowable_trait) = {
                 let preds = preds.iter().filter(|t| t.self_ty() == ty).collect::<Vec<_>>();
-
                 (
                     preds.iter().any(|t| cx.tcx.is_diagnostic_item(sym::Borrow, t.def_id())),
                     !preds.is_empty() && {
@@ -175,7 +161,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                     },
                 )
             };
-
             if !is_self(arg)
                 && !ty.is_mutable_ptr()
                 && !is_copy(cx, ty)
@@ -212,7 +197,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                             }
                         }
                     }
-
                     if is_type_diagnostic_item(cx, ty, sym::Vec)
                         && let Some(clone_spans) = get_spans(cx, Some(body.id()), idx, &[("clone", ".to_owned()")])
                         && let TyKind::Path(QPath::Resolved(_, path)) = input.kind
@@ -239,7 +223,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                             slice_ty,
                             Applicability::Unspecified,
                         );
-
                         for (span, suggestion) in clone_spans {
                             diag.span_suggestion(
                                 span,
@@ -249,11 +232,9 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                                 Applicability::Unspecified,
                             );
                         }
-
                         // cannot be destructured, no need for `*` suggestion
                         return;
                     }
-
                     if is_type_lang_item(cx, ty, LangItem::String) {
                         if let Some(clone_spans) =
                             get_spans(cx, Some(body.id()), idx, &[("clone", ".to_string()"), ("as_str", "")])
@@ -264,7 +245,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                                 "&str",
                                 Applicability::Unspecified,
                             );
-
                             for (span, suggestion) in clone_spans {
                                 diag.span_suggestion(
                                     span,
@@ -274,11 +254,9 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                                     Applicability::Unspecified,
                                 );
                             }
-
                             return;
                         }
                     }
-
                     diag.span_suggestion(
                         input.span,
                         "consider taking a reference instead",
@@ -286,7 +264,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                         Applicability::MaybeIncorrect,
                     );
                 };
-
                 span_lint_and_then(
                     cx,
                     NEEDLESS_PASS_BY_VALUE,
@@ -298,7 +275,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
         }
     }
 }
-
 /// Functions marked with these attributes must have the exact signature.
 pub(crate) fn requires_exact_signature(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|attr| {
@@ -307,12 +283,10 @@ pub(crate) fn requires_exact_signature(attrs: &[Attribute]) -> bool {
             .any(|&allow| attr.has_name(allow))
     })
 }
-
 #[derive(Default)]
 struct MovedVariablesCtxt {
     moved_vars: HirIdSet,
 }
-
 impl MovedVariablesCtxt {
     fn move_common(&mut self, cmt: &euv::PlaceWithHirId<'_>) {
         if let euv::PlaceBase::Local(vid) = cmt.place.base {
@@ -320,15 +294,11 @@ impl MovedVariablesCtxt {
         }
     }
 }
-
 impl<'tcx> euv::Delegate<'tcx> for MovedVariablesCtxt {
     fn consume(&mut self, cmt: &euv::PlaceWithHirId<'tcx>, _: HirId) {
         self.move_common(cmt);
     }
-
     fn borrow(&mut self, _: &euv::PlaceWithHirId<'tcx>, _: HirId, _: ty::BorrowKind) {}
-
     fn mutate(&mut self, _: &euv::PlaceWithHirId<'tcx>, _: HirId) {}
-
     fn fake_read(&mut self, _: &rustc_hir_typeck::expr_use_visitor::PlaceWithHirId<'tcx>, _: FakeReadCause, _: HirId) {}
 }

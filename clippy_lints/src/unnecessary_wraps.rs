@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet;
@@ -13,7 +15,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::symbol::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for private functions that only return `Ok` or `Some`.
@@ -56,13 +57,10 @@ declare_clippy_lint! {
     pedantic,
     "functions that only return `Ok` or `Some`"
 }
-
 pub struct UnnecessaryWraps {
     avoid_breaking_exported_api: bool,
 }
-
 impl_lint_pass!(UnnecessaryWraps => [UNNECESSARY_WRAPS]);
-
 impl UnnecessaryWraps {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -70,7 +68,6 @@ impl UnnecessaryWraps {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for UnnecessaryWraps {
     fn check_fn(
         &mut self,
@@ -90,7 +87,6 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessaryWraps {
             },
             FnKind::Closure => return,
         }
-
         // Abort if the method is implementing a trait or of it a trait method.
         let hir_id = cx.tcx.local_def_id_to_hir_id(def_id);
         if let Node::Item(item) = cx.tcx.parent_hir_node(hir_id) {
@@ -101,7 +97,6 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessaryWraps {
                 return;
             }
         }
-
         // Get the wrapper and inner types, if can't, abort.
         let (return_type_label, lang_item, inner_type) =
             if let ty::Adt(adt_def, subst) = return_ty(cx, hir_id.expect_owner()).kind() {
@@ -115,7 +110,6 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessaryWraps {
             } else {
                 return;
             };
-
         // Check if all return expression respect the following condition and collect them.
         let mut suggs = Vec::new();
         let can_sugg = find_all_ret_expressions(cx, body.value, |ret_expr| {
@@ -139,7 +133,6 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessaryWraps {
                 false
             }
         });
-
         if can_sugg && !suggs.is_empty() {
             let (lint_msg, return_type_sugg_msg, return_type_sugg, body_sugg_msg) = if inner_type.is_unit() {
                 (
@@ -158,7 +151,6 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessaryWraps {
                     "...and then change returning expressions",
                 )
             };
-
             span_lint_and_then(cx, UNNECESSARY_WRAPS, span, lint_msg, |diag| {
                 diag.span_suggestion(
                     fn_decl.output.span(),

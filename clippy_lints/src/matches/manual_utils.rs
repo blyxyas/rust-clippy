@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use crate::map_unit_fn::OPTION_MAP_UNIT_FN;
 use crate::matches::MATCH_AS_REF;
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context};
@@ -14,7 +16,6 @@ use rustc_hir::def::Res;
 use rustc_hir::{BindingMode, Expr, ExprKind, HirId, Mutability, Pat, PatExpr, PatExprKind, PatKind, Path, QPath};
 use rustc_lint::LateContext;
 use rustc_span::{SyntaxContext, sym};
-
 #[expect(clippy::too_many_arguments)]
 #[expect(clippy::too_many_lines)]
 pub(super) fn check_with<'tcx, F>(
@@ -37,7 +38,6 @@ where
     {
         return None;
     }
-
     let expr_ctxt = expr.span.ctxt();
     let (some_expr, some_pat, pat_ref_count, is_wild_none) = match (
         try_parse_pattern(cx, then_pat, expr_ctxt),
@@ -57,36 +57,29 @@ where
         },
         _ => return None,
     };
-
     // Top level or patterns aren't allowed in closures.
     if matches!(some_pat.kind, PatKind::Or(_)) {
         return None;
     }
-
     let some_expr = get_some_expr_fn(cx, some_pat, some_expr, expr_ctxt)?;
-
     // These two lints will go back and forth with each other.
     if cx.typeck_results().expr_ty(some_expr.expr) == cx.tcx.types.unit
         && !is_lint_allowed(cx, OPTION_MAP_UNIT_FN, expr.hir_id)
     {
         return None;
     }
-
     // `map` won't perform any adjustments.
     if expr_requires_coercion(cx, expr) {
         return None;
     }
-
     // Determine which binding mode to use.
     let explicit_ref = some_pat.contains_explicit_ref_binding();
     let binding_ref = explicit_ref.or_else(|| (ty_ref_count != pat_ref_count).then_some(ty_mutability));
-
     let as_ref_str = match binding_ref {
         Some(Mutability::Mut) => ".as_mut()",
         Some(Mutability::Not) => ".as_ref()",
         None => "",
     };
-
     match can_move_expr_to_closure(cx, some_expr.expr) {
         Some(captures) => {
             // Check if captures the closure will need conflict with borrows made in the scrutinee.
@@ -110,9 +103,7 @@ where
         },
         None => return None,
     }
-
     let mut app = Applicability::MachineApplicable;
-
     // Remove address-of expressions from the scrutinee. Either `as_ref` will be called, or
     // it's being passed by value.
     let scrutinee = peel_hir_expr_refs(scrutinee).0;
@@ -122,14 +113,12 @@ where
     } else {
         scrutinee_str.into()
     };
-
     let closure_expr_snip = some_expr.to_snippet_with_context(cx, expr_ctxt, &mut app);
     let closure_body = if some_expr.needs_unsafe_block {
         format!("unsafe {}", closure_expr_snip.blockify())
     } else {
         closure_expr_snip.to_string()
     };
-
     let body_str = if let PatKind::Binding(annotation, id, some_binding, None) = some_pat.kind {
         if !some_expr.needs_unsafe_block
             && let Some(func) = can_pass_as_func(cx, id, some_expr.expr)
@@ -143,14 +132,12 @@ where
             {
                 return None;
             }
-
             // `ref` and `ref mut` annotations were handled earlier.
             let annotation = if matches!(annotation, BindingMode::MUT) {
                 "mut "
             } else {
                 ""
             };
-
             format!("|{annotation}{some_binding}| {closure_body}")
         }
     } else if !is_wild_none && explicit_ref.is_none() {
@@ -161,10 +148,8 @@ where
         // Refutable bindings and mixed reference annotations can't be handled by `map`.
         return None;
     };
-
     // relies on the fact that Option<T>: Copy where T: copy
     let scrutinee_impl_copy = is_copy(cx, scrutinee_ty);
-
     Some(SuggInfo {
         needs_brackets: else_pat.is_none() && is_else_clause(cx.tcx, expr),
         scrutinee_impl_copy,
@@ -174,7 +159,6 @@ where
         app,
     })
 }
-
 pub struct SuggInfo<'a> {
     pub needs_brackets: bool,
     pub scrutinee_impl_copy: bool,
@@ -183,7 +167,6 @@ pub struct SuggInfo<'a> {
     pub body_str: String,
     pub app: Applicability,
 }
-
 // Checks whether the expression could be passed as a function, or whether a closure is needed.
 // Returns the function to be passed to `map` if it exists.
 fn can_pass_as_func<'tcx>(cx: &LateContext<'tcx>, binding: HirId, expr: &'tcx Expr<'_>) -> Option<&'tcx Expr<'tcx>> {
@@ -198,7 +181,6 @@ fn can_pass_as_func<'tcx>(cx: &LateContext<'tcx>, binding: HirId, expr: &'tcx Ex
         _ => None,
     }
 }
-
 #[derive(Debug)]
 pub(super) enum OptionPat<'a> {
     Wild,
@@ -211,13 +193,11 @@ pub(super) enum OptionPat<'a> {
         ref_count: usize,
     },
 }
-
 pub(super) struct SomeExpr<'tcx> {
     pub expr: &'tcx Expr<'tcx>,
     pub needs_unsafe_block: bool,
     pub needs_negated: bool, // for `manual_filter` lint
 }
-
 impl<'tcx> SomeExpr<'tcx> {
     pub fn new_no_negated(expr: &'tcx Expr<'tcx>, needs_unsafe_block: bool) -> Self {
         Self {
@@ -226,7 +206,6 @@ impl<'tcx> SomeExpr<'tcx> {
             needs_negated: false,
         }
     }
-
     pub fn to_snippet_with_context(
         &self,
         cx: &LateContext<'tcx>,
@@ -237,7 +216,6 @@ impl<'tcx> SomeExpr<'tcx> {
         if self.needs_negated { !sugg } else { sugg }
     }
 }
-
 // Try to parse into a recognized `Option` pattern.
 // i.e. `_`, `None`, `Some(..)`, or a reference to any of those.
 pub(super) fn try_parse_pattern<'tcx>(
@@ -269,7 +247,6 @@ pub(super) fn try_parse_pattern<'tcx>(
     }
     f(cx, pat, 0, ctxt)
 }
-
 // Checks for the `None` value.
 fn is_none_expr(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     is_res_lang_ctor(cx, path_res(cx, peel_blocks(expr)), OptionNone)

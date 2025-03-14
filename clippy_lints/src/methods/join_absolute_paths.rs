@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::JOIN_ABSOLUTE_PATHS;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::expr_or_init;
 use clippy_utils::source::snippet;
@@ -8,9 +11,6 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_span::Span;
 use rustc_span::symbol::sym;
-
-use super::JOIN_ABSOLUTE_PATHS;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, recv: &'tcx Expr<'tcx>, join_arg: &'tcx Expr<'tcx>, expr_span: Span) {
     let ty = cx.typeck_results().expr_ty(recv).peel_refs();
     if (is_type_diagnostic_item(cx, ty, sym::Path) || is_type_diagnostic_item(cx, ty, sym::PathBuf))
@@ -26,13 +26,11 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, recv: &'tcx Expr<'tcx>, join_a
             "argument to `Path::join` starts with a path separator",
             |diag| {
                 let arg_str = snippet(cx, spanned.span, "..");
-
                 let no_separator = if sym_str.starts_with('/') {
                     arg_str.replacen('/', "", 1)
                 } else {
                     arg_str.replacen('\\', "", 1)
                 };
-
                 diag.note("joining a path starting with separator will replace the path instead")
                     .span_suggestion(
                         spanned.span,

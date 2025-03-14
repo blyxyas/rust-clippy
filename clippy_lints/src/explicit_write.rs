@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::macros::{FormatArgsStorage, format_args_inputs_span};
 use clippy_utils::source::snippet_with_applicability;
@@ -8,7 +10,6 @@ use rustc_hir::{BindingMode, Block, BlockCheckMode, Expr, ExprKind, Node, PatKin
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::{ExpnId, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `write!()` / `writeln()!` which can be
@@ -37,19 +38,15 @@ declare_clippy_lint! {
     complexity,
     "using the `write!()` family of functions instead of the `print!()` family of functions, when using the latter would work"
 }
-
 pub struct ExplicitWrite {
     format_args: FormatArgsStorage,
 }
-
 impl ExplicitWrite {
     pub fn new(format_args: FormatArgsStorage) -> Self {
         Self { format_args }
     }
 }
-
 impl_lint_pass!(ExplicitWrite => [EXPLICIT_WRITE]);
-
 impl<'tcx> LateLintPass<'tcx> for ExplicitWrite {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         // match call to unwrap
@@ -70,7 +67,6 @@ impl<'tcx> LateLintPass<'tcx> for ExplicitWrite {
             let Some(format_args) = self.format_args.get(cx, write_arg, ExpnId::root()) else {
                 return;
             };
-
             // ordering is important here, since `writeln!` uses `write!` internally
             let calling_macro = if is_expn_of(write_call.span, "writeln").is_some() {
                 Some("writeln")
@@ -79,7 +75,6 @@ impl<'tcx> LateLintPass<'tcx> for ExplicitWrite {
             } else {
                 None
             };
-
             // We need to remove the last trailing newline from the string because the
             // underlying `fmt::write` function doesn't know whether `println!` or `print!` was
             // used.
@@ -106,7 +101,6 @@ impl<'tcx> LateLintPass<'tcx> for ExplicitWrite {
         }
     }
 }
-
 /// If `kind` is a block that looks like `{ let result = $expr; result }` then
 /// returns $expr. Otherwise returns `kind`.
 fn look_in_block<'tcx, 'hir>(cx: &LateContext<'tcx>, kind: &'tcx ExprKind<'hir>) -> &'tcx ExprKind<'hir> {
@@ -117,18 +111,14 @@ fn look_in_block<'tcx, 'hir>(cx: &LateContext<'tcx>, kind: &'tcx ExprKind<'hir>)
             rules: BlockCheckMode::DefaultBlock,
             ..
         } = block
-
         // Find id of the local that expr_end_of_block resolves to
         && let ExprKind::Path(QPath::Resolved(None, expr_path)) = expr_end_of_block.kind
         && let Res::Local(expr_res) = expr_path.res
         && let Node::Pat(res_pat) = cx.tcx.hir_node(expr_res)
-
         // Find id of the local we found in the block
         && let PatKind::Binding(BindingMode::NONE, local_hir_id, _ident, None) = local.pat.kind
-
         // If those two are the same hir id
         && res_pat.hir_id == local_hir_id
-
         && let Some(init) = local.init
     {
         return &init.kind;

@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::SEEK_TO_START_INSTEAD_OF_REWIND;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::ty::implements_trait;
 use clippy_utils::{is_enum_variant_ctor, is_expr_used_or_unified};
@@ -7,9 +10,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_span::{Span, sym};
-
-use super::SEEK_TO_START_INSTEAD_OF_REWIND;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -19,11 +19,9 @@ pub(super) fn check<'tcx>(
 ) {
     // Get receiver type
     let ty = cx.typeck_results().expr_ty(recv).peel_refs();
-
     if is_expr_used_or_unified(cx.tcx, expr) {
         return;
     }
-
     if let Some(seek_trait_id) = cx.tcx.get_diagnostic_item(sym::IoSeek)
         && implements_trait(cx, ty, seek_trait_id, &[])
         && let ExprKind::Call(func, [arg]) = arg.kind
@@ -41,7 +39,6 @@ pub(super) fn check<'tcx>(
             "used `seek` to go to the start of the stream",
             |diag| {
                 let app = Applicability::MachineApplicable;
-
                 diag.span_suggestion(method_call_span, "replace with", "rewind()", app);
             },
         );

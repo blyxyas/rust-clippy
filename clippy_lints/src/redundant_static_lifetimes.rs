@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, MsrvStack};
@@ -7,7 +9,6 @@ use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::kw;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for constants and statics with an explicit `'static` lifetime.
@@ -33,11 +34,9 @@ declare_clippy_lint! {
     style,
     "Using explicit `'static` lifetime for constants or statics when elision rules would allow omitting them."
 }
-
 pub struct RedundantStaticLifetimes {
     msrv: MsrvStack,
 }
-
 impl RedundantStaticLifetimes {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -45,9 +44,7 @@ impl RedundantStaticLifetimes {
         }
     }
 }
-
 impl_lint_pass!(RedundantStaticLifetimes => [REDUNDANT_STATIC_LIFETIMES]);
-
 impl RedundantStaticLifetimes {
     // Recursively visit types
     fn visit_type(ty: &Ty, cx: &EarlyContext<'_>, reason: &'static str) {
@@ -95,25 +92,21 @@ impl RedundantStaticLifetimes {
         }
     }
 }
-
 impl EarlyLintPass for RedundantStaticLifetimes {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         if !self.msrv.meets(msrvs::STATIC_IN_CONST) {
             return;
         }
-
         if !item.span.from_expansion() {
             if let ItemKind::Const(box ConstItem { ty: ref var_type, .. }) = item.kind {
                 Self::visit_type(var_type, cx, "constants have by default a `'static` lifetime");
                 // Don't check associated consts because `'static` cannot be elided on those (issue
                 // #2438)
             }
-
             if let ItemKind::Static(box StaticItem { ty: ref var_type, .. }) = item.kind {
                 Self::visit_type(var_type, cx, "statics have by default a `'static` lifetime");
             }
         }
     }
-
     extract_msrv_attr!();
 }

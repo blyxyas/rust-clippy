@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_lint_allowed;
 use clippy_utils::macros::span_is_local;
@@ -5,7 +7,6 @@ use rustc_hir::def_id::DefIdSet;
 use rustc_hir::{Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if a provided method is used implicitly by a trait
@@ -55,7 +56,6 @@ declare_clippy_lint! {
     "trait implementation uses default provided method"
 }
 declare_lint_pass!(MissingTraitMethods => [MISSING_TRAIT_METHODS]);
-
 impl<'tcx> LateLintPass<'tcx> for MissingTraitMethods {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if !is_lint_allowed(cx, MISSING_TRAIT_METHODS, item.hir_id())
@@ -71,7 +71,6 @@ impl<'tcx> LateLintPass<'tcx> for MissingTraitMethods {
                 .iter()
                 .filter_map(|impl_item| impl_item.trait_item_def_id)
                 .collect();
-
             for assoc in cx
                 .tcx
                 .provided_trait_methods(trait_id)

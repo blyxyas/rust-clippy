@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::{Attribute, UNNECESSARY_CLIPPY_CFG};
 use clippy_utils::diagnostics::{span_lint_and_note, span_lint_and_sugg};
 use clippy_utils::source::SpanRangeExt;
@@ -6,7 +8,6 @@ use rustc_ast::AttrStyle;
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, Level};
 use rustc_span::sym;
-
 pub(super) fn check(
     cx: &EarlyContext<'_>,
     cfg_attr: &rustc_ast::MetaItem,

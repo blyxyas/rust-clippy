@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::needless_pass_by_value::requires_exact_signature;
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_hir_and_then;
@@ -21,7 +23,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::symbol::kw;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Check if a `&mut` function argument is actually used mutably.
@@ -50,13 +51,11 @@ declare_clippy_lint! {
     nursery,
     "using a `&mut` argument when it's not mutated"
 }
-
 pub struct NeedlessPassByRefMut<'tcx> {
     avoid_breaking_exported_api: bool,
     used_fn_def_ids: FxHashSet<LocalDefId>,
     fn_def_ids_to_maybe_unused_mut: FxIndexMap<LocalDefId, Vec<rustc_hir::Ty<'tcx>>>,
 }
-
 impl NeedlessPassByRefMut<'_> {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -66,9 +65,7 @@ impl NeedlessPassByRefMut<'_> {
         }
     }
 }
-
 impl_lint_pass!(NeedlessPassByRefMut<'_> => [NEEDLESS_PASS_BY_REF_MUT]);
-
 fn should_skip<'tcx>(
     cx: &LateContext<'tcx>,
     input: rustc_hir::Ty<'tcx>,
@@ -79,24 +76,20 @@ fn should_skip<'tcx>(
     if !matches!(ty.ref_mutability(), Some(Mutability::Mut)) {
         return true;
     }
-
     if is_self(arg) {
         // Interestingly enough, `self` arguments make `is_from_proc_macro` return `true`, hence why
         // we return early here.
         return false;
     }
-
     if let PatKind::Binding(.., name, _) = arg.pat.kind {
         // If it's a potentially unused variable, we don't check it.
         if name.name == kw::Underscore || name.as_str().starts_with('_') {
             return true;
         }
     }
-
     // All spans generated from a proc-macro invocation are the same...
     is_from_proc_macro(cx, &input)
 }
-
 fn check_closures<'tcx>(
     ctx: &mut MutablyUsedVariablesCtxt<'tcx>,
     cx: &LateContext<'tcx>,
@@ -121,7 +114,6 @@ fn check_closures<'tcx>(
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for NeedlessPassByRefMut<'tcx> {
     fn check_fn(
         &mut self,
@@ -135,11 +127,9 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByRefMut<'tcx> {
         if span.from_expansion() {
             return;
         }
-
         if self.avoid_breaking_exported_api && cx.effective_visibilities.is_exported(fn_def_id) {
             return;
         }
-
         let hir_id = cx.tcx.local_def_id_to_hir_id(fn_def_id);
         let is_async = match kind {
             FnKind::ItemFn(.., header) => {
@@ -162,7 +152,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByRefMut<'tcx> {
             },
             FnKind::Closure => return,
         };
-
         // Exclude non-inherent impls
         if let Node::Item(item) = cx.tcx.parent_hir_node(hir_id) {
             if matches!(
@@ -172,10 +161,8 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByRefMut<'tcx> {
                 return;
             }
         }
-
         let fn_sig = cx.tcx.fn_sig(fn_def_id).instantiate_identity();
         let fn_sig = cx.tcx.liberate_late_bound_regions(fn_def_id.to_def_id(), fn_sig);
-
         // If there are no `&mut` argument, no need to go any further.
         let mut it = decl
             .inputs
@@ -201,9 +188,7 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByRefMut<'tcx> {
             euv::ExprUseVisitor::for_clippy(cx, fn_def_id, &mut ctx)
                 .consume_body(body)
                 .into_ok();
-
             let mut checked_closures = FxHashSet::default();
-
             // We retrieve all the closures declared in the function because they will not be found
             // by `euv::Delegate`.
             let mut closures: FxIndexSet<LocalDefId> = FxIndexSet::default();
@@ -214,7 +199,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByRefMut<'tcx> {
                 ControlFlow::<()>::Continue(())
             });
             check_closures(&mut ctx, cx, &mut checked_closures, closures);
-
             if is_async {
                 while !ctx.async_closures.is_empty() {
                     let async_closures = ctx.async_closures.clone();
@@ -236,7 +220,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByRefMut<'tcx> {
             }
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         // #11182; do not lint if mutability is required elsewhere
         if let ExprKind::Path(..) = expr.kind
@@ -249,7 +232,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByRefMut<'tcx> {
             {
                 return;
             }
-
             // We don't need to check each argument individually as you cannot coerce a function
             // taking `&mut` -> `&`, for some reason, so if we've gotten this far we know it's
             // passed as a `fn`-like argument (or is unified) and should ignore every "unused"
@@ -257,7 +239,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByRefMut<'tcx> {
             self.used_fn_def_ids.insert(def_id);
         }
     }
-
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
         for (fn_def_id, unused) in self
             .fn_def_ids_to_maybe_unused_mut
@@ -296,7 +277,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByRefMut<'tcx> {
         }
     }
 }
-
 struct MutablyUsedVariablesCtxt<'tcx> {
     mutably_used_vars: HirIdSet,
     prev_bind: Option<HirId>,
@@ -309,12 +289,10 @@ struct MutablyUsedVariablesCtxt<'tcx> {
     async_closures: FxIndexSet<LocalDefId>,
     tcx: TyCtxt<'tcx>,
 }
-
 impl MutablyUsedVariablesCtxt<'_> {
     fn add_mutably_used_var(&mut self, used_id: HirId) {
         self.mutably_used_vars.insert(used_id);
     }
-
     // Because the alias may come after the mutable use of a variable, we need to fill the map at
     // the end.
     fn generate_mutably_used_ids_from_aliases(mut self) -> HirIdSet {
@@ -328,7 +306,6 @@ impl MutablyUsedVariablesCtxt<'_> {
         }
         self.mutably_used_vars
     }
-
     fn would_be_alias_cycle(&self, alias: HirId, mut target: HirId) -> bool {
         while let Some(id) = self.aliases.get(&target) {
             if *id == alias {
@@ -338,7 +315,6 @@ impl MutablyUsedVariablesCtxt<'_> {
         }
         false
     }
-
     fn add_alias(&mut self, alias: HirId, target: HirId) {
         // This is to prevent alias loop.
         if alias == target || self.would_be_alias_cycle(alias, target) {
@@ -346,7 +322,6 @@ impl MutablyUsedVariablesCtxt<'_> {
         }
         self.aliases.insert(alias, target);
     }
-
     // The goal here is to find if the current scope is unsafe or not. It stops when it finds
     // a function or an unsafe block.
     fn is_in_unsafe_block(&self, item: HirId) -> bool {
@@ -362,7 +337,6 @@ impl MutablyUsedVariablesCtxt<'_> {
         false
     }
 }
-
 impl<'tcx> euv::Delegate<'tcx> for MutablyUsedVariablesCtxt<'tcx> {
     #[allow(clippy::if_same_then_else)]
     fn consume(&mut self, cmt: &euv::PlaceWithHirId<'tcx>, id: HirId) {
@@ -395,7 +369,6 @@ impl<'tcx> euv::Delegate<'tcx> for MutablyUsedVariablesCtxt<'tcx> {
             self.prev_move_to_closure.swap_remove(vid);
         }
     }
-
     #[allow(clippy::if_same_then_else)]
     fn borrow(&mut self, cmt: &euv::PlaceWithHirId<'tcx>, id: HirId, borrow: ty::BorrowKind) {
         self.prev_bind = None;
@@ -445,7 +418,6 @@ impl<'tcx> euv::Delegate<'tcx> for MutablyUsedVariablesCtxt<'tcx> {
             }
         }
     }
-
     fn mutate(&mut self, cmt: &euv::PlaceWithHirId<'tcx>, _id: HirId) {
         self.prev_bind = None;
         if let euv::Place {
@@ -464,7 +436,6 @@ impl<'tcx> euv::Delegate<'tcx> for MutablyUsedVariablesCtxt<'tcx> {
             }
         }
     }
-
     fn copy(&mut self, cmt: &euv::PlaceWithHirId<'tcx>, id: HirId) {
         if let euv::Place {
             base:
@@ -482,7 +453,6 @@ impl<'tcx> euv::Delegate<'tcx> for MutablyUsedVariablesCtxt<'tcx> {
         }
         self.prev_bind = None;
     }
-
     fn fake_read(
         &mut self,
         cmt: &rustc_hir_typeck::expr_use_visitor::PlaceWithHirId<'tcx>,
@@ -508,7 +478,6 @@ impl<'tcx> euv::Delegate<'tcx> for MutablyUsedVariablesCtxt<'tcx> {
             }
         }
     }
-
     fn bind(&mut self, cmt: &euv::PlaceWithHirId<'tcx>, id: HirId) {
         self.prev_bind = Some(id);
         if let euv::Place {

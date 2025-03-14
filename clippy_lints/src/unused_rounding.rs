@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
 use rustc_ast::ast::{Expr, ExprKind, MethodCall};
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -29,7 +30,6 @@ declare_clippy_lint! {
     "Uselessly rounding a whole number floating-point literal"
 }
 declare_lint_pass!(UnusedRounding => [UNUSED_ROUNDING]);
-
 fn is_useless_rounding<'a>(cx: &EarlyContext<'_>, expr: &'a Expr) -> Option<(&'a str, String)> {
     if let ExprKind::MethodCall(box MethodCall {
         seg: name_ident,
@@ -47,7 +47,6 @@ fn is_useless_rounding<'a>(cx: &EarlyContext<'_>, expr: &'a Expr) -> Option<(&'a
         None
     }
 }
-
 impl EarlyLintPass for UnusedRounding {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
         if let Some((method_name, float)) = is_useless_rounding(cx, expr) {

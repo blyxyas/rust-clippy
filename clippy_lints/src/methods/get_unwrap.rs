@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::GET_UNWRAP;
 use super::utils::derefs_to_slice;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::get_parent_expr;
@@ -7,9 +10,6 @@ use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::GET_UNWRAP;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &hir::Expr<'_>,
@@ -33,9 +33,7 @@ pub(super) fn check<'tcx>(
     } else {
         return; // caller is not a type that we want to lint
     };
-
     let mut span = expr.span;
-
     // Handle the case where the result is immediately dereferenced,
     // either directly be the user, or as a result of a method call or the like
     // by not requiring an explicit reference
@@ -54,9 +52,7 @@ pub(super) fn check<'tcx>(
     } else {
         true
     };
-
     let mut_str = if is_mut { "_mut" } else { "" };
-
     span_lint_and_then(
         cx,
         GET_UNWRAP,
@@ -65,7 +61,6 @@ pub(super) fn check<'tcx>(
         |diag| {
             let mut applicability = Applicability::MachineApplicable;
             let get_args_str = snippet_with_applicability(cx, get_arg.span, "..", &mut applicability);
-
             let borrow_str = if !needs_ref {
                 ""
             } else if is_mut {
@@ -73,7 +68,6 @@ pub(super) fn check<'tcx>(
             } else {
                 "&"
             };
-
             diag.span_suggestion_verbose(
                 span,
                 "using `[]` is clearer and more concise",

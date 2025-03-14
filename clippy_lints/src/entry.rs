@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg};
 use clippy_utils::source::{reindent_multiline, snippet_indent, snippet_with_applicability, snippet_with_context};
 use clippy_utils::ty::is_copy;
@@ -15,7 +17,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{DUMMY_SP, Span, SyntaxContext, sym};
 use std::ops::ControlFlow;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `contains_key` + `insert` on `HashMap`
@@ -58,16 +59,13 @@ declare_clippy_lint! {
     perf,
     "use of `contains_key` followed by `insert` on a `HashMap` or `BTreeMap`"
 }
-
 declare_lint_pass!(HashMapPass => [MAP_ENTRY]);
-
 impl<'tcx> LateLintPass<'tcx> for HashMapPass {
     #[expect(clippy::too_many_lines)]
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if expr.span.from_expansion() {
             return;
         }
-
         let Some(higher::If {
             cond: cond_expr,
             then: then_expr,
@@ -76,30 +74,24 @@ impl<'tcx> LateLintPass<'tcx> for HashMapPass {
         else {
             return;
         };
-
         let Some((map_ty, contains_expr)) = try_parse_contains(cx, cond_expr) else {
             return;
         };
-
         let Some(then_search) = find_insert_calls(cx, &contains_expr, then_expr) else {
             return;
         };
-
         let lint_msg = format!("usage of `contains_key` followed by `insert` on a `{}`", map_ty.name());
         let mut app = Applicability::MachineApplicable;
         let map_str = snippet_with_context(cx, contains_expr.map.span, contains_expr.call_ctxt, "..", &mut app).0;
         let key_str = snippet_with_context(cx, contains_expr.key.span, contains_expr.call_ctxt, "..", &mut app).0;
-
         let sugg = if let Some(else_expr) = else_expr {
             let Some(else_search) = find_insert_calls(cx, &contains_expr, else_expr) else {
                 return;
             };
-
             if then_search.is_key_used_and_no_copy || else_search.is_key_used_and_no_copy {
                 span_lint(cx, MAP_ENTRY, expr.span, lint_msg);
                 return;
             }
-
             if then_search.edits.is_empty() && else_search.edits.is_empty() {
                 // No insertions
                 return;
@@ -155,7 +147,6 @@ impl<'tcx> LateLintPass<'tcx> for HashMapPass {
                 // no insertions
                 return;
             }
-
             // if .. { insert }
             if !then_search.allow_insert_closure {
                 let (body_str, entry_kind) = if contains_expr.negated {
@@ -191,11 +182,9 @@ impl<'tcx> LateLintPass<'tcx> for HashMapPass {
                 }
             }
         };
-
         span_lint_and_sugg(cx, MAP_ENTRY, expr.span, lint_msg, "try", sugg, app);
     }
 }
-
 #[derive(Clone, Copy)]
 enum MapType {
     Hash,
@@ -215,7 +204,6 @@ impl MapType {
         }
     }
 }
-
 /// Details on an expression checking whether a map contains a key.
 ///
 /// For instance, with the following:
@@ -236,7 +224,6 @@ struct ContainsExpr<'tcx> {
     /// The context of the whole condition expression.
     call_ctxt: SyntaxContext,
 }
-
 /// Inspect the given expression and return details about the `contains_key` check.
 ///
 /// If the given expression is not a `contains_key` check against a `BTreeMap` or a `HashMap`,
@@ -250,7 +237,6 @@ fn try_parse_contains<'tcx>(cx: &LateContext<'_>, expr: &'tcx Expr<'_>) -> Optio
         },
         _ => None,
     });
-
     match expr.kind {
         ExprKind::MethodCall(
             _,
@@ -282,7 +268,6 @@ fn try_parse_contains<'tcx>(cx: &LateContext<'_>, expr: &'tcx Expr<'_>) -> Optio
         _ => None,
     }
 }
-
 /// Details on an expression inserting a key into a map.
 ///
 /// For instance, on the following:
@@ -301,7 +286,6 @@ struct InsertExpr<'tcx> {
     /// The value to insert.
     value: &'tcx Expr<'tcx>,
 }
-
 /// Inspect the given expression and return details about the `insert` call.
 ///
 /// If the given expression is not an `insert` call into a `BTreeMap` or a `HashMap`, return `None`.
@@ -317,7 +301,6 @@ fn try_parse_insert<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) -> Optio
         None
     }
 }
-
 /// An edit that will need to be made to move the expression to use the entry api
 #[derive(Clone, Copy)]
 enum Edit<'tcx> {
@@ -336,7 +319,6 @@ struct Insertion<'tcx> {
     call: &'tcx Expr<'tcx>,
     value: &'tcx Expr<'tcx>,
 }
-
 /// This visitor needs to do multiple things:
 /// * Find all usages of the map. An insertion can only be made before any other usages of the map.
 /// * Determine if there's an insertion using the same key. There's no need for the entry api
@@ -388,7 +370,6 @@ impl<'tcx> InsertSearcher<'_, 'tcx> {
         self.in_tail_pos = in_tail_pos;
         res
     }
-
     /// Visit an expression which is not itself in a tail position, but other sibling expressions
     /// may be. e.g. if conditions
     fn visit_non_tail_expr(&mut self, e: &'tcx Expr<'_>) {
@@ -397,7 +378,6 @@ impl<'tcx> InsertSearcher<'_, 'tcx> {
         self.visit_expr(e);
         self.in_tail_pos = in_tail_pos;
     }
-
     /// Visit the key and value expression of an insert expression.
     /// There may not be uses of the map in either of those two either.
     fn visit_insert_expr_arguments(&mut self, e: &InsertExpr<'tcx>) {
@@ -416,7 +396,6 @@ impl<'tcx> Visitor<'tcx> for InsertSearcher<'_, 'tcx> {
         match stmt.kind {
             StmtKind::Semi(e) => {
                 self.visit_expr(e);
-
                 if self.in_tail_pos && self.allow_insert_closure {
                     // The spans are used to slice the top level expression into multiple parts. This requires that
                     // they all come from the same part of the source code.
@@ -447,7 +426,6 @@ impl<'tcx> Visitor<'tcx> for InsertSearcher<'_, 'tcx> {
             },
         }
     }
-
     fn visit_block(&mut self, block: &'tcx Block<'_>) {
         // If the block is in a tail position, then the last expression (possibly a statement) is in the
         // tail position. The rest, however, are not.
@@ -476,12 +454,10 @@ impl<'tcx> Visitor<'tcx> for InsertSearcher<'_, 'tcx> {
             },
         }
     }
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         if !self.can_use_entry {
             return;
         }
-
         match try_parse_insert(self.cx, expr) {
             Some(insert_expr) if self.spanless_eq.eq_expr(self.map, insert_expr.map) => {
                 self.visit_insert_expr_arguments(&insert_expr);
@@ -493,14 +469,12 @@ impl<'tcx> Visitor<'tcx> for InsertSearcher<'_, 'tcx> {
                     self.can_use_entry = false;
                     return;
                 }
-
                 self.edits.push(Edit::Insertion(Insertion {
                     call: expr,
                     value: insert_expr.value,
                 }));
                 self.is_map_used = true;
                 self.allow_insert_closure &= self.in_tail_pos;
-
                 // The value doesn't affect whether there is only a single insert expression.
                 let is_single_insert = self.is_single_insert;
                 self.visit_non_tail_expr(insert_expr.value);
@@ -564,14 +538,12 @@ impl<'tcx> Visitor<'tcx> for InsertSearcher<'_, 'tcx> {
             },
         }
     }
-
     fn visit_pat(&mut self, p: &'tcx Pat<'tcx>) {
         p.each_binding_or_first(&mut |_, id, _, _| {
             self.locals.insert(id);
         });
     }
 }
-
 /// Check if the given expression is used for each sub-expression in the given map.
 /// For example, in map `a.b.c.my_map`, The expression `a.b.c.my_map`, `a.b.c`, `a.b`, and `a` are
 /// all checked.
@@ -589,7 +561,6 @@ fn is_any_expr_in_map_used<'tcx>(
     })
     .is_some()
 }
-
 struct InsertSearchResults<'tcx> {
     edits: Vec<Edit<'tcx>>,
     allow_insert_closure: bool,
@@ -600,7 +571,6 @@ impl<'tcx> InsertSearchResults<'tcx> {
     fn as_single_insertion(&self) -> Option<Insertion<'tcx>> {
         self.is_single_insert.then(|| self.edits[0].as_insertion().unwrap())
     }
-
     fn snippet(
         &self,
         cx: &LateContext<'_>,
@@ -631,7 +601,6 @@ impl<'tcx> InsertSearchResults<'tcx> {
         res.push_str(&snippet_with_applicability(cx, span, "..", app));
         res
     }
-
     fn snippet_occupied(&self, cx: &LateContext<'_>, span: Span, app: &mut Applicability) -> (String, &'static str) {
         (
             self.snippet(cx, span, app, |res, insertion, ctxt, app| {
@@ -645,7 +614,6 @@ impl<'tcx> InsertSearchResults<'tcx> {
             "Occupied(mut e)",
         )
     }
-
     fn snippet_vacant(&self, cx: &LateContext<'_>, span: Span, app: &mut Applicability) -> (String, &'static str) {
         (
             self.snippet(cx, span, app, |res, insertion, ctxt, app| {
@@ -668,7 +636,6 @@ impl<'tcx> InsertSearchResults<'tcx> {
             "Vacant(e)",
         )
     }
-
     fn snippet_closure(&self, cx: &LateContext<'_>, mut span: Span, app: &mut Applicability) -> String {
         let ctxt = span.ctxt();
         let mut res = String::new();
@@ -696,7 +663,6 @@ impl<'tcx> InsertSearchResults<'tcx> {
         res
     }
 }
-
 fn find_insert_calls<'tcx>(
     cx: &LateContext<'tcx>,
     contains_expr: &ContainsExpr<'tcx>,

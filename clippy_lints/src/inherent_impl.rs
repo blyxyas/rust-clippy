@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_lint_allowed;
 use rustc_data_structures::fx::FxHashMap;
@@ -7,7 +9,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use std::collections::hash_map::Entry;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for multiple inherent implementations of a struct
@@ -40,9 +41,7 @@ declare_clippy_lint! {
     restriction,
     "Multiple inherent impl that could be grouped"
 }
-
 declare_lint_pass!(MultipleInherentImpl => [MULTIPLE_INHERENT_IMPL]);
-
 impl<'tcx> LateLintPass<'tcx> for MultipleInherentImpl {
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
         // Map from a type to it's first impl block. Needed to distinguish generic arguments.
@@ -50,9 +49,7 @@ impl<'tcx> LateLintPass<'tcx> for MultipleInherentImpl {
         let mut type_map = FxHashMap::default();
         // List of spans to lint. (lint_span, first_span)
         let mut lint_spans = Vec::new();
-
         let (impls, _) = cx.tcx.crate_inherent_impls(());
-
         for (&id, impl_ids) in &impls.inherent_impls {
             if impl_ids.len() < 2
             // Check for `#[allow]` on the type definition
@@ -63,7 +60,6 @@ impl<'tcx> LateLintPass<'tcx> for MultipleInherentImpl {
             ) {
                 continue;
             }
-
             for impl_id in impl_ids.iter().map(|id| id.expect_local()) {
                 let impl_ty = cx.tcx.type_of(impl_id).instantiate_identity();
                 match type_map.entry(impl_ty) {
@@ -93,11 +89,9 @@ impl<'tcx> LateLintPass<'tcx> for MultipleInherentImpl {
                     },
                 }
             }
-
             // Switching to the next type definition, no need to keep the current entries around.
             type_map.clear();
         }
-
         // `TyCtxt::crate_inherent_impls` doesn't have a defined order. Sort the lint output first.
         lint_spans.sort_by_key(|x| x.0.lo());
         for (span, first_span) in lint_spans {
@@ -113,7 +107,6 @@ impl<'tcx> LateLintPass<'tcx> for MultipleInherentImpl {
         }
     }
 }
-
 /// Gets the span for the given impl block unless it's not being considered by the lint.
 fn get_impl_span(cx: &LateContext<'_>, id: LocalDefId) -> Option<Span> {
     let id = cx.tcx.local_def_id_to_hir_id(id);
@@ -131,7 +124,6 @@ fn get_impl_span(cx: &LateContext<'_>, id: LocalDefId) -> Option<Span> {
         None
     }
 }
-
 enum IdOrSpan {
     Id(LocalDefId),
     Span(Span),

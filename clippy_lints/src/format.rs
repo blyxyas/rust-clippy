@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::macros::{FormatArgsStorage, find_format_arg_expr, root_macro_call_first_node};
 use clippy_utils::source::{SpanRangeExt, snippet_with_context};
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the use of `format!("string literal with no
@@ -38,20 +39,16 @@ declare_clippy_lint! {
     complexity,
     "useless use of `format!`"
 }
-
 #[allow(clippy::module_name_repetitions)]
 pub struct UselessFormat {
     format_args: FormatArgsStorage,
 }
-
 impl UselessFormat {
     pub fn new(format_args: FormatArgsStorage) -> Self {
         Self { format_args }
     }
 }
-
 impl_lint_pass!(UselessFormat => [USELESS_FORMAT]);
-
 impl<'tcx> LateLintPass<'tcx> for UselessFormat {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let Some(macro_call) = root_macro_call_first_node(cx, expr)
@@ -60,7 +57,6 @@ impl<'tcx> LateLintPass<'tcx> for UselessFormat {
         {
             let mut applicability = Applicability::MachineApplicable;
             let call_site = macro_call.span;
-
             match (format_args.arguments.all_args(), &format_args.template[..]) {
                 ([], []) => span_useless_format_empty(cx, call_site, "String::new()".to_owned(), applicability),
                 ([], [_]) => {
@@ -104,7 +100,6 @@ impl<'tcx> LateLintPass<'tcx> for UselessFormat {
         }
     }
 }
-
 fn span_useless_format_empty(cx: &LateContext<'_>, span: Span, sugg: String, applicability: Applicability) {
     span_lint_and_sugg(
         cx,
@@ -116,7 +111,6 @@ fn span_useless_format_empty(cx: &LateContext<'_>, span: Span, sugg: String, app
         applicability,
     );
 }
-
 fn span_useless_format(cx: &LateContext<'_>, span: Span, sugg: String, applicability: Applicability) {
     span_lint_and_sugg(
         cx,

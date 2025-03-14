@@ -1,15 +1,15 @@
+use crate::HVec;
+
+use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::is_trait_method;
+use clippy_utils::source::snippet_with_applicability;
+use clippy_utils::ty::has_iter_method;
 use rustc_errors::Applicability;
 use rustc_hir::intravisit::{Visitor, walk_expr};
 use rustc_hir::{Block, BlockCheckMode, Closure, Expr, ExprKind, Stmt, StmtKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
-
-use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::is_trait_method;
-use clippy_utils::source::snippet_with_applicability;
-use clippy_utils::ty::has_iter_method;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `for_each` that would be more simply written as a
@@ -50,9 +50,7 @@ declare_clippy_lint! {
     pedantic,
     "using `for_each` where a `for` loop would be simpler"
 }
-
 declare_lint_pass!(NeedlessForEach => [NEEDLESS_FOR_EACH]);
-
 impl<'tcx> LateLintPass<'tcx> for NeedlessForEach {
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'_>) {
         if let StmtKind::Expr(expr) | StmtKind::Semi(expr) = stmt.kind
@@ -78,12 +76,10 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessForEach {
         {
             let mut ret_collector = RetCollector::default();
             ret_collector.visit_expr(body.value);
-
             // Skip the lint if `return` is used in `Loop` in order not to suggest using `'label`.
             if ret_collector.ret_in_loop {
                 return;
             }
-
             let (mut applicability, ret_suggs) = if ret_collector.spans.is_empty() {
                 (Applicability::MachineApplicable, None)
             } else {
@@ -98,14 +94,12 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessForEach {
                     ),
                 )
             };
-
             let sugg = format!(
                 "for {} in {} {}",
                 snippet_with_applicability(cx, body.params[0].pat.span, "..", &mut applicability),
                 snippet_with_applicability(cx, for_each_recv.span, "..", &mut applicability),
                 snippet_with_applicability(cx, body.value.span, "..", &mut applicability),
             );
-
             span_lint_and_then(cx, NEEDLESS_FOR_EACH, stmt.span, "needless use of `for_each`", |diag| {
                 diag.span_suggestion(stmt.span, "try", sugg, applicability);
                 if let Some(ret_suggs) = ret_suggs {
@@ -115,7 +109,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessForEach {
         }
     }
 }
-
 /// This type plays two roles.
 /// 1. Collect spans of `return` in the closure body.
 /// 2. Detect use of `return` in `Loop` in the closure body.
@@ -132,7 +125,6 @@ struct RetCollector {
     ret_in_loop: bool,
     loop_depth: u16,
 }
-
 impl Visitor<'_> for RetCollector {
     fn visit_expr(&mut self, expr: &Expr<'_>) {
         match expr.kind {
@@ -140,20 +132,16 @@ impl Visitor<'_> for RetCollector {
                 if self.loop_depth > 0 && !self.ret_in_loop {
                     self.ret_in_loop = true;
                 }
-
                 self.spans.push(expr.span);
             },
-
             ExprKind::Loop(..) => {
                 self.loop_depth += 1;
                 walk_expr(self, expr);
                 self.loop_depth -= 1;
                 return;
             },
-
             _ => {},
         }
-
         walk_expr(self, expr);
     }
 }

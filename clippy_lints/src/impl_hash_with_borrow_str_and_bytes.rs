@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::ty::implements_trait;
 use rustc_hir::def::{DefKind, Res};
@@ -6,7 +8,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::Ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::symbol::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -68,9 +69,7 @@ declare_clippy_lint! {
     correctness,
     "ensures that the semantics of `Borrow` for `Hash` are satisfied when `Borrow<str>` and `Borrow<[u8]>` are implemented"
 }
-
 declare_lint_pass!(ImplHashWithBorrowStrBytes => [IMPL_HASH_BORROW_WITH_STR_AND_BYTES]);
-
 impl LateLintPass<'_> for ImplHashWithBorrowStrBytes {
     /// We are emitting this lint at the Hash impl of a type that implements all
     /// three of `Hash`, `Borrow<str>` and `Borrow<[u8]>`.

@@ -1,8 +1,7 @@
 #![allow(clippy::lint_without_lint_pass)]
-
+use crate::HVec;
 mod lazy_continuation;
 mod too_long_first_doc_paragraph;
-
 use clippy_config::Conf;
 use clippy_utils::attrs::is_doc_hidden;
 use clippy_utils::diagnostics::{span_lint, span_lint_and_help, span_lint_and_then};
@@ -32,14 +31,12 @@ use rustc_span::edition::Edition;
 use rustc_span::{Span, sym};
 use std::ops::Range;
 use url::Url;
-
 mod include_in_doc_without_cfg;
 mod link_with_quotes;
 mod markdown;
 mod missing_headers;
 mod needless_doctest_main;
 mod suspicious_doc_comments;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the presence of `_`, `::` or camel-case words
@@ -81,7 +78,6 @@ declare_clippy_lint! {
     pedantic,
     "presence of `_`, `::` or camel-case outside backticks in documentation"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for links with code directly adjacent to code text:
@@ -103,7 +99,6 @@ declare_clippy_lint! {
     nursery,
     "link with code back-to-back with other code"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the doc comments of publicly visible
@@ -138,7 +133,6 @@ declare_clippy_lint! {
     style,
     "`pub unsafe fn` without `# Safety` docs"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks the doc comments of publicly visible functions that
@@ -167,7 +161,6 @@ declare_clippy_lint! {
     pedantic,
     "`pub fn` returns `Result` without `# Errors` in doc comment"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks the doc comments of publicly visible functions that
@@ -198,7 +191,6 @@ declare_clippy_lint! {
     pedantic,
     "`pub fn` may panic without `# Panics` in doc comment"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `fn main() { .. }` in doctests
@@ -227,7 +219,6 @@ declare_clippy_lint! {
     style,
     "presence of `fn main() {` in code examples"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `#[test]` in doctests unless they are marked with
@@ -260,7 +251,6 @@ declare_clippy_lint! {
     suspicious,
     "presence of `#[test]` in code examples"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects the syntax `['foo']` in documentation comments (notice quotes instead of backticks)
@@ -283,7 +273,6 @@ declare_clippy_lint! {
     pedantic,
     "possible typo for an intra-doc link"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the doc comments of publicly visible
@@ -319,7 +308,6 @@ declare_clippy_lint! {
     restriction,
     "`pub fn` or `pub trait` with `# Safety` docs"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects the use of outer doc comments (`///`, `/**`) followed by a bang (`!`): `///!`
@@ -366,7 +354,6 @@ declare_clippy_lint! {
     suspicious,
     "suspicious usage of (outer) doc comments"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects documentation that is empty.
@@ -390,7 +377,6 @@ declare_clippy_lint! {
     suspicious,
     "docstrings exist but documentation is empty"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -447,7 +433,6 @@ declare_clippy_lint! {
     style,
     "require every line of a paragraph to be indented and marked"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -480,7 +465,6 @@ declare_clippy_lint! {
     style,
     "ensure list items are not overindented"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if the first paragraph in the documentation of items listed in the module page is too long.
@@ -511,7 +495,6 @@ declare_clippy_lint! {
     nursery,
     "ensure the first documentation paragraph is short"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if included files in doc comments are included only for `cfg(doc)`.
@@ -540,7 +523,6 @@ declare_clippy_lint! {
     restriction,
     "check if files included in documentation are behind `cfg(doc)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns if a link reference definition appears at the start of a
@@ -566,12 +548,10 @@ declare_clippy_lint! {
     suspicious,
     "link reference defined in list item or quote"
 }
-
 pub struct Documentation {
     valid_idents: FxHashSet<String>,
     check_private_items: bool,
 }
-
 impl Documentation {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -580,7 +560,6 @@ impl Documentation {
         }
     }
 }
-
 impl_lint_pass!(Documentation => [
     DOC_LINK_CODE,
     DOC_LINK_WITH_QUOTES,
@@ -599,19 +578,16 @@ impl_lint_pass!(Documentation => [
     TOO_LONG_FIRST_DOC_PARAGRAPH,
     DOC_INCLUDE_WITHOUT_CFG,
 ]);
-
 impl EarlyLintPass for Documentation {
     fn check_attributes(&mut self, cx: &EarlyContext<'_>, attrs: &[rustc_ast::Attribute]) {
         include_in_doc_without_cfg::check(cx, attrs);
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for Documentation {
     fn check_attributes(&mut self, cx: &LateContext<'tcx>, attrs: &'tcx [Attribute]) {
         let Some(headers) = check_attrs(cx, &self.valid_idents, attrs) else {
             return;
         };
-
         match cx.tcx.hir_node(cx.last_node_with_lint_attrs) {
             Node::Item(item) => {
                 too_long_first_doc_paragraph::check(
@@ -627,7 +603,6 @@ impl<'tcx> LateLintPass<'tcx> for Documentation {
                             || item.span.in_external_macro(cx.tcx.sess.source_map()))
                         {
                             let body = cx.tcx.hir_body(body_id);
-
                             let panic_info = FindPanicUnwrap::find_span(cx, cx.tcx.typeck(item.owner_id), body.value);
                             missing_headers::check(
                                 cx,
@@ -679,7 +654,6 @@ impl<'tcx> LateLintPass<'tcx> for Documentation {
                     && !is_trait_impl_item(cx, impl_item.hir_id())
                 {
                     let body = cx.tcx.hir_body(body_id);
-
                     let panic_span = FindPanicUnwrap::find_span(cx, cx.tcx.typeck(impl_item.owner_id), body.value);
                     missing_headers::check(
                         cx,
@@ -696,19 +670,16 @@ impl<'tcx> LateLintPass<'tcx> for Documentation {
         }
     }
 }
-
 #[derive(Copy, Clone)]
 struct Fragments<'a> {
     doc: &'a str,
     fragments: &'a [DocFragment],
 }
-
 impl Fragments<'_> {
     fn span(self, cx: &LateContext<'_>, range: Range<usize>) -> Option<Span> {
         source_span_for_markdown_range(cx.tcx, self.doc, &range, self.fragments)
     }
 }
-
 #[derive(Copy, Clone, Default)]
 struct DocHeaders {
     safety: bool,
@@ -716,7 +687,6 @@ struct DocHeaders {
     panics: bool,
     first_paragraph_len: usize,
 }
-
 /// Does some pre-processing on raw, desugared `#[doc]` attributes such as parsing them and
 /// then delegates to `check_doc`.
 /// Some lints are already checked here if they can work with attributes directly and don't need
@@ -732,11 +702,9 @@ fn check_attrs(cx: &LateContext<'_>, valid_idents: &FxHashSet<String>, attrs: &[
     fn fake_broken_link_callback<'a>(_: BrokenLink<'_>) -> Option<(CowStr<'a>, CowStr<'a>)> {
         Some(("fake".into(), "fake".into()))
     }
-
     if suspicious_doc_comments::check(cx, attrs) || is_doc_hidden(attrs) {
         return None;
     }
-
     let (fragments, _) = attrs_to_doc_fragments(
         attrs.iter().filter_map(|attr| {
             if attr.doc_str_and_comment_kind().is_none() || attr.span().in_external_macro(cx.sess().source_map()) {
@@ -752,7 +720,6 @@ fn check_attrs(cx: &LateContext<'_>, valid_idents: &FxHashSet<String>, attrs: &[
         acc
     });
     doc.pop();
-
     if doc.trim().is_empty() {
         if let Some(span) = span_of_fragments(&fragments) {
             span_lint_and_help(
@@ -766,9 +733,7 @@ fn check_attrs(cx: &LateContext<'_>, valid_idents: &FxHashSet<String>, attrs: &[
         }
         return Some(DocHeaders::default());
     }
-
     let mut cb = fake_broken_link_callback;
-
     check_for_code_clusters(
         cx,
         pulldown_cmark::Parser::new_with_broken_link_callback(
@@ -783,11 +748,9 @@ fn check_attrs(cx: &LateContext<'_>, valid_idents: &FxHashSet<String>, attrs: &[
             fragments: &fragments,
         },
     );
-
     // disable smart punctuation to pick up ['link'] more easily
     let opts = main_body_opts() - Options::ENABLE_SMART_PUNCTUATION;
     let parser = pulldown_cmark::Parser::new_with_broken_link_callback(&doc, opts, Some(&mut cb));
-
     Some(check_doc(
         cx,
         valid_idents,
@@ -799,14 +762,11 @@ fn check_attrs(cx: &LateContext<'_>, valid_idents: &FxHashSet<String>, attrs: &[
         },
     ))
 }
-
 const RUST_CODE: &[&str] = &["rust", "no_run", "should_panic", "compile_fail"];
-
 enum Container {
     Blockquote,
     List(usize),
 }
-
 /// Scan the documentation for code links that are back-to-back with code spans.
 ///
 /// This is done separately from the rest of the docs, because that makes it easier to produce
@@ -866,7 +826,6 @@ fn check_for_code_clusters<'a, Events: Iterator<Item = (pulldown_cmark::Event<'a
         }
     }
 }
-
 /// Checks parsed documentation.
 /// This walks the "events" (think sections of markdown) produced by `pulldown_cmark`,
 /// so lints here will generally access that information.
@@ -895,11 +854,8 @@ fn check_doc<'a, Events: Iterator<Item = (pulldown_cmark::Event<'a>, Range<usize
     let mut code_level = 0;
     let mut blockquote_level = 0;
     let mut is_first_paragraph = true;
-
     let mut containers = Vec::new();
-
     let mut events = events.peekable();
-
     while let Some((event, range)) = events.next() {
         match event {
             Html(tag) | InlineHtml(tag) => {
@@ -1009,7 +965,6 @@ fn check_doc<'a, Events: Iterator<Item = (pulldown_cmark::Event<'a>, Range<usize
                                 // backslashes aren't in the event stream...
                                 start -= 1;
                             }
-
                             start.saturating_sub(range.start)
                         }
                     } else {
@@ -1121,14 +1076,12 @@ fn check_doc<'a, Events: Iterator<Item = (pulldown_cmark::Event<'a>, Range<usize
     }
     headers
 }
-
 struct FindPanicUnwrap<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     is_const: bool,
     panic_span: Option<Span>,
     typeck_results: &'tcx ty::TypeckResults<'tcx>,
 }
-
 impl<'a, 'tcx> FindPanicUnwrap<'a, 'tcx> {
     pub fn find_span(
         cx: &'a LateContext<'tcx>,
@@ -1145,15 +1098,12 @@ impl<'a, 'tcx> FindPanicUnwrap<'a, 'tcx> {
         vis.panic_span.map(|el| (el, vis.is_const))
     }
 }
-
 impl<'tcx> Visitor<'tcx> for FindPanicUnwrap<'_, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         if self.panic_span.is_some() {
             return;
         }
-
         if let Some(macro_call) = root_macro_call_first_node(self.cx, expr) {
             if is_panic(self.cx, macro_call.def_id)
                 || matches!(
@@ -1165,7 +1115,6 @@ impl<'tcx> Visitor<'tcx> for FindPanicUnwrap<'_, 'tcx> {
                 self.panic_span = Some(macro_call.span);
             }
         }
-
         // check for `unwrap` and `expect` for both `Option` and `Result`
         if let Some(arglists) = method_chain_args(expr, &["unwrap"]).or(method_chain_args(expr, &["expect"])) {
             let receiver_ty = self.typeck_results.expr_ty(arglists[0].0).peel_refs();
@@ -1175,25 +1124,20 @@ impl<'tcx> Visitor<'tcx> for FindPanicUnwrap<'_, 'tcx> {
                 self.panic_span = Some(expr.span);
             }
         }
-
         // and check sub-expressions
         intravisit::walk_expr(self, expr);
     }
-
     // Panics in const blocks will cause compilation to fail.
     fn visit_anon_const(&mut self, _: &'tcx AnonConst) {}
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }
 }
-
 #[expect(clippy::range_plus_one)] // inclusive ranges aren't the same type
 fn looks_like_refdef(doc: &str, range: Range<usize>) -> Option<Range<usize>> {
     if range.end < range.start {
         return None;
     }
-
     let offset = range.start;
     let mut iterator = doc.as_bytes()[range].iter().copied().enumerate();
     let mut start = None;

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::is_inside_always_const_context;
@@ -6,7 +8,6 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `assert!(true)` and `assert!(false)` calls.
@@ -27,9 +28,7 @@ declare_clippy_lint! {
     style,
     "`assert!(true)` / `assert!(false)` will be optimized out by the compiler, and should probably be replaced by a `panic!()` or `unreachable!()`"
 }
-
 declare_lint_pass!(AssertionsOnConstants => [ASSERTIONS_ON_CONSTANTS]);
-
 impl<'tcx> LateLintPass<'tcx> for AssertionsOnConstants {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         let Some(macro_call) = root_macro_call_first_node(cx, e) else {
@@ -46,13 +45,11 @@ impl<'tcx> LateLintPass<'tcx> for AssertionsOnConstants {
         let Some(Constant::Bool(val)) = ConstEvalCtxt::new(cx).eval(condition) else {
             return;
         };
-
         match condition.kind {
             ExprKind::Path(..) | ExprKind::Lit(_) => {},
             _ if is_inside_always_const_context(cx.tcx, e.hir_id) => return,
             _ => {},
         }
-
         if val {
             span_lint_and_help(
                 cx,

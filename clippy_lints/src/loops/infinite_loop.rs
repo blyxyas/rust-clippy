@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::INFINITE_LOOP;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::{fn_def_id, is_from_proc_macro, is_lint_allowed};
 use hir::intravisit::{Visitor, walk_expr};
@@ -7,9 +10,6 @@ use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::{LateContext, LintContext};
 use rustc_span::sym;
-
-use super::INFINITE_LOOP;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &Expr<'tcx>,
@@ -19,7 +19,6 @@ pub(super) fn check<'tcx>(
     if is_lint_allowed(cx, INFINITE_LOOP, expr.hir_id) {
         return;
     }
-
     // Skip check if this loop is not in a function/method/closure. (In some weird case)
     let Some(parent_fn_ret) = get_parent_fn_ret_ty(cx, expr) else {
         return;
@@ -28,11 +27,9 @@ pub(super) fn check<'tcx>(
     if is_never_return(parent_fn_ret) {
         return;
     }
-
     if expr.span.in_external_macro(cx.sess().source_map()) || is_from_proc_macro(cx, expr) {
         return;
     }
-
     let mut loop_visitor = LoopVisitor {
         cx,
         label,
@@ -41,9 +38,7 @@ pub(super) fn check<'tcx>(
         is_finite: false,
     };
     loop_visitor.visit_block(loop_block);
-
     let is_finite_loop = loop_visitor.is_finite;
-
     if !is_finite_loop {
         span_lint_and_then(cx, INFINITE_LOOP, expr.span, "infinite loop detected", |diag| {
             if let FnRetTy::DefaultReturn(ret_span) = parent_fn_ret {
@@ -59,7 +54,6 @@ pub(super) fn check<'tcx>(
         });
     }
 }
-
 fn get_parent_fn_ret_ty<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>) -> Option<FnRetTy<'tcx>> {
     for (_, parent_node) in cx.tcx.hir_parent_iter(expr.hir_id) {
         match parent_node {
@@ -98,7 +92,6 @@ fn get_parent_fn_ret_ty<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>) -> Option
     }
     None
 }
-
 struct LoopVisitor<'hir, 'tcx> {
     cx: &'hir LateContext<'tcx>,
     label: Option<Label>,
@@ -106,7 +99,6 @@ struct LoopVisitor<'hir, 'tcx> {
     loop_depth: usize,
     is_finite: bool,
 }
-
 impl<'hir> Visitor<'hir> for LoopVisitor<'hir, '_> {
     fn visit_expr(&mut self, ex: &'hir Expr<'_>) {
         match &ex.kind {
@@ -151,14 +143,12 @@ impl<'hir> Visitor<'hir> for LoopVisitor<'hir, '_> {
         }
     }
 }
-
 /// Return `true` if the given [`FnRetTy`] is never (!).
 ///
 /// Note: This function also take care of return type of async fn,
 /// as the actual type is behind an [`OpaqueDef`](TyKind::OpaqueDef).
 fn is_never_return(ret_ty: FnRetTy<'_>) -> bool {
     let FnRetTy::Return(hir_ty) = ret_ty else { return false };
-
     match hir_ty.kind {
         TyKind::Never => true,
         TyKind::OpaqueDef(hir::OpaqueTy {

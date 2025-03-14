@@ -1,3 +1,8 @@
+use crate::HVec;
+
+use clippy_utils::diagnostics::span_lint;
+use clippy_utils::is_from_proc_macro;
+use clippy_utils::mir::enclosing_mir;
 use rustc_ast::{LitKind, StrStyle};
 use rustc_hir::{Expr, ExprKind};
 use rustc_lexer::is_ident;
@@ -5,11 +10,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_parse_format::{ParseMode, Parser, Piece};
 use rustc_session::declare_lint_pass;
 use rustc_span::{BytePos, Span};
-
-use clippy_utils::diagnostics::span_lint;
-use clippy_utils::is_from_proc_macro;
-use clippy_utils::mir::enclosing_mir;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if string literals have formatting arguments outside of macros
@@ -35,9 +35,7 @@ declare_clippy_lint! {
     nursery,
     "Checks if string literals have formatting arguments"
 }
-
 declare_lint_pass!(LiteralStringWithFormattingArg => [LITERAL_STRING_WITH_FORMATTING_ARGS]);
-
 fn emit_lint(cx: &LateContext<'_>, expr: &Expr<'_>, spans: &[(Span, Option<String>)]) {
     if !spans.is_empty()
         && let Some(mir) = enclosing_mir(cx.tcx, expr.hir_id)
@@ -79,7 +77,6 @@ fn emit_lint(cx: &LateContext<'_>, expr: &Expr<'_>, spans: &[(Span, Option<Strin
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for LiteralStringWithFormattingArg {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
         if expr.span.from_expansion() || expr.span.is_dummy() {
@@ -103,7 +100,6 @@ impl<'tcx> LateLintPass<'tcx> for LiteralStringWithFormattingArg {
             let lo = expr.span.lo();
             let mut current = fmt_str;
             let mut diff_len = 0;
-
             let mut parser = Parser::new(current, None, None, false, ParseMode::Format);
             let mut spans = Vec::new();
             while let Some(piece) = parser.next() {
@@ -127,7 +123,6 @@ impl<'tcx> LateLintPass<'tcx> for LiteralStringWithFormattingArg {
                     let mut pos = arg.position_span;
                     pos.start += diff_len;
                     pos.end += diff_len;
-
                     let mut start = pos.start;
                     while start < fmt_str.len() && !fmt_str.is_char_boundary(start) {
                         start += 1;
@@ -137,12 +132,10 @@ impl<'tcx> LateLintPass<'tcx> for LiteralStringWithFormattingArg {
                     if start > 1 && fmt_str[..start].ends_with("\\u") {
                         continue;
                     }
-
                     if fmt_str[start + 1..].trim_start().starts_with('}') {
                         // We ignore `{}`.
                         continue;
                     }
-
                     let end = fmt_str[start + 1..]
                         .find('}')
                         .map_or(pos.end, |found| start + 1 + found)

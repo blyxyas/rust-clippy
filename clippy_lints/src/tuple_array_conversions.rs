@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::msrvs::{self, Msrv};
@@ -11,7 +13,6 @@ use rustc_middle::ty::{self, Ty};
 use rustc_session::impl_lint_pass;
 use std::iter::once;
 use std::ops::ControlFlow;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for tuple<=>array conversions that are not done with `.into()`.
@@ -41,7 +42,6 @@ declare_clippy_lint! {
     "checks for tuple<=>array conversions that are not done with `.into()`"
 }
 impl_lint_pass!(TupleArrayConversions => [TUPLE_ARRAY_CONVERSIONS]);
-
 pub struct TupleArrayConversions {
     msrv: Msrv,
 }
@@ -50,13 +50,11 @@ impl TupleArrayConversions {
         Self { msrv: conf.msrv }
     }
 }
-
 impl LateLintPass<'_> for TupleArrayConversions {
     fn check_expr<'tcx>(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if expr.span.in_external_macro(cx.sess().source_map()) || !self.msrv.meets(cx, msrvs::TUPLE_ARRAY_CONVERSIONS) {
             return;
         }
-
         match expr.kind {
             ExprKind::Array(elements) if (1..=12).contains(&elements.len()) => check_array(cx, expr, elements),
             ExprKind::Tup(elements) if (1..=12).contains(&elements.len()) => check_tuple(cx, expr, elements),
@@ -64,12 +62,10 @@ impl LateLintPass<'_> for TupleArrayConversions {
         }
     }
 }
-
 fn check_array<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, elements: &'tcx [Expr<'tcx>]) {
     let (ty::Array(ty, _) | ty::Slice(ty)) = cx.typeck_results().expr_ty(expr).kind() else {
         unreachable!("`expr` must be an array or slice due to `ExprKind::Array`");
     };
-
     if let [first, ..] = elements
         && let Some(locals) = (match first.kind {
             ExprKind::Field(_, _) => elements
@@ -98,7 +94,6 @@ fn check_array<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, elements: &
         );
     }
 }
-
 fn check_tuple<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, elements: &'tcx [Expr<'tcx>]) {
     if let ty::Tuple(tys) = cx.typeck_results().expr_ty(expr).kind()
         && let [first, ..] = elements
@@ -115,7 +110,6 @@ fn check_tuple<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, elements: &
                     {
                         return (val == i as u128).then_some(lhs);
                     }
-
                     None
                 })
                 .collect::<Option<Vec<_>>>(),
@@ -135,7 +129,6 @@ fn check_tuple<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, elements: &
         );
     }
 }
-
 /// Checks that every binding in `elements` comes from the same parent `Pat` with the kind if there
 /// is a parent `Pat`. Returns false in any of the following cases:
 /// * `kind` does not match `pat.kind`
@@ -156,7 +149,6 @@ fn all_bindings_are_for_conv<'tcx>(
         return false;
     };
     let local_parents = locals.iter().map(|l| cx.tcx.parent_hir_node(*l)).collect::<Vec<_>>();
-
     local_parents
         .iter()
         .map(|node| match node {
@@ -192,13 +184,11 @@ fn all_bindings_are_for_conv<'tcx>(
             }
         })
 }
-
 #[derive(Clone, Copy)]
 enum ToType {
     Array,
     Tuple,
 }
-
 impl PartialEq<PatKind<'_>> for ToType {
     fn eq(&self, other: &PatKind<'_>) -> bool {
         match self {

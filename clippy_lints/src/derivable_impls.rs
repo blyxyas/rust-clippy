@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
@@ -13,7 +15,6 @@ use rustc_middle::ty::adjustment::{Adjust, PointerCoercion};
 use rustc_middle::ty::{self, AdtDef, GenericArgsRef, Ty, TypeckResults};
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects manual `std::default::Default` implementations that are identical to a derived implementation.
@@ -55,19 +56,15 @@ declare_clippy_lint! {
     complexity,
     "manual implementation of the `Default` trait which is equal to a derive"
 }
-
 pub struct DerivableImpls {
     msrv: Msrv,
 }
-
 impl DerivableImpls {
     pub fn new(conf: &'static Conf) -> Self {
         DerivableImpls { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(DerivableImpls => [DERIVABLE_IMPLS]);
-
 fn is_path_self(e: &Expr<'_>) -> bool {
     if let ExprKind::Path(QPath::Resolved(_, p)) = e.kind {
         matches!(p.res, Res::SelfCtor(..) | Res::Def(DefKind::Ctor(..), _))
@@ -75,7 +72,6 @@ fn is_path_self(e: &Expr<'_>) -> bool {
         false
     }
 }
-
 fn contains_trait_object(ty: Ty<'_>) -> bool {
     match ty.kind() {
         ty::Ref(_, ty, _) => contains_trait_object(*ty),
@@ -84,7 +80,6 @@ fn contains_trait_object(ty: Ty<'_>) -> bool {
         _ => false,
     }
 }
-
 fn check_struct<'tcx>(
     cx: &LateContext<'tcx>,
     item: &'tcx Item<'_>,
@@ -97,7 +92,6 @@ fn check_struct<'tcx>(
     if let TyKind::Path(QPath::Resolved(_, p)) = self_ty.kind {
         if let Some(PathSegment { args, .. }) = p.segments.last() {
             let args = args.map(|a| a.args).unwrap_or(&[]);
-
             // ty_args contains the generic parameters of the type declaration, while args contains the
             // arguments used at instantiation time. If both len are not equal, it means that some
             // parameters were not provided (which means that the default values were used); in this
@@ -108,7 +102,6 @@ fn check_struct<'tcx>(
             }
         }
     }
-
     // the default() call might unsize coerce to a trait object (e.g. Box<T> to Box<dyn Trait>),
     // which would not be the same if derived (see #10158).
     // this closure checks both if the expr is equivalent to a `default()` call and does not
@@ -120,21 +113,18 @@ fn check_struct<'tcx>(
                     if contains_trait_object(adj.target))
             })
     };
-
     let should_emit = match peel_blocks(func_expr).kind {
         ExprKind::Tup(fields) => fields.iter().all(is_default_without_adjusts),
         ExprKind::Call(callee, args) if is_path_self(callee) => args.iter().all(is_default_without_adjusts),
         ExprKind::Struct(_, fields, _) => fields.iter().all(|ef| is_default_without_adjusts(ef.expr)),
         _ => false,
     };
-
     if should_emit {
         let struct_span = cx.tcx.def_span(adt_def.did());
         let suggestions = vec![
             (item.span, String::new()), // Remove the manual implementation
             (struct_span.shrink_to_lo(), "#[derive(Default)]\n".to_string()), // Add the derive attribute
         ];
-
         span_lint_and_then(cx, DERIVABLE_IMPLS, item.span, "this `impl` can be derived", |diag| {
             diag.multipart_suggestion(
                 "replace the manual implementation with a derive attribute",
@@ -144,7 +134,6 @@ fn check_struct<'tcx>(
         });
     }
 }
-
 fn check_enum<'tcx>(cx: &LateContext<'tcx>, item: &'tcx Item<'_>, func_expr: &Expr<'_>, adt_def: AdtDef<'_>) {
     if let ExprKind::Path(QPath::Resolved(None, p)) = &peel_blocks(func_expr).kind
         && let Res::Def(DefKind::Ctor(CtorOf::Variant, CtorKind::Const), id) = p.res
@@ -157,7 +146,6 @@ fn check_enum<'tcx>(cx: &LateContext<'tcx>, item: &'tcx Item<'_>, func_expr: &Ex
         let indent_enum = indent_of(cx, enum_span).unwrap_or(0);
         let variant_span = cx.tcx.def_span(variant_def.def_id);
         let indent_variant = indent_of(cx, variant_span).unwrap_or(0);
-
         let suggestions = vec![
             (item.span, String::new()), // Remove the manual implementation
             (
@@ -169,7 +157,6 @@ fn check_enum<'tcx>(cx: &LateContext<'tcx>, item: &'tcx Item<'_>, func_expr: &Ex
                 format!("#[default]\n{}", " ".repeat(indent_variant)),
             ), // Mark the default variant
         ];
-
         span_lint_and_then(cx, DERIVABLE_IMPLS, item.span, "this `impl` can be derived", |diag| {
             diag.multipart_suggestion(
                 "replace the manual implementation with a derive attribute and mark the default variant",
@@ -179,7 +166,6 @@ fn check_enum<'tcx>(cx: &LateContext<'tcx>, item: &'tcx Item<'_>, func_expr: &Ex
         });
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for DerivableImpls {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         if let ItemKind::Impl(Impl {

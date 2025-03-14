@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::EQ_OP;
 use clippy_utils::ast_utils::is_useless_with_eq_exprs;
 use clippy_utils::diagnostics::{span_lint, span_lint_and_then};
 use clippy_utils::macros::{find_assert_eq_args, first_node_macro_backtrace};
 use clippy_utils::{eq_expr_value, is_in_test_function};
 use rustc_hir::{BinOpKind, Expr};
 use rustc_lint::LateContext;
-
-use super::EQ_OP;
-
 pub(crate) fn check_assert<'tcx>(cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
     if let Some((macro_call, macro_name)) = first_node_macro_backtrace(cx, e).find_map(|macro_call| {
         let name = cx.tcx.item_name(macro_call.def_id);
@@ -28,7 +28,6 @@ pub(crate) fn check_assert<'tcx>(cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         );
     }
 }
-
 pub(crate) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     e: &'tcx Expr<'_>,

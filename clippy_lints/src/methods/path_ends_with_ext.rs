@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::PATH_ENDS_WITH_EXT;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
@@ -10,11 +12,9 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_span::sym;
 use std::fmt::Write;
-
 pub const DEFAULT_ALLOWED_DOTFILES: &[&str] = &[
     "git", "svn", "gem", "npm", "vim", "env", "rnd", "ssh", "vnc", "smb", "nvm", "bin",
 ];
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     recv: &Expr<'_>,
@@ -38,7 +38,6 @@ pub(super) fn check(
         } else {
             let _ = write!(sugg, r#".extension().map_or(false, |ext| ext == "{path}")"#);
         }
-
         span_lint_and_sugg(
             cx,
             PATH_ENDS_WITH_EXT,

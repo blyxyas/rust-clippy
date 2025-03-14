@@ -1,4 +1,4 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::peel_blocks;
@@ -12,7 +12,7 @@ use rustc_hir::{
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::UpvarCapture;
 use rustc_session::declare_lint_pass;
-
+use std::ops::ControlFlow;
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `async` block that only returns `await` on a future.
@@ -42,7 +42,6 @@ declare_clippy_lint! {
     "`async { future.await }` can be replaced by `future`"
 }
 declare_lint_pass!(RedundantAsyncBlock => [REDUNDANT_ASYNC_BLOCK]);
-
 impl<'tcx> LateLintPass<'tcx> for RedundantAsyncBlock {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         let span = expr.span;
@@ -70,7 +69,6 @@ impl<'tcx> LateLintPass<'tcx> for RedundantAsyncBlock {
         }
     }
 }
-
 /// If `expr` is a desugared `async` block, return the original expression if it does not capture
 /// any variable by ref.
 fn desugar_async_block<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) -> Option<&'tcx Expr<'tcx>> {
@@ -99,7 +97,6 @@ fn desugar_async_block<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) -> Op
         None
     }
 }
-
 /// If `expr` is a desugared `.await`, return the original expression if it does not come from a
 /// macro expansion.
 fn desugar_await<'tcx>(expr: &'tcx Expr<'_>) -> Option<&'tcx Expr<'tcx>> {

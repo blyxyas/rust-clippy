@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::source::{IntoSpan, SpanRangeExt};
@@ -11,7 +13,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for methods with high cognitive complexity.
@@ -32,11 +33,9 @@ declare_clippy_lint! {
     "functions that should be split up into multiple functions",
     @eval_always = true
 }
-
 pub struct CognitiveComplexity {
     limit: LimitStack,
 }
-
 impl CognitiveComplexity {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -44,9 +43,7 @@ impl CognitiveComplexity {
         }
     }
 }
-
 impl_lint_pass!(CognitiveComplexity => [COGNITIVE_COMPLEXITY]);
-
 impl CognitiveComplexity {
     fn check<'tcx>(
         &mut self,
@@ -59,7 +56,6 @@ impl CognitiveComplexity {
         if body_span.from_expansion() {
             return;
         }
-
         let mut cc = 1u64;
         let mut returns = 0u64;
         let _: Option<!> = for_each_expr_without_closures(expr, |e| {
@@ -78,7 +74,6 @@ impl CognitiveComplexity {
             }
             ControlFlow::Continue(())
         });
-
         let ret_ty = cx.typeck_results().node_type(expr.hir_id);
         let ret_adjust = if is_type_diagnostic_item(cx, ret_ty, sym::Result) {
             returns
@@ -86,12 +81,10 @@ impl CognitiveComplexity {
             #[expect(clippy::integer_division)]
             (returns / 2)
         };
-
         // prevent degenerate cases where unreachable code contains `return` statements
         if cc >= ret_adjust {
             cc -= ret_adjust;
         }
-
         if cc > self.limit.limit() {
             let fn_span = match kind {
                 FnKind::ItemFn(ident, _, _) | FnKind::Method(ident, _) => ident.span,
@@ -108,7 +101,6 @@ impl CognitiveComplexity {
                     }
                 },
             };
-
             span_lint_and_help(
                 cx,
                 COGNITIVE_COMPLEXITY,
@@ -123,7 +115,6 @@ impl CognitiveComplexity {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for CognitiveComplexity {
     fn check_fn(
         &mut self,
@@ -145,11 +136,9 @@ impl<'tcx> LateLintPass<'tcx> for CognitiveComplexity {
             } else {
                 body.value
             };
-
             self.check(cx, kind, decl, expr, span);
         }
     }
-
     fn check_attributes(&mut self, cx: &LateContext<'tcx>, attrs: &'tcx [Attribute]) {
         self.limit.push_attrs(cx.sess(), attrs, "cognitive_complexity");
     }

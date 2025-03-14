@@ -1,11 +1,11 @@
+use crate::HVec;
+
+use super::SUSPICIOUS_SPLITN;
 use clippy_utils::diagnostics::span_lint_and_note;
 use rustc_ast::LitKind;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_span::source_map::Spanned;
-
-use super::SUSPICIOUS_SPLITN;
-
 pub(super) fn check(cx: &LateContext<'_>, method_name: &str, expr: &Expr<'_>, self_arg: &Expr<'_>, count: u128) {
     if count <= 1
         && let Some(call_id) = cx.typeck_results().type_dependent_def_id(expr.hir_id)
@@ -20,7 +20,6 @@ pub(super) fn check(cx: &LateContext<'_>, method_name: &str, expr: &Expr<'_>, se
         {
             return;
         }
-
         let (msg, note_msg) = if count == 0 {
             (
                 format!("`{method_name}` called with `0` splits"),
@@ -36,7 +35,6 @@ pub(super) fn check(cx: &LateContext<'_>, method_name: &str, expr: &Expr<'_>, se
                 },
             )
         };
-
         span_lint_and_note(cx, SUSPICIOUS_SPLITN, expr.span, msg, None, note_msg);
     }
 }

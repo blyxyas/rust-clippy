@@ -1,3 +1,5 @@
+use crate::HVec;
+
 mod collapsible_match;
 mod infallible_destructuring_match;
 mod manual_filter;
@@ -24,7 +26,6 @@ mod significant_drop_in_scrutinee;
 mod single_match;
 mod try_err;
 mod wild_in_or_pats;
-
 use clippy_config::Conf;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source::walk_span_to_context;
@@ -35,7 +36,6 @@ use rustc_hir::{Arm, Expr, ExprKind, LetStmt, MatchSource, Pat, PatKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::{SpanData, SyntaxContext};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for matches with a single arm where an `if let`
@@ -72,7 +72,6 @@ declare_clippy_lint! {
     style,
     "a `match` statement with a single nontrivial arm (i.e., where the other arm is `_ => {}`) instead of `if let`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for matches with two arms where an `if let else` will
@@ -114,7 +113,6 @@ declare_clippy_lint! {
     pedantic,
     "a `match` statement with two arms where the second arm's pattern is a placeholder instead of a specific match pattern"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for matches where all arms match a reference,
@@ -147,7 +145,6 @@ declare_clippy_lint! {
     style,
     "a `match` or `if let` with all arms prefixed with `&` instead of deref-ing the match expression"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for matches where match expression is a `bool`. It
@@ -182,7 +179,6 @@ declare_clippy_lint! {
     pedantic,
     "a `match` on a boolean expression instead of an `if..else` block"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for overlapping match arms.
@@ -205,7 +201,6 @@ declare_clippy_lint! {
     style,
     "a `match` with overlapping arms"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for arm which matches all errors with `Err(_)`
@@ -228,7 +223,6 @@ declare_clippy_lint! {
     pedantic,
     "a `match` with `Err(_)` arm and take drastic actions"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for match which is used to add a reference to an
@@ -258,7 +252,6 @@ declare_clippy_lint! {
     complexity,
     "a `match` on an Option value instead of using `as_ref()` or `as_mut`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for wildcard enum matches using `_`.
@@ -294,7 +287,6 @@ declare_clippy_lint! {
     restriction,
     "a wildcard enum match arm using `_`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for wildcard enum matches for a single variant.
@@ -332,7 +324,6 @@ declare_clippy_lint! {
     pedantic,
     "a wildcard enum match for a single variant"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for wildcard pattern used with others patterns in same match arm.
@@ -363,7 +354,6 @@ declare_clippy_lint! {
     complexity,
     "a wildcard pattern used with others patterns in same match arm"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for matches being used to destructure a single-variant enum
@@ -399,7 +389,6 @@ declare_clippy_lint! {
     style,
     "a `match` statement with a single infallible arm instead of a `let`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for useless match that binds to only one value.
@@ -433,7 +422,6 @@ declare_clippy_lint! {
     complexity,
     "a match with a single binding instead of using `let` statement"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnecessary '..' pattern binding on struct when all fields are explicitly matched.
@@ -467,7 +455,6 @@ declare_clippy_lint! {
     restriction,
     "a match on a struct that binds all fields but still uses the wildcard pattern"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Lint for redundant pattern matching over `Result`, `Option`,
@@ -531,7 +518,6 @@ declare_clippy_lint! {
     style,
     "use the proper utility function avoiding an `if let`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `match`  or `if let` expressions producing a
@@ -570,7 +556,6 @@ declare_clippy_lint! {
     style,
     "a match that could be written with the matches! macro"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `match` with identical arm bodies.
@@ -613,7 +598,6 @@ declare_clippy_lint! {
     pedantic,
     "`match` with identical arm bodies"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnecessary `match` or match-like `if let` returns for `Option` and `Result`
@@ -656,7 +640,6 @@ declare_clippy_lint! {
     complexity,
     "`match` or match-like `if let` that are unnecessary"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Finds nested `match` or `if let` expressions where the patterns may be "collapsed" together
@@ -694,7 +677,6 @@ declare_clippy_lint! {
     style,
     "Nested `match` or `if let` expressions where the patterns may be \"collapsed\" together."
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Finds patterns that reimplement `Option::unwrap_or` or `Result::unwrap_or`.
@@ -721,7 +703,6 @@ declare_clippy_lint! {
     complexity,
     "finds patterns that can be encoded more concisely with `Option::unwrap_or` or `Result::unwrap_or`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `match vec[idx]` or `match vec[n..m]`.
@@ -757,7 +738,6 @@ declare_clippy_lint! {
     pedantic,
     "matching on vector elements can panic"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `match` expressions modifying the case of a string with non-compliant arms
@@ -788,7 +768,6 @@ declare_clippy_lint! {
     correctness,
     "creation of a case altering match expression with non-compliant arms"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for temporaries returned from function calls in a match scrutinee that have the
@@ -854,7 +833,6 @@ declare_clippy_lint! {
     nursery,
     "warns when a temporary of a type with a drop with a significant side-effect might have a surprising lifetime"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `Err(x)?`.
@@ -889,7 +867,6 @@ declare_clippy_lint! {
     restriction,
     "return errors explicitly rather than hiding them behind a `?`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `match` which could be implemented using `map`
@@ -913,7 +890,6 @@ declare_clippy_lint! {
     style,
     "reimplementation of `map`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `match` which could be implemented using `filter`
@@ -941,7 +917,6 @@ declare_clippy_lint! {
     complexity,
     "reimplementation of `filter`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnecessary guards in match expressions.
@@ -971,7 +946,6 @@ declare_clippy_lint! {
     complexity,
     "checks for unnecessary guards in match expressions"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for manual implementation of `.ok()` or `.err()`
@@ -1005,12 +979,10 @@ declare_clippy_lint! {
     complexity,
     "find manual implementations of `.ok()` or `.err()` on `Result`"
 }
-
 pub struct Matches {
     msrv: Msrv,
     infallible_destructuring_match_linted: bool,
 }
-
 impl Matches {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -1019,7 +991,6 @@ impl Matches {
         }
     }
 }
-
 impl_lint_pass!(Matches => [
     SINGLE_MATCH,
     MATCH_REF_PATS,
@@ -1049,7 +1020,6 @@ impl_lint_pass!(Matches => [
     REDUNDANT_GUARDS,
     MANUAL_OK_ERR,
 ]);
-
 impl<'tcx> LateLintPass<'tcx> for Matches {
     #[expect(clippy::too_many_lines)]
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
@@ -1057,7 +1027,6 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
             return;
         }
         let from_expansion = expr.span.from_expansion();
-
         if let ExprKind::Match(ex, arms, source) = expr.kind {
             if is_direct_expn_of(expr.span, "matches").is_some()
                 && let [arm, _] = arms
@@ -1065,25 +1034,21 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
                 redundant_pattern_match::check_match(cx, expr, ex, arms);
                 redundant_pattern_match::check_matches_true(cx, expr, arm, ex);
             }
-
             if source == MatchSource::Normal && !is_span_match(cx, expr.span) {
                 return;
             }
             if matches!(source, MatchSource::Normal | MatchSource::ForLoopDesugar) {
                 significant_drop_in_scrutinee::check_match(cx, expr, ex, arms, source);
             }
-
             collapsible_match::check_match(cx, arms, self.msrv);
             if !from_expansion {
                 // These don't depend on a relationship between multiple arms
                 match_wild_err_arm::check(cx, ex, arms);
                 wild_in_or_pats::check(cx, ex, arms);
             }
-
             if let MatchSource::TryDesugar(_) = source {
                 try_err::check(cx, expr, ex);
             }
-
             if !from_expansion && !contains_cfg_arm(cx, expr, ex, arms) {
                 if source == MatchSource::Normal {
                     if !(self.msrv.meets(cx, msrvs::MATCHES_MACRO)
@@ -1091,7 +1056,6 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
                     {
                         match_same_arms::check(cx, arms);
                     }
-
                     redundant_pattern_match::check_match(cx, expr, ex, arms);
                     let source_map = cx.tcx.sess.source_map();
                     let mut match_comments = span_extract_comments(source_map, expr.span);
@@ -1123,14 +1087,12 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
                     match_on_vec_items::check(cx, ex);
                     match_str_case_mismatch::check(cx, ex, arms);
                     redundant_guards::check(cx, arms, self.msrv);
-
                     if !is_in_const_context(cx) {
                         manual_unwrap_or::check_match(cx, expr, ex, arms);
                         manual_map::check_match(cx, expr, ex, arms);
                         manual_filter::check_match(cx, ex, arms, expr);
                         manual_ok_err::check_match(cx, expr, ex, arms);
                     }
-
                     if self.infallible_destructuring_match_linted {
                         self.infallible_destructuring_match_linted = false;
                     } else {
@@ -1201,31 +1163,26 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
             }
         }
     }
-
     fn check_local(&mut self, cx: &LateContext<'tcx>, local: &'tcx LetStmt<'_>) {
         self.infallible_destructuring_match_linted |=
             local.els.is_none() && infallible_destructuring_match::check(cx, local);
     }
-
     fn check_pat(&mut self, cx: &LateContext<'tcx>, pat: &'tcx Pat<'_>) {
         rest_pat_in_fully_bound_struct::check(cx, pat);
     }
 }
-
 /// Checks if there are any arms with a `#[cfg(..)]` attribute.
 fn contains_cfg_arm(cx: &LateContext<'_>, e: &Expr<'_>, scrutinee: &Expr<'_>, arms: &[Arm<'_>]) -> bool {
     let Some(scrutinee_span) = walk_span_to_context(scrutinee.span, SyntaxContext::root()) else {
         // Shouldn't happen, but treat this as though a `cfg` attribute were found
         return true;
     };
-
     let start = scrutinee_span.hi();
     let mut arm_spans = arms.iter().map(|arm| {
         let data = arm.span.data();
         (data.ctxt == SyntaxContext::root()).then_some((data.lo, data.hi))
     });
     let end = e.span.hi();
-
     // Walk through all the non-code space before each match arm. The space trailing the final arm is
     // handled after the `try_fold` e.g.
     //
@@ -1272,7 +1229,6 @@ fn contains_cfg_arm(cx: &LateContext<'_>, e: &Expr<'_>, scrutinee: &Expr<'_>, ar
         Err(()) => true,
     }
 }
-
 /// Checks if `pat` contains OR patterns that cannot be nested due to a too low MSRV.
 fn pat_contains_disallowed_or(cx: &LateContext<'_>, pat: &Pat<'_>, msrv: Msrv) -> bool {
     let mut contains_or = false;

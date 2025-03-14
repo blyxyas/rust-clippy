@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::def::{DefKind, Res};
@@ -5,7 +7,6 @@ use rustc_hir::{GenericArg, Item, ItemKind, QPath, Ty, TyKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::GenericParamDefKind;
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for type parameters which are positioned inconsistently between
@@ -46,7 +47,6 @@ declare_clippy_lint! {
     "type parameter positioned inconsistently between type def and impl block"
 }
 declare_lint_pass!(TypeParamMismatch => [MISMATCHING_TYPE_PARAM_ORDER]);
-
 impl<'tcx> LateLintPass<'tcx> for TypeParamMismatch {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if let ItemKind::Impl(imp) = &item.kind
@@ -68,13 +68,11 @@ impl<'tcx> LateLintPass<'tcx> for TypeParamMismatch {
                     _ => (),
                 }
             }
-
             // find the type that the Impl is for
             // only lint on struct/enum/union for now
             let Res::Def(DefKind::Struct | DefKind::Enum | DefKind::Union, defid) = path.res else {
                 return;
             };
-
             // get the names of the generic parameters in the type
             let type_params = &cx.tcx.generics_of(defid).own_params;
             let type_param_names: Vec<_> = type_params
@@ -90,7 +88,6 @@ impl<'tcx> LateLintPass<'tcx> for TypeParamMismatch {
                 .enumerate()
                 .map(|(i, param)| (param, i))
                 .collect();
-
             let type_name = segment.ident;
             for (i, (impl_param_name, impl_param_span)) in impl_params.iter().enumerate() {
                 if mismatch_param_name(i, impl_param_name, &type_param_names_hashmap) {
@@ -107,7 +104,6 @@ impl<'tcx> LateLintPass<'tcx> for TypeParamMismatch {
         }
     }
 }
-
 // Checks if impl_param_name is the same as one of type_param_names,
 // and is in a different position
 fn mismatch_param_name(i: usize, impl_param_name: &String, type_param_names: &FxHashMap<&String, usize>) -> bool {

@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::ITER_COUNT;
 use super::utils::derefs_to_slice;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
@@ -6,9 +9,6 @@ use rustc_errors::Applicability;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::ITER_COUNT;
-
 pub(crate) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>, recv: &'tcx Expr<'tcx>, iter_method: &str) {
     let ty = cx.typeck_results().expr_ty(recv);
     let caller_type = if derefs_to_slice(cx, recv, ty).is_some() {

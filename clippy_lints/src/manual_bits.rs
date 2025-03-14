@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::get_parent_expr;
@@ -11,7 +13,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, Ty};
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `size_of::<T>() * 8` when
@@ -33,19 +34,15 @@ declare_clippy_lint! {
     style,
     "manual implementation of `size_of::<T>() * 8` can be simplified with `T::BITS`"
 }
-
 pub struct ManualBits {
     msrv: Msrv,
 }
-
 impl ManualBits {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(ManualBits => [MANUAL_BITS]);
-
 impl<'tcx> LateLintPass<'tcx> for ManualBits {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Binary(bin_op, left_expr, right_expr) = expr.kind
@@ -63,7 +60,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualBits {
             let mut app = Applicability::MachineApplicable;
             let ty_snip = snippet_with_context(cx, real_ty_span, ctxt, "..", &mut app).0;
             let sugg = create_sugg(cx, expr, format!("{ty_snip}::BITS"));
-
             span_lint_and_sugg(
                 cx,
                 MANUAL_BITS,
@@ -76,7 +72,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualBits {
         }
     }
 }
-
 fn get_one_size_of_ty<'tcx>(
     cx: &LateContext<'tcx>,
     expr1: &'tcx Expr<'_>,
@@ -88,7 +83,6 @@ fn get_one_size_of_ty<'tcx>(
         _ => None,
     }
 }
-
 fn get_size_of_ty<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) -> Option<(Span, Ty<'tcx>)> {
     if let ExprKind::Call(count_func, []) = expr.kind
         && let ExprKind::Path(ref count_func_qpath) = count_func.kind
@@ -108,13 +102,11 @@ fn get_size_of_ty<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) -> Option<
         None
     }
 }
-
 fn create_sugg(cx: &LateContext<'_>, expr: &Expr<'_>, base_sugg: String) -> String {
     if let Some(parent_expr) = get_parent_expr(cx, expr) {
         if is_ty_conversion(parent_expr) {
             return base_sugg;
         }
-
         // These expressions have precedence over casts, the suggestion therefore
         // needs to be wrapped into parentheses
         match parent_expr.kind {
@@ -124,10 +116,8 @@ fn create_sugg(cx: &LateContext<'_>, expr: &Expr<'_>, base_sugg: String) -> Stri
             _ => {},
         }
     }
-
     format!("{base_sugg} as usize")
 }
-
 fn is_ty_conversion(expr: &Expr<'_>) -> bool {
     if let ExprKind::Cast(..) = expr.kind {
         true

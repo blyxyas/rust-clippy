@@ -1,13 +1,13 @@
+use crate::HVec;
+
+use clippy_utils::diagnostics::span_lint;
+use clippy_utils::source::SpanRangeExt;
 use rustc_ast::visit::FnKind;
 use rustc_ast::{Fn, NodeId, WherePredicateKind};
 use rustc_data_structures::fx::FxHashMap;
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
-
-use clippy_utils::diagnostics::span_lint;
-use clippy_utils::source::SpanRangeExt;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Check if a generic is defined both in the bound predicate and in the `where` clause.
@@ -34,9 +34,7 @@ declare_clippy_lint! {
     suspicious,
     "defining generic bounds in multiple locations"
 }
-
 declare_lint_pass!(MultipleBoundLocations => [MULTIPLE_BOUND_LOCATIONS]);
-
 impl EarlyLintPass for MultipleBoundLocations {
     fn check_fn(&mut self, cx: &EarlyContext<'_>, kind: FnKind<'_>, _: Span, _: NodeId) {
         if let FnKind::Fn(_, _, _, Fn { generics, .. }) = kind
@@ -44,7 +42,6 @@ impl EarlyLintPass for MultipleBoundLocations {
             && !generics.where_clause.predicates.is_empty()
         {
             let mut generic_params_with_bounds = FxHashMap::default();
-
             for param in &generics.params {
                 if !param.bounds.is_empty() {
                     generic_params_with_bounds.insert(param.ident.name.as_str(), param.ident.span);
@@ -75,7 +72,6 @@ impl EarlyLintPass for MultipleBoundLocations {
         }
     }
 }
-
 fn emit_lint(cx: &EarlyContext<'_>, bound_span: Span, where_span: Span) {
     span_lint(
         cx,

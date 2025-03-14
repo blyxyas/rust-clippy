@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::{MATCH_WILDCARD_FOR_SINGLE_VARIANTS, WILDCARD_ENUM_MATCH_ARM};
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::{is_refutable, peel_hir_pat_refs, recurse_or_patterns};
@@ -7,9 +10,6 @@ use rustc_hir::{Arm, Expr, PatExpr, PatExprKind, PatKind, PathSegment, QPath, Ty
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, VariantDef};
 use rustc_span::sym;
-
-use super::{MATCH_WILDCARD_FOR_SINGLE_VARIANTS, WILDCARD_ENUM_MATCH_ARM};
-
 #[expect(clippy::too_many_lines)]
 pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>]) {
     let ty = cx.typeck_results().expr_ty(ex).peel_refs();
@@ -22,7 +22,6 @@ pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>]) {
         },
         _ => return,
     };
-
     // First pass - check for violation, but don't do much book-keeping because this is hopefully
     // the uncommon case, and the book-keeping is slightly expensive.
     let mut wildcard_span = None;
@@ -42,7 +41,6 @@ pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>]) {
         Some(x) if has_non_wild => x,
         _ => return,
     };
-
     // Accumulate the variants which should be put in place of the wildcard because they're not
     // already covered.
     let is_external = adt_def.did().as_local().is_none();
@@ -52,7 +50,6 @@ pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>]) {
         .iter()
         .filter(|x| !(is_external && is_hidden(cx, x)))
         .collect();
-
     let mut path_prefix = CommonPrefixSearcher::None;
     for arm in arms {
         // Guards mean that this case probably isn't exhaustively covered. Technically
@@ -110,7 +107,6 @@ pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>]) {
             }
         });
     }
-
     let format_suggestion = |variant: &VariantDef| {
         format!(
             "{}{}{}{}",
@@ -140,7 +136,6 @@ pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>]) {
             }
         )
     };
-
     match missing_variants.as_slice() {
         [] => (),
         [x] if !adt_def.is_variant_list_non_exhaustive() && !has_external_hidden => span_lint_and_sugg(
@@ -161,7 +156,6 @@ pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>]) {
             } else {
                 ("wildcard match will also match any future added variants", false)
             };
-
             span_lint_and_then(cx, WILDCARD_ENUM_MATCH_ARM, wildcard_span, message, |diag| {
                 let mut suggestions: Vec<_> = variants.iter().copied().map(format_suggestion).collect();
                 if add_wildcard {
@@ -177,7 +171,6 @@ pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>]) {
         },
     }
 }
-
 enum CommonPrefixSearcher<'a> {
     None,
     Path(&'a [PathSegment<'a>]),
@@ -189,7 +182,6 @@ impl<'a> CommonPrefixSearcher<'a> {
             self.with_prefix(path);
         }
     }
-
     fn with_prefix(&mut self, path: &'a [PathSegment<'a>]) {
         match self {
             Self::None => *self = Self::Path(path),
@@ -203,7 +195,6 @@ impl<'a> CommonPrefixSearcher<'a> {
         }
     }
 }
-
 fn is_hidden(cx: &LateContext<'_>, variant_def: &VariantDef) -> bool {
     cx.tcx.is_doc_hidden(variant_def.def_id) || cx.tcx.has_attr(variant_def.def_id, sym::unstable)
 }

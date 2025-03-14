@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::SLICED_STRING_AS_BYTES;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::is_type_lang_item;
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, LangItem, is_range_literal};
 use rustc_lint::LateContext;
-
-use super::SLICED_STRING_AS_BYTES;
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>) {
     if let ExprKind::Index(indexed, index, _) = recv.kind
         && is_range_literal(index)

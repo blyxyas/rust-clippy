@@ -1,9 +1,10 @@
+use crate::HVec;
+
 mod common_metadata;
 mod feature_name;
 mod lint_groups_priority;
 mod multiple_crate_versions;
 mod wildcard_dependencies;
-
 use cargo_metadata::MetadataCommand;
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint;
@@ -13,7 +14,6 @@ use rustc_hir::hir_id::CRATE_HIR_ID;
 use rustc_lint::{LateContext, LateLintPass, Lint};
 use rustc_session::impl_lint_pass;
 use rustc_span::DUMMY_SP;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks to see if all common metadata is defined in
@@ -55,7 +55,6 @@ declare_clippy_lint! {
     cargo,
     "common metadata is defined in `Cargo.toml`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for feature names with prefix `use-`, `with-` or suffix `-support`
@@ -87,7 +86,6 @@ declare_clippy_lint! {
     cargo,
     "usage of a redundant feature name"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for negative feature names with prefix `no-` or `not-`
@@ -117,7 +115,6 @@ declare_clippy_lint! {
     cargo,
     "usage of a negative feature name"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks to see if multiple versions of a crate are being
@@ -146,7 +143,6 @@ declare_clippy_lint! {
     cargo,
     "multiple versions of the same crate being used"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for wildcard dependencies in the `Cargo.toml`.
@@ -175,7 +171,6 @@ declare_clippy_lint! {
     cargo,
     "wildcard dependencies being used"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for lint groups with the same priority as lints in the `Cargo.toml`
@@ -212,12 +207,10 @@ declare_clippy_lint! {
     correctness,
     "a lint group in `Cargo.toml` at the same priority as a lint"
 }
-
 pub struct Cargo {
     allowed_duplicate_crates: FxHashSet<String>,
     ignore_publish: bool,
 }
-
 impl_lint_pass!(Cargo => [
     CARGO_COMMON_METADATA,
     REDUNDANT_FEATURE_NAMES,
@@ -226,7 +219,6 @@ impl_lint_pass!(Cargo => [
     WILDCARD_DEPENDENCIES,
     LINT_GROUPS_PRIORITY,
 ]);
-
 impl Cargo {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -235,7 +227,6 @@ impl Cargo {
         }
     }
 }
-
 impl LateLintPass<'_> for Cargo {
     fn check_crate(&mut self, cx: &LateContext<'_>) {
         static NO_DEPS_LINTS: &[&Lint] = &[
@@ -245,9 +236,7 @@ impl LateLintPass<'_> for Cargo {
             WILDCARD_DEPENDENCIES,
         ];
         static WITH_DEPS_LINTS: &[&Lint] = &[MULTIPLE_CRATE_VERSIONS];
-
         lint_groups_priority::check(cx);
-
         if !NO_DEPS_LINTS
             .iter()
             .all(|&lint| is_lint_allowed(cx, lint, CRATE_HIR_ID))
@@ -265,7 +254,6 @@ impl LateLintPass<'_> for Cargo {
                 },
             }
         }
-
         if !WITH_DEPS_LINTS
             .iter()
             .all(|&lint| is_lint_allowed(cx, lint, CRATE_HIR_ID))

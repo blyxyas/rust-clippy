@@ -1,4 +1,7 @@
+use crate::HVec;
+
 mod absurd_extreme_comparisons;
+pub(crate) mod arithmetic_side_effects;
 mod assign_op_pattern;
 mod bit_mask;
 mod cmp_owned;
@@ -20,15 +23,11 @@ mod numeric_arithmetic;
 mod op_ref;
 mod self_assignment;
 mod verbose_bit_mask;
-
-pub(crate) mod arithmetic_side_effects;
-
 use clippy_config::Conf;
 use clippy_utils::msrvs::Msrv;
 use rustc_hir::{Body, Expr, ExprKind, UnOp};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for comparisons where one side of the relation is
@@ -60,7 +59,6 @@ declare_clippy_lint! {
     correctness,
     "a comparison with a maximum or minimum value that is always true or false"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks any kind of arithmetic operation of any type.
@@ -97,7 +95,6 @@ declare_clippy_lint! {
     restriction,
     "any arithmetic expression that can cause side effects like overflows or panics"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for float arithmetic.
@@ -116,7 +113,6 @@ declare_clippy_lint! {
     restriction,
     "any floating-point arithmetic statement"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `a = a op b` or `a = b commutative_op a`
@@ -151,7 +147,6 @@ declare_clippy_lint! {
     style,
     "assigning the result of an operation on a variable to that same variable"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `a op= a op b` or `a op= b op a` patterns.
@@ -178,7 +173,6 @@ declare_clippy_lint! {
     suspicious,
     "having a variable on both sides of an assign op"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for incompatible bit masks in comparisons.
@@ -216,7 +210,6 @@ declare_clippy_lint! {
     correctness,
     "expressions of the form `_ & mask == select` that will only ever return `true` or `false`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for bit masks in comparisons which can be removed
@@ -256,7 +249,6 @@ declare_clippy_lint! {
     correctness,
     "expressions where a bit mask will be rendered useless by a comparison, e.g., `(x | 1) > 2`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for bit masks that can be replaced by a call
@@ -283,7 +275,6 @@ declare_clippy_lint! {
     pedantic,
     "expressions where a bit mask is less readable than the corresponding method call"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for double comparisons that could be simplified to a single expression.
@@ -311,7 +302,6 @@ declare_clippy_lint! {
     complexity,
     "unnecessary double comparisons that can be simplified"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for double comparisons that can never succeed
@@ -330,7 +320,6 @@ declare_clippy_lint! {
     correctness,
     "double comparisons that will never evaluate to `true`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for ineffective double comparisons against constants.
@@ -350,7 +339,6 @@ declare_clippy_lint! {
     correctness,
     "double comparisons where one of them can be removed"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calculation of subsecond microseconds or milliseconds
@@ -380,7 +368,6 @@ declare_clippy_lint! {
     complexity,
     "checks for calculation of subsecond microseconds or milliseconds"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for equal operands to comparison, logical and
@@ -412,7 +399,6 @@ declare_clippy_lint! {
     correctness,
     "equal operands on both sides of a comparison or bitwise combination (e.g., `x == x`)"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for arguments to `==` which have their address
@@ -436,7 +422,6 @@ declare_clippy_lint! {
     style,
     "taking a reference to satisfy the type constraints on `==`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for erasing operations, e.g., `x * 0`.
@@ -458,7 +443,6 @@ declare_clippy_lint! {
     correctness,
     "using erasing operations, e.g., `x * 0` or `y & 0`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for statements of the form `(a - b) < f32::EPSILON` or
@@ -491,7 +475,6 @@ declare_clippy_lint! {
     suspicious,
     "float equality check without `.abs()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for identity operations, e.g., `x + 0`.
@@ -510,7 +493,6 @@ declare_clippy_lint! {
     complexity,
     "using identity operations, e.g., `x + 0` or `y / 1`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for division of integers
@@ -536,7 +518,6 @@ declare_clippy_lint! {
     restriction,
     "integer division may cause loss of precision"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for conversions to owned values just for the sake
@@ -565,7 +546,6 @@ declare_clippy_lint! {
     perf,
     "creating owned instances for comparing with others, e.g., `x == \"foo\".to_string()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for (in-)equality comparisons on floating-point
@@ -628,7 +608,6 @@ declare_clippy_lint! {
     pedantic,
     "using `==` or `!=` on float values instead of comparing difference with an allowed error"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for (in-)equality comparisons on constant floating-point
@@ -691,7 +670,6 @@ declare_clippy_lint! {
     restriction,
     "using `==` or `!=` on float constants instead of comparing difference with an allowed error"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for getting the remainder of integer division by one or minus
@@ -715,7 +693,6 @@ declare_clippy_lint! {
     correctness,
     "taking an integer modulo +/-1, which can either panic/overflow or always returns 0"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for modulo arithmetic.
@@ -737,7 +714,6 @@ declare_clippy_lint! {
     restriction,
     "any modulo arithmetic statement"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of bitwise and/or operators between booleans, where performance may be improved by using
@@ -766,7 +742,6 @@ declare_clippy_lint! {
     pedantic,
     "Boolean expressions that use bitwise rather than lazy operators"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for explicit self-assignments.
@@ -805,7 +780,6 @@ declare_clippy_lint! {
     correctness,
     "explicit self-assignment"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for manual implementation of `midpoint`.
@@ -829,7 +803,6 @@ declare_clippy_lint! {
     pedantic,
     "manual implementation of `midpoint` which can overflow"
 }
-
 pub struct Operators {
     arithmetic_context: numeric_arithmetic::Context,
     verbose_bit_mask_threshold: u64,
@@ -846,7 +819,6 @@ impl Operators {
         }
     }
 }
-
 impl_lint_pass!(Operators => [
     ABSURD_EXTREME_COMPARISONS,
     ARITHMETIC_SIDE_EFFECTS,
@@ -875,7 +847,6 @@ impl_lint_pass!(Operators => [
     SELF_ASSIGNMENT,
     MANUAL_MIDPOINT,
 ]);
-
 impl<'tcx> LateLintPass<'tcx> for Operators {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         eq_op::check_assert(cx, e);
@@ -929,20 +900,16 @@ impl<'tcx> LateLintPass<'tcx> for Operators {
             _ => (),
         }
     }
-
     fn check_expr_post(&mut self, _: &LateContext<'_>, e: &Expr<'_>) {
         self.arithmetic_context.expr_post(e.hir_id);
     }
-
     fn check_body(&mut self, cx: &LateContext<'tcx>, b: &Body<'_>) {
         self.arithmetic_context.enter_body(cx, b);
     }
-
     fn check_body_post(&mut self, cx: &LateContext<'tcx>, b: &Body<'_>) {
         self.arithmetic_context.body_post(cx, b);
     }
 }
-
 fn macro_with_not_op(e: &Expr<'_>) -> bool {
     if let ExprKind::Unary(_, e) = e.kind {
         e.span.from_expansion()

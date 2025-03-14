@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::{get_attr, higher};
 use rustc_ast::LitIntType;
 use rustc_ast::ast::{LitFloatType, LitKind};
@@ -11,7 +13,6 @@ use rustc_session::declare_lint_pass;
 use rustc_span::symbol::{Ident, Symbol};
 use std::cell::Cell;
 use std::fmt::{Display, Formatter, Write as _};
-
 declare_lint_pass!(
     /// ### What it does
     /// Generates clippy code that detects the offending pattern
@@ -46,14 +47,12 @@ declare_lint_pass!(
     /// ```
     Author => []
 );
-
 /// Writes a line of output with indentation added
 macro_rules! out {
     ($($t:tt)*) => {
         println!("    {}", format_args!($($t)*))
     };
 }
-
 /// The variables passed in are replaced with `&Binding`s where the `value` field is set
 /// to the original value of the variable. The `name` field is set to the name of the variable
 /// (using `stringify!`) and is adjusted to avoid duplicate names.
@@ -63,7 +62,6 @@ macro_rules! bind {
         $(let $name = & $self.bind(stringify!($name), $name);)+
     };
 }
-
 /// Transforms the given `Option<T>` variables into `OptionPat<Binding<T>>`.
 /// This displays as `Some($name)` or `None` when printed. The name of the inner binding
 /// is set to the name of the variable passed to the macro.
@@ -72,7 +70,6 @@ macro_rules! opt_bind {
         $(let $name = OptionPat::new($name.map(|o| $self.bind(stringify!($name), o)));)+
     };
 }
-
 /// Creates a `Binding` that accesses the field of an existing `Binding`
 macro_rules! field {
     ($binding:ident.$field:ident) => {
@@ -82,7 +79,6 @@ macro_rules! field {
         }
     };
 }
-
 /// Print a condition of a let chain, `chain!(self, "let Some(x) = y")` will print
 /// `if let Some(x) = y` on the first call and `    && let Some(x) = y` thereafter
 macro_rules! chain {
@@ -94,32 +90,26 @@ macro_rules! chain {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for Author {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::Item<'_>) {
         check_item(cx, item.hir_id());
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::ImplItem<'_>) {
         check_item(cx, item.hir_id());
     }
-
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::TraitItem<'_>) {
         check_item(cx, item.hir_id());
     }
-
     fn check_arm(&mut self, cx: &LateContext<'tcx>, arm: &'tcx hir::Arm<'_>) {
         check_node(cx, arm.hir_id, |v| {
             v.arm(&v.bind("arm", arm));
         });
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) {
         check_node(cx, expr.hir_id, |v| {
             v.expr(&v.bind("expr", expr));
         });
     }
-
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx hir::Stmt<'_>) {
         match stmt.kind {
             StmtKind::Expr(e) | StmtKind::Semi(e) if has_attr(cx, e.hir_id) => return,
@@ -130,7 +120,6 @@ impl<'tcx> LateLintPass<'tcx> for Author {
         });
     }
 }
-
 fn check_item(cx: &LateContext<'_>, hir_id: HirId) {
     if let Some(body) = cx.tcx.hir_maybe_body_owned_by(hir_id.expect_owner().def_id) {
         check_node(cx, hir_id, |v| {
@@ -138,7 +127,6 @@ fn check_item(cx: &LateContext<'_>, hir_id: HirId) {
         });
     }
 }
-
 fn check_node(cx: &LateContext<'_>, hir_id: HirId, f: impl Fn(&PrintVisitor<'_, '_>)) {
     if has_attr(cx, hir_id) {
         f(&PrintVisitor::new(cx));
@@ -147,34 +135,28 @@ fn check_node(cx: &LateContext<'_>, hir_id: HirId, f: impl Fn(&PrintVisitor<'_, 
         println!("}}");
     }
 }
-
 struct Binding<T> {
     name: String,
     value: T,
 }
-
 impl<T> Display for Binding<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.name)
     }
 }
-
 struct OptionPat<T> {
     pub opt: Option<T>,
 }
-
 impl<T> OptionPat<T> {
     fn new(opt: Option<T>) -> Self {
         Self { opt }
     }
-
     fn if_some(&self, f: impl Fn(&T)) {
         if let Some(t) = &self.opt {
             f(t);
         }
     }
 }
-
 impl<T: Display> Display for OptionPat<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.opt {
@@ -183,7 +165,6 @@ impl<T: Display> Display for OptionPat<T> {
         }
     }
 }
-
 struct PrintVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     /// Fields are the current index that needs to be appended to pattern
@@ -192,7 +173,6 @@ struct PrintVisitor<'a, 'tcx> {
     /// Currently at the first condition in the if chain
     first: Cell<bool>,
 }
-
 #[allow(clippy::unused_self)]
 impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
     fn new(cx: &'a LateContext<'tcx>) -> Self {
@@ -202,7 +182,6 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             first: Cell::new(true),
         }
     }
-
     fn next(&self, s: &'static str) -> String {
         let mut ids = self.ids.take();
         let out = match *ids.entry(s).and_modify(|n| *n += 1).or_default() {
@@ -214,12 +193,10 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
         self.ids.set(ids);
         out
     }
-
     fn bind<T>(&self, name: &'static str, value: T) -> Binding<T> {
         let name = self.next(name);
         Binding { name, value }
     }
-
     fn option<T: Copy>(&self, option: &Binding<Option<T>>, name: &'static str, f: impl Fn(&Binding<T>)) {
         match option.value {
             None => chain!(self, "{option}.is_none()"),
@@ -230,7 +207,6 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             },
         }
     }
-
     fn slice<T>(&self, slice: &Binding<&[T]>, f: impl Fn(&Binding<&T>)) {
         if slice.value.is_empty() {
             chain!(self, "{slice}.is_empty()");
@@ -242,21 +218,17 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             }
         }
     }
-
     fn destination(&self, destination: &Binding<hir::Destination>) {
         self.option(field!(destination.label), "label", |label| {
             self.ident(field!(label.ident));
         });
     }
-
     fn ident(&self, ident: &Binding<Ident>) {
         chain!(self, "{ident}.as_str() == {:?}", ident.value.as_str());
     }
-
     fn symbol(&self, symbol: &Binding<Symbol>) {
         chain!(self, "{symbol}.as_str() == {:?}", symbol.value.as_str());
     }
-
     fn qpath(&self, qpath: &Binding<&QPath<'_>>) {
         if let QPath::LangItem(lang_item, ..) = *qpath.value {
             chain!(self, "matches!({qpath}, QPath::LangItem(LangItem::{lang_item:?}, _))");
@@ -264,7 +236,6 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             chain!(self, "match_qpath({qpath}, &[{}])", path);
         }
     }
-
     fn const_arg(&self, const_arg: &Binding<&ConstArg<'_>>) {
         match const_arg.value.kind {
             ConstArgKind::Path(ref qpath) => {
@@ -280,13 +251,11 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             ConstArgKind::Infer(..) => chain!(self, "let ConstArgKind::Infer(..) = {const_arg}.kind"),
         }
     }
-
     fn lit(&self, lit: &Binding<&Lit>) {
         let kind = |kind| chain!(self, "let LitKind::{kind} = {lit}.node");
         macro_rules! kind {
             ($($t:tt)*) => (kind(format_args!($($t)*)));
         }
-
         match lit.value.node {
             LitKind::Bool(val) => kind!("Bool({val:?})"),
             LitKind::Char(c) => kind!("Char({c:?})"),
@@ -324,7 +293,6 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             },
         }
     }
-
     fn arm(&self, arm: &Binding<&hir::Arm<'_>>) {
         self.pat(field!(arm.pat));
         match arm.value.guard {
@@ -337,7 +305,6 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
         }
         self.expr(field!(arm.body));
     }
-
     #[allow(clippy::too_many_lines)]
     fn expr(&self, expr: &Binding<&hir::Expr<'_>>) {
         if let Some(higher::While { condition, body, .. }) = higher::While::hir(expr.value) {
@@ -351,7 +318,6 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             self.expr(body);
             return;
         }
-
         if let Some(higher::WhileLet {
             let_pat,
             let_expr,
@@ -370,7 +336,6 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             self.expr(if_then);
             return;
         }
-
         if let Some(higher::ForLoop { pat, arg, body, .. }) = higher::ForLoop::hir(expr.value) {
             bind!(self, pat, arg, body);
             chain!(
@@ -383,12 +348,10 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             self.expr(body);
             return;
         }
-
         let kind = |kind| chain!(self, "let ExprKind::{kind} = {expr}.kind");
         macro_rules! kind {
             ($($t:tt)*) => (kind(format_args!($($t)*)));
         }
-
         match expr.value.kind {
             ExprKind::Let(let_expr) => {
                 bind!(self, let_expr);
@@ -490,7 +453,6 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
                     CaptureBy::Value { .. } => "Value { .. }",
                     CaptureBy::Ref => "Ref",
                 };
-
                 let closure_kind = match kind {
                     ClosureKind::Closure => "ClosureKind::Closure".to_string(),
                     ClosureKind::Coroutine(coroutine_kind) => match coroutine_kind {
@@ -505,12 +467,10 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
                         format!("ClosureKind::CoroutineClosure(CoroutineDesugaring::{desugaring:?})")
                     },
                 };
-
                 let ret_ty = match fn_decl.output {
                     FnRetTy::DefaultReturn(_) => "FnRetTy::DefaultReturn(_)",
                     FnRetTy::Return(_) => "FnRetTy::Return(_ty)",
                 };
-
                 bind!(self, fn_decl, body_id);
                 kind!(
                     "Closure {{ capture_clause: CaptureBy::{capture_clause}, fn_decl: {fn_decl}, body: {body_id}, closure_kind: {closure_kind}, .. }}"
@@ -627,21 +587,18 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             },
         }
     }
-
     fn block(&self, block: &Binding<&hir::Block<'_>>) {
         self.slice(field!(block.stmts), |stmt| self.stmt(stmt));
         self.option(field!(block.expr), "trailing_expr", |expr| {
             self.expr(expr);
         });
     }
-
     fn body(&self, body_id: &Binding<hir::BodyId>) {
         let expr = self.cx.tcx.hir_body(body_id.value).value;
         bind!(self, expr);
         chain!(self, "{expr} = &cx.tcx.hir_body({body_id}).value");
         self.expr(expr);
     }
-
     fn pat_expr(&self, lit: &Binding<&hir::PatExpr<'_>>) {
         let kind = |kind| chain!(self, "let PatExprKind::{kind} = {lit}.kind");
         macro_rules! kind {
@@ -662,13 +619,11 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             },
         }
     }
-
     fn pat(&self, pat: &Binding<&hir::Pat<'_>>) {
         let kind = |kind| chain!(self, "let PatKind::{kind} = {pat}.kind");
         macro_rules! kind {
             ($($t:tt)*) => (kind(format_args!($($t)*)));
         }
-
         match pat.value.kind {
             PatKind::Wild => kind!("Wild"),
             PatKind::Never => kind!("Never"),
@@ -755,13 +710,11 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
             PatKind::Err(_) => kind!("Err"),
         }
     }
-
     fn stmt(&self, stmt: &Binding<&hir::Stmt<'_>>) {
         let kind = |kind| chain!(self, "let StmtKind::{kind} = {stmt}.kind");
         macro_rules! kind {
             ($($t:tt)*) => (kind(format_args!($($t)*)));
         }
-
         match stmt.value.kind {
             StmtKind::Let(local) => {
                 bind!(self, local);
@@ -785,12 +738,10 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
         }
     }
 }
-
 fn has_attr(cx: &LateContext<'_>, hir_id: HirId) -> bool {
     let attrs = cx.tcx.hir().attrs(hir_id);
     get_attr(cx.sess(), attrs, "author").count() > 0
 }
-
 fn path_to_string(path: &QPath<'_>) -> Result<String, ()> {
     fn inner(s: &mut String, path: &QPath<'_>) -> Result<(), ()> {
         match *path {
@@ -812,7 +763,6 @@ fn path_to_string(path: &QPath<'_>) -> Result<String, ()> {
             },
             QPath::LangItem(..) => return Err(()),
         }
-
         Ok(())
     }
     let mut s = String::new();

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -11,7 +13,6 @@ use rustc_hir::{BinOpKind, Constness, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass, Lint, LintContext};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for manual `is_infinite` reimplementations
@@ -61,13 +62,11 @@ declare_clippy_lint! {
     "use dedicated method to check if a float is finite"
 }
 impl_lint_pass!(ManualFloatMethods => [MANUAL_IS_INFINITE, MANUAL_IS_FINITE]);
-
 #[derive(Clone, Copy)]
 enum Variant {
     ManualIsInfinite,
     ManualIsFinite,
 }
-
 impl Variant {
     pub fn lint(self) -> &'static Lint {
         match self {
@@ -75,7 +74,6 @@ impl Variant {
             Self::ManualIsFinite => MANUAL_IS_FINITE,
         }
     }
-
     pub fn msg(self) -> &'static str {
         match self {
             Self::ManualIsInfinite => "manually checking if a float is infinite",
@@ -83,17 +81,14 @@ impl Variant {
         }
     }
 }
-
 pub struct ManualFloatMethods {
     msrv: Msrv,
 }
-
 impl ManualFloatMethods {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 fn is_not_const(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
     match tcx.def_kind(def_id) {
         DefKind::Mod
@@ -117,7 +112,6 @@ fn is_not_const(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
         | DefKind::OpaqueTy
         | DefKind::SyntheticCoroutineBody
         | DefKind::TyParam => true,
-
         DefKind::AnonConst
         | DefKind::InlineConst
         | DefKind::Const
@@ -125,11 +119,9 @@ fn is_not_const(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
         | DefKind::Static { .. }
         | DefKind::Ctor(..)
         | DefKind::AssocConst => false,
-
         DefKind::Fn | DefKind::AssocFn | DefKind::Closure => tcx.constness(def_id) == Constness::NotConst,
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for ManualFloatMethods {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let ExprKind::Binary(kind, lhs, rhs) = expr.kind
@@ -163,7 +155,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualFloatMethods {
             if is_from_proc_macro(cx, expr) {
                 return;
             }
-
             span_lint_and_then(cx, variant.lint(), expr.span, variant.msg(), |diag| {
                 match variant {
                     Variant::ManualIsInfinite => {
@@ -201,7 +192,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualFloatMethods {
         }
     }
 }
-
 fn is_infinity(constant: &Constant<'_>) -> bool {
     match constant {
         // FIXME(f16_f128): add f16 and f128 when constants are available
@@ -210,7 +200,6 @@ fn is_infinity(constant: &Constant<'_>) -> bool {
         _ => false,
     }
 }
-
 fn is_neg_infinity(constant: &Constant<'_>) -> bool {
     match constant {
         // FIXME(f16_f128): add f16 and f128 when constants are available

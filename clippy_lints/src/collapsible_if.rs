@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::source::{snippet, snippet_block, snippet_block_with_applicability};
 use clippy_utils::sugg::Sugg;
@@ -6,7 +8,6 @@ use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for nested `if` statements which can be collapsed
@@ -38,7 +39,6 @@ declare_clippy_lint! {
     style,
     "nested `if`s that can be collapsed (e.g., `if x { if y { ... } }`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for collapsible `else { if ... }` expressions
@@ -74,9 +74,7 @@ declare_clippy_lint! {
     style,
     "nested `else`-`if` expressions that can be collapsed (e.g., `else { if x { ... } }`)"
 }
-
 declare_lint_pass!(CollapsibleIf => [COLLAPSIBLE_IF, COLLAPSIBLE_ELSE_IF]);
-
 impl EarlyLintPass for CollapsibleIf {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &ast::Expr) {
         if let ast::ExprKind::If(cond, then, else_) = &expr.kind
@@ -90,7 +88,6 @@ impl EarlyLintPass for CollapsibleIf {
         }
     }
 }
-
 fn block_starts_with_comment(cx: &EarlyContext<'_>, expr: &ast::Block) -> bool {
     // We trim all opening braces and whitespaces and then check if the next string is a comment.
     let trimmed_block_text = snippet_block(cx, expr.span, "..", None)
@@ -98,7 +95,6 @@ fn block_starts_with_comment(cx: &EarlyContext<'_>, expr: &ast::Block) -> bool {
         .to_owned();
     trimmed_block_text.starts_with("//") || trimmed_block_text.starts_with("/*")
 }
-
 fn check_collapsible_maybe_if_let(cx: &EarlyContext<'_>, then_span: Span, else_: &ast::Expr) {
     if let ast::ExprKind::Block(ref block, _) = else_.kind
         && !block_starts_with_comment(cx, block)
@@ -115,7 +111,6 @@ fn check_collapsible_maybe_if_let(cx: &EarlyContext<'_>, then_span: Span, else_:
         } else {
             false
         };
-
         let mut applicability = Applicability::MachineApplicable;
         span_lint_and_sugg(
             cx,
@@ -132,7 +127,6 @@ fn check_collapsible_maybe_if_let(cx: &EarlyContext<'_>, then_span: Span, else_:
         );
     }
 }
-
 fn check_collapsible_no_if_let(cx: &EarlyContext<'_>, expr: &ast::Expr, check: &ast::Expr, then: &ast::Block) {
     if !block_starts_with_comment(cx, then)
         && let Some(inner) = expr_block(then)
@@ -166,7 +160,6 @@ fn check_collapsible_no_if_let(cx: &EarlyContext<'_>, expr: &ast::Expr, check: &
         );
     }
 }
-
 /// If the block contains only one expression, return it.
 fn expr_block(block: &ast::Block) -> Option<&ast::Expr> {
     if let [stmt] = &*block.stmts

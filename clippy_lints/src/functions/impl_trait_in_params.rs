@@ -1,14 +1,13 @@
+use crate::HVec;
+
+use super::IMPL_TRAIT_IN_PARAMS;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_in_test;
-
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_hir::intravisit::FnKind;
 use rustc_hir::{Body, GenericParam, Generics, HirId, ImplItem, ImplItemKind, TraitItem, TraitItemKind};
 use rustc_lint::LateContext;
-
-use super::IMPL_TRAIT_IN_PARAMS;
-
 fn report(cx: &LateContext<'_>, param: &GenericParam<'_>, generics: &Generics<'_>) {
     // No generics with nested generics, and no generics like FnMut(x)
     span_lint_and_then(
@@ -36,7 +35,6 @@ fn report(cx: &LateContext<'_>, param: &GenericParam<'_>, generics: &Generics<'_
         },
     );
 }
-
 pub(super) fn check_fn<'tcx>(cx: &LateContext<'_>, kind: &'tcx FnKind<'_>, body: &'tcx Body<'_>, hir_id: HirId) {
     if let FnKind::ItemFn(_, generics, _) = kind
         && cx.tcx.visibility(cx.tcx.hir_body_owner_def_id(body.id())).is_public()
@@ -49,7 +47,6 @@ pub(super) fn check_fn<'tcx>(cx: &LateContext<'_>, kind: &'tcx FnKind<'_>, body:
         }
     }
 }
-
 pub(super) fn check_impl_item(cx: &LateContext<'_>, impl_item: &ImplItem<'_>) {
     if let ImplItemKind::Fn(_, body_id) = impl_item.kind
         && let hir::Node::Item(item) = cx.tcx.parent_hir_node(impl_item.hir_id())
@@ -67,7 +64,6 @@ pub(super) fn check_impl_item(cx: &LateContext<'_>, impl_item: &ImplItem<'_>) {
         }
     }
 }
-
 pub(super) fn check_trait_item(cx: &LateContext<'_>, trait_item: &TraitItem<'_>, avoid_breaking_exported_api: bool) {
     if !avoid_breaking_exported_api
         && let TraitItemKind::Fn(_, _) = trait_item.kind

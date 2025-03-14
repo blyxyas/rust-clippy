@@ -1,4 +1,6 @@
-use super::REDUNDANT_PATTERN_MATCHING;
+use crate::HVec;
+
+use super::{MATCH_LIKE_MATCHES_MACRO, REDUNDANT_PATTERN_MATCHING};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::{is_lint_allowed, is_wild, span_contains_comment};
@@ -8,9 +10,6 @@ use rustc_hir::{Arm, Attribute, BorrowKind, Expr, ExprKind, Pat, PatKind, QPath}
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty;
 use rustc_span::source_map::Spanned;
-
-use super::MATCH_LIKE_MATCHES_MACRO;
-
 /// Lint a `match` or `if let .. { .. } else { .. }` expr that could be replaced by `matches!`
 pub(crate) fn check_if_let<'tcx>(
     cx: &LateContext<'tcx>,
@@ -31,7 +30,6 @@ pub(crate) fn check_if_let<'tcx>(
         true,
     );
 }
-
 pub(super) fn check_match<'tcx>(
     cx: &LateContext<'tcx>,
     e: &'tcx Expr<'_>,
@@ -47,7 +45,6 @@ pub(super) fn check_match<'tcx>(
         false,
     )
 }
-
 /// Lint a `match` or `if let` for replacement by `matches!`
 fn find_matches_sugg<'a, 'b, I>(
     cx: &LateContext<'_>,
@@ -81,7 +78,6 @@ where
                 return false;
             }
         }
-
         for arm in iter_without_last.clone() {
             if let Some(pat) = arm.1 {
                 if !is_lint_allowed(cx, REDUNDANT_PATTERN_MATCHING, pat.hir_id) && is_some(pat.kind) {
@@ -89,7 +85,6 @@ where
                 }
             }
         }
-
         // The suggestion may be incorrect, because some arms can have `cfg` attributes
         // evaluated into `false` and so such arms will be stripped before.
         let mut applicability = Applicability::MaybeIncorrect;
@@ -110,7 +105,6 @@ where
         } else {
             pat
         };
-
         // strip potential borrows (#6503), but only if the type is a reference
         let mut ex_new = ex;
         if let ExprKind::AddrOf(BorrowKind::Ref, .., ex_inner) = ex.kind {
@@ -139,7 +133,6 @@ where
         false
     }
 }
-
 /// Extract a `bool` or `{ bool }`
 fn find_bool_lit(ex: &ExprKind<'_>) -> Option<bool> {
     match ex {
@@ -166,7 +159,6 @@ fn find_bool_lit(ex: &ExprKind<'_>) -> Option<bool> {
         _ => None,
     }
 }
-
 fn is_some(path_kind: PatKind<'_>) -> bool {
     match path_kind {
         PatKind::TupleStruct(QPath::Resolved(_, path), [first, ..], _) if is_wild(first) => {

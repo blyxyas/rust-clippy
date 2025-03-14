@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_from_proc_macro;
@@ -10,7 +12,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext as _};
 use rustc_middle::ty::Visibility;
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::kw;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `use Trait` where the Trait is only used for its methods and not referenced by a path directly.
@@ -44,19 +45,15 @@ declare_clippy_lint! {
     restriction,
     "use items that import a trait but only use it anonymously"
 }
-
 pub struct UnusedTraitNames {
     msrv: Msrv,
 }
-
 impl UnusedTraitNames {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(UnusedTraitNames => [UNUSED_TRAIT_NAMES]);
-
 impl<'tcx> LateLintPass<'tcx> for UnusedTraitNames {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if !item.span.in_external_macro(cx.sess().source_map())

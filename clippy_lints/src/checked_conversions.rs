@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
@@ -7,7 +9,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Expr, ExprKind, QPath, TyKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for explicit bounds checking when casting.
@@ -32,19 +33,15 @@ declare_clippy_lint! {
     pedantic,
     "`try_from` could replace manual bounds checking when casting"
 }
-
 pub struct CheckedConversions {
     msrv: Msrv,
 }
-
 impl CheckedConversions {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(CheckedConversions => [CHECKED_CONVERSIONS]);
-
 impl LateLintPass<'_> for CheckedConversions {
     fn check_expr(&mut self, cx: &LateContext<'_>, item: &Expr<'_>) {
         if let ExprKind::Binary(op, lhs, rhs) = item.kind
@@ -92,7 +89,6 @@ impl LateLintPass<'_> for CheckedConversions {
         }
     }
 }
-
 /// Contains the result of a tried conversion check
 #[derive(Clone, Debug)]
 struct Conversion<'a> {
@@ -100,7 +96,6 @@ struct Conversion<'a> {
     expr_to_cast: &'a Expr<'a>,
     to_type: Option<&'a str>,
 }
-
 /// The kind of conversion that is checked
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum ConversionType {
@@ -108,7 +103,6 @@ enum ConversionType {
     SignedToSigned,
     FromUnsigned,
 }
-
 /// Attempts to read either `<=` or `>=` with a normalized operand order.
 fn read_le_ge<'tcx>(
     op: BinOpKind,
@@ -121,7 +115,6 @@ fn read_le_ge<'tcx>(
         _ => None,
     }
 }
-
 impl<'a> Conversion<'a> {
     /// Combine multiple conversions if the are compatible
     pub fn combine(self, other: Self, cx: &LateContext<'_>) -> Option<Conversion<'a>> {
@@ -132,7 +125,6 @@ impl<'a> Conversion<'a> {
             None
         }
     }
-
     /// Checks if two conversions are compatible
     /// same type of conversion, same 'castee' and same 'to type'
     pub fn is_compatible(&self, other: &Self, cx: &LateContext<'_>) -> bool {
@@ -140,7 +132,6 @@ impl<'a> Conversion<'a> {
             && (SpanlessEq::new(cx).eq_expr(self.expr_to_cast, other.expr_to_cast))
             && (self.has_compatible_to_type(other))
     }
-
     /// Checks if the to-type is the same (if there is a type constraint)
     fn has_compatible_to_type(&self, other: &Self) -> bool {
         match (self.to_type, other.to_type) {
@@ -148,7 +139,6 @@ impl<'a> Conversion<'a> {
             _ => true,
         }
     }
-
     /// Try to construct a new conversion if the conversion type is valid
     fn try_new(expr_to_cast: &'a Expr<'_>, from_type: &str, to_type: &'a str) -> Option<Conversion<'a>> {
         ConversionType::try_new(from_type, to_type).map(|cvt| Conversion {
@@ -157,7 +147,6 @@ impl<'a> Conversion<'a> {
             to_type: Some(to_type),
         })
     }
-
     /// Construct a new conversion without type constraint
     fn new_any(expr_to_cast: &'a Expr<'_>) -> Conversion<'a> {
         Conversion {
@@ -167,7 +156,6 @@ impl<'a> Conversion<'a> {
         }
     }
 }
-
 impl ConversionType {
     /// Creates a conversion type if the type is allowed & conversion is valid
     #[must_use]
@@ -187,7 +175,6 @@ impl ConversionType {
         }
     }
 }
-
 /// Check for `expr <= (to_type::MAX as from_type)`
 fn check_upper_bound<'tcx>(lt: &'tcx Expr<'tcx>, gt: &'tcx Expr<'tcx>) -> Option<Conversion<'tcx>> {
     if let Some((from, to)) = get_types_from_cast(gt, INTS, "max_value", "MAX") {
@@ -196,17 +183,14 @@ fn check_upper_bound<'tcx>(lt: &'tcx Expr<'tcx>, gt: &'tcx Expr<'tcx>) -> Option
         None
     }
 }
-
 /// Check for `expr >= 0|(to_type::MIN as from_type)`
 fn check_lower_bound<'tcx>(lt: &'tcx Expr<'tcx>, gt: &'tcx Expr<'tcx>) -> Option<Conversion<'tcx>> {
     check_lower_bound_zero(gt, lt).or_else(|| check_lower_bound_min(gt, lt))
 }
-
 /// Check for `expr >= 0`
 fn check_lower_bound_zero<'a>(candidate: &'a Expr<'_>, check: &'a Expr<'_>) -> Option<Conversion<'a>> {
     is_integer_literal(check, 0).then(|| Conversion::new_any(candidate))
 }
-
 /// Check for `expr >= (to_type::MIN as from_type)`
 fn check_lower_bound_min<'a>(candidate: &'a Expr<'_>, check: &'a Expr<'_>) -> Option<Conversion<'a>> {
     if let Some((from, to)) = get_types_from_cast(check, SINTS, "min_value", "MIN") {
@@ -215,7 +199,6 @@ fn check_lower_bound_min<'a>(candidate: &'a Expr<'_>, check: &'a Expr<'_>) -> Op
         None
     }
 }
-
 /// Tries to extract the from- and to-type from a cast expression
 fn get_types_from_cast<'a>(
     expr: &'a Expr<'_>,
@@ -234,7 +217,6 @@ fn get_types_from_cast<'a>(
     } else {
         None
     };
-
     // `from_type::from(to_type::max_value())`
     let limit_from: Option<(&Expr<'_>, &str)> = call_from_cast.or_else(|| {
         if let ExprKind::Call(from_func, [limit]) = &expr.kind
@@ -248,7 +230,6 @@ fn get_types_from_cast<'a>(
             None
         }
     });
-
     if let Some((limit, from_type)) = limit_from {
         match limit.kind {
             // `from_type::from(_)`
@@ -271,7 +252,6 @@ fn get_types_from_cast<'a>(
     }
     None
 }
-
 /// Gets the type which implements the called function
 fn get_implementing_type<'a>(path: &QPath<'_>, candidates: &'a [&str], function: &str) -> Option<&'a str> {
     if let QPath::TypeRelative(ty, path) = &path
@@ -285,7 +265,6 @@ fn get_implementing_type<'a>(path: &QPath<'_>, candidates: &'a [&str], function:
         None
     }
 }
-
 /// Gets the type as a string, if it is a supported integer
 fn int_ty_to_sym<'tcx>(path: &QPath<'_>) -> Option<&'tcx str> {
     if let QPath::Resolved(_, path) = *path
@@ -297,7 +276,6 @@ fn int_ty_to_sym<'tcx>(path: &QPath<'_>) -> Option<&'tcx str> {
         None
     }
 }
-
 // Constants
 const UINTS: &[&str] = &["u8", "u16", "u32", "u64", "usize"];
 const SINTS: &[&str] = &["i8", "i16", "i32", "i64", "isize"];

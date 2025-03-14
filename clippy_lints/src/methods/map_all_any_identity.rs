@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MAP_ALL_ANY_IDENTITY;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::{is_expr_identity_function, is_trait_method};
@@ -5,9 +8,6 @@ use rustc_errors::Applicability;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_span::{Span, sym};
-
-use super::MAP_ALL_ANY_IDENTITY;
-
 #[allow(clippy::too_many_arguments)]
 pub(super) fn check(
     cx: &LateContext<'_>,

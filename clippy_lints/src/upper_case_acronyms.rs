@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use core::mem::replace;
@@ -6,7 +8,6 @@ use rustc_hir::{HirId, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::Ident;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for fully capitalized names and optionally names containing a capitalized acronym.
@@ -38,12 +39,10 @@ declare_clippy_lint! {
     style,
     "capitalized acronyms are against the naming convention"
 }
-
 pub struct UpperCaseAcronyms {
     avoid_breaking_exported_api: bool,
     upper_case_acronyms_aggressive: bool,
 }
-
 impl UpperCaseAcronyms {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -52,9 +51,7 @@ impl UpperCaseAcronyms {
         }
     }
 }
-
 impl_lint_pass!(UpperCaseAcronyms => [UPPER_CASE_ACRONYMS]);
-
 fn contains_acronym(s: &str) -> bool {
     let mut count = 0;
     for c in s.chars() {
@@ -69,10 +66,8 @@ fn contains_acronym(s: &str) -> bool {
     }
     count == 2
 }
-
 fn check_ident(cx: &LateContext<'_>, ident: &Ident, hir_id: HirId, be_aggressive: bool) {
     let s = ident.as_str();
-
     // By default, only warn for upper case identifiers with at least 3 characters.
     let replacement = if s.len() > 2 && s.bytes().all(|c| c.is_ascii_uppercase()) {
         let mut r = String::with_capacity(s.len());
@@ -104,7 +99,6 @@ fn check_ident(cx: &LateContext<'_>, ident: &Ident, hir_id: HirId, be_aggressive
     } else {
         return;
     };
-
     span_lint_hir_and_then(
         cx,
         UPPER_CASE_ACRONYMS,
@@ -121,7 +115,6 @@ fn check_ident(cx: &LateContext<'_>, ident: &Ident, hir_id: HirId, be_aggressive
         },
     );
 }
-
 impl LateLintPass<'_> for UpperCaseAcronyms {
     fn check_item(&mut self, cx: &LateContext<'_>, it: &Item<'_>) {
         // do not lint public items or in macros

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::{get_parent_as_impl, has_repr_attr, is_bool};
@@ -8,7 +10,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::LocalDefId;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for excessive
@@ -49,7 +50,6 @@ declare_clippy_lint! {
     pedantic,
     "using too many bools in a struct"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for excessive use of
@@ -87,12 +87,10 @@ declare_clippy_lint! {
     pedantic,
     "using too many bools in function parameters"
 }
-
 pub struct ExcessiveBools {
     max_struct_bools: u64,
     max_fn_params_bools: u64,
 }
-
 impl ExcessiveBools {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -101,9 +99,7 @@ impl ExcessiveBools {
         }
     }
 }
-
 impl_lint_pass!(ExcessiveBools => [STRUCT_EXCESSIVE_BOOLS, FN_PARAMS_EXCESSIVE_BOOLS]);
-
 fn has_n_bools<'tcx>(iter: impl Iterator<Item = &'tcx Ty<'tcx>>, mut count: u64) -> bool {
     iter.filter(|ty| is_bool(ty)).any(|_| {
         let (x, overflow) = count.overflowing_sub(1);
@@ -111,7 +107,6 @@ fn has_n_bools<'tcx>(iter: impl Iterator<Item = &'tcx Ty<'tcx>>, mut count: u64)
         overflow
     })
 }
-
 fn check_fn_decl(cx: &LateContext<'_>, decl: &FnDecl<'_>, sp: Span, max: u64) {
     if has_n_bools(decl.inputs.iter(), max) && !sp.from_expansion() {
         span_lint_and_help(
@@ -124,7 +119,6 @@ fn check_fn_decl(cx: &LateContext<'_>, decl: &FnDecl<'_>, sp: Span, max: u64) {
         );
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for ExcessiveBools {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if let ItemKind::Struct(variant_data, _) = &item.kind
@@ -146,7 +140,6 @@ impl<'tcx> LateLintPass<'tcx> for ExcessiveBools {
             );
         }
     }
-
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, trait_item: &'tcx TraitItem<'tcx>) {
         // functions with a body are already checked by `check_fn`
         if let TraitItemKind::Fn(fn_sig, TraitFn::Required(_)) = &trait_item.kind
@@ -156,7 +149,6 @@ impl<'tcx> LateLintPass<'tcx> for ExcessiveBools {
             check_fn_decl(cx, fn_sig.decl, fn_sig.span, self.max_fn_params_bools);
         }
     }
-
     fn check_fn(
         &mut self,
         cx: &LateContext<'tcx>,

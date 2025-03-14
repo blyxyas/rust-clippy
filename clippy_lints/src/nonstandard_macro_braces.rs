@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_config::types::MacroMatcher;
 use clippy_utils::diagnostics::span_lint_and_sugg;
@@ -10,7 +12,6 @@ use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::hygiene::{ExpnKind, MacroKind};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks that common macros are used with consistent bracing.
@@ -32,15 +33,12 @@ declare_clippy_lint! {
     nursery,
     "check consistent use of braces in macro"
 }
-
 /// The (callsite span, (open brace, close brace), source snippet)
 type MacroInfo = (Span, (char, char), SourceText);
-
 pub struct MacroBraces {
     macro_braces: FxHashMap<String, (char, char)>,
     done: FxHashSet<Span>,
 }
-
 impl MacroBraces {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -49,9 +47,7 @@ impl MacroBraces {
         }
     }
 }
-
 impl_lint_pass!(MacroBraces => [NONSTANDARD_MACRO_BRACES]);
-
 impl EarlyLintPass for MacroBraces {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &ast::Item) {
         if let Some((span, braces, snip)) = is_offending_macro(cx, item.span, self) {
@@ -59,21 +55,18 @@ impl EarlyLintPass for MacroBraces {
             self.done.insert(span);
         }
     }
-
     fn check_stmt(&mut self, cx: &EarlyContext<'_>, stmt: &ast::Stmt) {
         if let Some((span, braces, snip)) = is_offending_macro(cx, stmt.span, self) {
             emit_help(cx, &snip, braces, span);
             self.done.insert(span);
         }
     }
-
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &ast::Expr) {
         if let Some((span, braces, snip)) = is_offending_macro(cx, expr.span, self) {
             emit_help(cx, &snip, braces, span);
             self.done.insert(span);
         }
     }
-
     fn check_ty(&mut self, cx: &EarlyContext<'_>, ty: &ast::Ty) {
         if let Some((span, braces, snip)) = is_offending_macro(cx, ty.span, self) {
             emit_help(cx, &snip, braces, span);
@@ -81,7 +74,6 @@ impl EarlyLintPass for MacroBraces {
         }
     }
 }
-
 fn is_offending_macro(cx: &EarlyContext<'_>, span: Span, mac_braces: &MacroBraces) -> Option<MacroInfo> {
     let unnested_or_local = || {
         !span.ctxt().outer_expn_data().call_site.from_expansion()
@@ -109,7 +101,6 @@ fn is_offending_macro(cx: &EarlyContext<'_>, span: Span, mac_braces: &MacroBrace
         None
     }
 }
-
 fn emit_help(cx: &EarlyContext<'_>, snip: &str, (open, close): (char, char), span: Span) {
     if let Some((macro_name, macro_args_str)) = snip.split_once('!') {
         let mut macro_args = macro_args_str.trim().to_string();
@@ -127,7 +118,6 @@ fn emit_help(cx: &EarlyContext<'_>, snip: &str, (open, close): (char, char), spa
         );
     }
 }
-
 fn macro_braces(conf: &[MacroMatcher]) -> FxHashMap<String, (char, char)> {
     let mut braces = FxHashMap::from_iter(
         [

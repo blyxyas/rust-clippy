@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::consts::{self, Constant};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_context;
@@ -8,7 +10,6 @@ use rustc_hir::{BinOpKind, Expr, ExprKind, UnOp};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for multiplication by -1 as a form of negation.
@@ -33,9 +34,7 @@ declare_clippy_lint! {
     style,
     "multiplying integers by `-1`"
 }
-
 declare_lint_pass!(NegMultiply => [NEG_MULTIPLY]);
-
 impl<'tcx> LateLintPass<'tcx> for NegMultiply {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         if let ExprKind::Binary(ref op, left, right) = e.kind {
@@ -50,7 +49,6 @@ impl<'tcx> LateLintPass<'tcx> for NegMultiply {
         }
     }
 }
-
 fn check_mul(cx: &LateContext<'_>, span: Span, lit: &Expr<'_>, exp: &Expr<'_>) {
     if let ExprKind::Lit(l) = lit.kind
         && consts::lit_to_mir_constant(&l.node, cx.typeck_results().expr_ty_opt(lit)) == Constant::Int(1)

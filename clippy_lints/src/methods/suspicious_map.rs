@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::SUSPICIOUS_MAP;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::usage::mutated_variables;
 use clippy_utils::{expr_or_init, is_trait_method};
 use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::SUSPICIOUS_MAP;
-
 pub fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, count_recv: &hir::Expr<'_>, map_arg: &hir::Expr<'_>) {
     if is_trait_method(cx, count_recv, sym::Iterator)
         && let hir::ExprKind::Closure(closure) = expr_or_init(cx, map_arg).kind

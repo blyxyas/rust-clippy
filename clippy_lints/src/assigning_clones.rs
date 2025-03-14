@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::mir::{PossibleBorrowerMap, enclosing_mir};
@@ -12,7 +14,6 @@ use rustc_middle::ty::{self, Instance, Mutability};
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::sym;
 use rustc_span::{Span, SyntaxContext};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for code like `foo = bar.clone();`
@@ -52,19 +53,15 @@ declare_clippy_lint! {
     pedantic,
     "assigning the result of cloning may be inefficient"
 }
-
 pub struct AssigningClones {
     msrv: Msrv,
 }
-
 impl AssigningClones {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(AssigningClones => [ASSIGNING_CLONES]);
-
 impl<'tcx> LateLintPass<'tcx> for AssigningClones {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         if let ExprKind::Assign(lhs, rhs, _) = e.kind
@@ -142,7 +139,6 @@ impl<'tcx> LateLintPass<'tcx> for AssigningClones {
         }
     }
 }
-
 /// Checks if the data being cloned borrows from the place that is being assigned to:
 ///
 /// ```
@@ -157,7 +153,6 @@ fn clone_source_borrows_from_dest(cx: &LateContext<'_>, lhs: &Expr<'_>, call_spa
         return false;
     };
     let PossibleBorrowerMap { map: borrow_map, .. } = PossibleBorrowerMap::new(cx, mir);
-
     // The operation `dest = src.to_owned()` in MIR is split up across 3 blocks *if* the type has `Drop`
     // code. For types that don't, the second basic block is simply skipped.
     // For the doc example above that would be roughly:
@@ -197,19 +192,16 @@ fn clone_source_borrows_from_dest(cx: &LateContext<'_>, lhs: &Expr<'_>, call_spa
         false
     }
 }
-
 #[derive(Clone, Copy)]
 enum CloneTrait {
     Clone,
     ToOwned,
 }
-
 #[derive(Copy, Clone)]
 enum CallKind {
     Ufcs,
     Method,
 }
-
 fn build_sugg<'tcx>(
     cx: &LateContext<'tcx>,
     ctxt: SyntaxContext,
@@ -227,7 +219,6 @@ fn build_sugg<'tcx>(
                         // If `ref_expr` is a reference, we can remove the dereference operator (`*`) to make
                         // the generated code a bit simpler. In other cases, we don't do this special case, to avoid
                         // having to deal with Deref (https://github.com/rust-lang/rust-clippy/issues/12437).
-
                         let ty = cx.typeck_results().expr_ty(ref_expr);
                         if ty.is_ref() {
                             // Apply special case, remove `*`
@@ -244,7 +235,6 @@ fn build_sugg<'tcx>(
                         Sugg::hir_with_applicability(cx, lhs, "_", app)
                     }
                     .maybe_par();
-
                     // Determine whether we need to reference the argument to clone_from().
                     let clone_receiver_type = cx.typeck_results().expr_ty(fn_arg);
                     let clone_receiver_adj_type = cx.typeck_results().expr_ty_adjusted(fn_arg);
@@ -254,7 +244,6 @@ fn build_sugg<'tcx>(
                         // be sure the argument to clone_from will be a reference.
                         arg_sugg = arg_sugg.addr();
                     }
-
                     format!("{receiver_sugg}.clone_from({arg_sugg})")
                 },
                 CallKind::Ufcs => {
@@ -275,7 +264,6 @@ fn build_sugg<'tcx>(
                     };
                     // The RHS had to be exactly correct before the call, there is no auto-deref for function calls.
                     let rhs_sugg = Sugg::hir_with_context(cx, fn_arg, ctxt, "_", app);
-
                     format!("Clone::clone_from({self_sugg}, {rhs_sugg})")
                 },
             }
@@ -298,7 +286,6 @@ fn build_sugg<'tcx>(
                 // `lhs = ToOwned::to_owned(rhs)` -> `ToOwned::clone_into(rhs, &mut lhs)`
                 Sugg::hir_with_applicability(cx, lhs, "_", app).maybe_par().mut_addr()
             };
-
             match call_kind {
                 CallKind::Method => {
                     let receiver_sugg = Sugg::hir_with_context(cx, fn_arg, ctxt, "_", app);

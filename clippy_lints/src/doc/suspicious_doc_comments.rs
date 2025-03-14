@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::SUSPICIOUS_DOC_COMMENTS;
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_ast::AttrStyle;
 use rustc_ast::token::CommentKind;
@@ -6,12 +9,8 @@ use rustc_errors::Applicability;
 use rustc_hir::Attribute;
 use rustc_lint::LateContext;
 use rustc_span::Span;
-
-use super::SUSPICIOUS_DOC_COMMENTS;
-
 pub fn check(cx: &LateContext<'_>, attrs: &[Attribute]) -> bool {
     let replacements: Vec<_> = collect_doc_replacements(attrs);
-
     if let Some((&(lo_span, _), &(hi_span, _))) = replacements.first().zip(replacements.last()) {
         span_lint_and_then(
             cx,
@@ -26,13 +25,11 @@ pub fn check(cx: &LateContext<'_>, attrs: &[Attribute]) -> bool {
                 );
             },
         );
-
         true
     } else {
         false
     }
 }
-
 fn collect_doc_replacements(attrs: &[Attribute]) -> Vec<(Span, String)> {
     attrs
         .iter()

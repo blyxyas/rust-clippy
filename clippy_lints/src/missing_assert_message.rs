@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_in_test;
 use clippy_utils::macros::{PanicExpn, find_assert_args, find_assert_eq_args, root_macro_call_first_node};
@@ -5,7 +7,6 @@ use rustc_hir::Expr;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks assertions without a custom panic message.
@@ -45,9 +46,7 @@ declare_clippy_lint! {
     restriction,
     "checks assertions without a custom panic message"
 }
-
 declare_lint_pass!(MissingAssertMessage => [MISSING_ASSERT_MESSAGE]);
-
 impl<'tcx> LateLintPass<'tcx> for MissingAssertMessage {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         let Some(macro_call) = root_macro_call_first_node(cx, expr) else {
@@ -60,12 +59,10 @@ impl<'tcx> LateLintPass<'tcx> for MissingAssertMessage {
             ) => false,
             _ => return,
         };
-
         // This lint would be very noisy in tests, so just ignore if we're in test context
         if is_in_test(cx.tcx, expr.hir_id) {
             return;
         }
-
         let panic_expn = if single_argument {
             let Some((_, panic_expn)) = find_assert_args(cx, expr, macro_call.expn) else {
                 return;
@@ -77,7 +74,6 @@ impl<'tcx> LateLintPass<'tcx> for MissingAssertMessage {
             };
             panic_expn
         };
-
         if let PanicExpn::Empty = panic_expn {
             #[expect(clippy::collapsible_span_lint_calls, reason = "rust-clippy#7797")]
             span_lint_and_then(

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::NEVER_LOOP;
 use super::utils::make_iterator_snippet;
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -9,7 +11,6 @@ use rustc_hir::{Block, Destination, Expr, ExprKind, HirId, InlineAsmOperand, Pat
 use rustc_lint::LateContext;
 use rustc_span::{Span, sym};
 use std::iter::once;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     block: &Block<'tcx>,
@@ -42,7 +43,6 @@ pub(super) fn check<'tcx>(
         NeverLoopResult::MayContinueMainLoop | NeverLoopResult::Normal => (),
     }
 }
-
 /// The `never_loop` analysis keeps track of three things:
 ///
 /// * Has any (reachable) code path hit a `continue` of the main loop?
@@ -64,7 +64,6 @@ enum NeverLoopResult {
     /// and subsequent control flow is (possibly) reachable
     Normal,
 }
-
 #[must_use]
 fn absorb_break(arg: NeverLoopResult) -> NeverLoopResult {
     match arg {
@@ -72,7 +71,6 @@ fn absorb_break(arg: NeverLoopResult) -> NeverLoopResult {
         NeverLoopResult::MayContinueMainLoop => NeverLoopResult::MayContinueMainLoop,
     }
 }
-
 // Combine two results for parts that are called in order.
 #[must_use]
 fn combine_seq(first: NeverLoopResult, second: impl FnOnce() -> NeverLoopResult) -> NeverLoopResult {
@@ -81,7 +79,6 @@ fn combine_seq(first: NeverLoopResult, second: impl FnOnce() -> NeverLoopResult)
         NeverLoopResult::Normal => second(),
     }
 }
-
 // Combine an iterator of results for parts that are called in order.
 #[must_use]
 fn combine_seq_many(iter: impl IntoIterator<Item = NeverLoopResult>) -> NeverLoopResult {
@@ -92,7 +89,6 @@ fn combine_seq_many(iter: impl IntoIterator<Item = NeverLoopResult>) -> NeverLoo
     }
     NeverLoopResult::Normal
 }
-
 // Combine two results where only one of the part may have been executed.
 #[must_use]
 fn combine_branches(b1: NeverLoopResult, b2: NeverLoopResult) -> NeverLoopResult {
@@ -104,7 +100,6 @@ fn combine_branches(b1: NeverLoopResult, b2: NeverLoopResult) -> NeverLoopResult
         (NeverLoopResult::Diverging, NeverLoopResult::Diverging) => NeverLoopResult::Diverging,
     }
 }
-
 fn never_loop_block<'tcx>(
     cx: &LateContext<'tcx>,
     block: &Block<'tcx>,
@@ -132,7 +127,6 @@ fn never_loop_block<'tcx>(
         })
     }))
 }
-
 fn stmt_to_expr<'tcx>(stmt: &Stmt<'tcx>) -> Option<(&'tcx Expr<'tcx>, Option<&'tcx Block<'tcx>>)> {
     match stmt.kind {
         StmtKind::Semi(e) | StmtKind::Expr(e) => Some((e, None)),
@@ -141,7 +135,6 @@ fn stmt_to_expr<'tcx>(stmt: &Stmt<'tcx>) -> Option<(&'tcx Expr<'tcx>, Option<&'t
         StmtKind::Item(..) => None,
     }
 }
-
 #[allow(clippy::too_many_lines)]
 fn never_loop_expr<'tcx>(
     cx: &LateContext<'tcx>,
@@ -282,7 +275,6 @@ fn never_loop_expr<'tcx>(
         result
     }
 }
-
 fn never_loop_expr_all<'tcx, T: Iterator<Item = &'tcx Expr<'tcx>>>(
     cx: &LateContext<'tcx>,
     es: T,
@@ -291,10 +283,8 @@ fn never_loop_expr_all<'tcx, T: Iterator<Item = &'tcx Expr<'tcx>>>(
 ) -> NeverLoopResult {
     combine_seq_many(es.map(|e| never_loop_expr(cx, e, local_labels, main_loop_id)))
 }
-
 fn for_to_if_let_sugg(cx: &LateContext<'_>, iterator: &Expr<'_>, pat: &Pat<'_>) -> String {
     let pat_snippet = snippet(cx, pat.span, "_");
     let iter_snippet = make_iterator_snippet(cx, iterator, &mut Applicability::Unspecified);
-
     format!("if let Some({pat_snippet}) = {iter_snippet}.next()")
 }

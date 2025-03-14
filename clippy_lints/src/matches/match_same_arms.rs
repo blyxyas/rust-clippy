@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MATCH_SAME_ARMS;
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::{SpanlessEq, SpanlessHash, is_lint_allowed, path_to_local, search_same};
@@ -12,9 +15,6 @@ use rustc_lint::builtin::NON_EXHAUSTIVE_OMITTED_PATTERNS;
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty;
 use rustc_span::{ErrorGuaranteed, Span, Symbol};
-
-use super::MATCH_SAME_ARMS;
-
 #[expect(clippy::too_many_lines)]
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>]) {
     let hash = |&(_, arm): &(usize, &Arm<'_>)| -> u64 {
@@ -22,13 +22,11 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>]) {
         h.hash_expr(arm.body);
         h.finish()
     };
-
     let arena = DroplessArena::default();
     let normalized_pats: Vec<_> = arms
         .iter()
         .map(|a| NormalizedPat::from_pat(cx, &arena, a.pat))
         .collect();
-
     // The furthest forwards a pattern can move without semantic changes
     let forwards_blocking_idxs: Vec<_> = normalized_pats
         .iter()
@@ -41,7 +39,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>]) {
                 .unwrap_or(normalized_pats.len())
         })
         .collect();
-
     // The furthest backwards a pattern can move without semantic changes
     let backwards_blocking_idxs: Vec<_> = normalized_pats
         .iter()
@@ -59,11 +56,9 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>]) {
                 .unwrap_or(0)
         })
         .collect();
-
     let eq = |&(lindex, lhs): &(usize, &Arm<'_>), &(rindex, rhs): &(usize, &Arm<'_>)| -> bool {
         let min_index = usize::min(lindex, rindex);
         let max_index = usize::max(lindex, rindex);
-
         let check_eq_with_pat = |expr_a: &Expr<'_>, expr_b: &Expr<'_>| {
             let mut local_map: HirIdMap<HirId> = HirIdMap::default();
             let eq_fallback = |a: &Expr<'_>, b: &Expr<'_>| {
@@ -86,7 +81,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>]) {
                     false
                 }
             };
-
             SpanlessEq::new(cx)
                 .expr_fallback(eq_fallback)
                 .eq_expr(expr_a, expr_b)
@@ -94,22 +88,18 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>]) {
                 && bindings_eq(lhs.pat, local_map.keys().copied().collect())
                 && bindings_eq(rhs.pat, local_map.values().copied().collect())
         };
-
         let check_same_guard = || match (&lhs.guard, &rhs.guard) {
             (None, None) => true,
             (Some(lhs_guard), Some(rhs_guard)) => check_eq_with_pat(lhs_guard, rhs_guard),
             _ => false,
         };
-
         let check_same_body = || check_eq_with_pat(lhs.body, rhs.body);
-
         // Arms with different guard are ignored, those can’t always be merged together
         // If both arms overlap with an arm in between then these can't be merged either.
         !(backwards_blocking_idxs[max_index] > min_index && forwards_blocking_idxs[min_index] < max_index)
             && check_same_guard()
             && check_same_body()
     };
-
     let mut appl = Applicability::MaybeIncorrect;
     let indexed_arms: Vec<(usize, &Arm<'_>)> = arms.iter().enumerate().collect();
     for (&(i, arm1), &(j, arm2)) in search_same(&indexed_arms, hash, eq) {
@@ -138,7 +128,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>]) {
             } else {
                 (arm2, arm1)
             };
-
             span_lint_hir_and_then(
                 cx,
                 MATCH_SAME_ARMS,
@@ -148,7 +137,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>]) {
                 |diag| {
                     let move_pat_snip = snippet_with_applicability(cx, move_arm.pat.span, "<pat2>", &mut appl);
                     let keep_pat_snip = snippet_with_applicability(cx, keep_arm.pat.span, "<pat1>", &mut appl);
-
                     diag.multipart_suggestion(
                         "or try merging the arm patterns and removing the obsolete arm",
                         vec![
@@ -163,7 +151,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>]) {
         }
     }
 }
-
 /// Extend arm's span to include the comma and whitespaces after it.
 fn adjusted_arm_span(cx: &LateContext<'_>, span: Span) -> Span {
     let source_map = cx.sess().source_map();
@@ -171,7 +158,6 @@ fn adjusted_arm_span(cx: &LateContext<'_>, span: Span) -> Span {
         .span_extend_while(span, |c| c == ',' || c.is_ascii_whitespace())
         .unwrap_or(span)
 }
-
 #[derive(Clone, Copy)]
 enum NormalizedPat<'a> {
     Wild,
@@ -193,7 +179,6 @@ enum NormalizedPat<'a> {
     /// A placeholder for a pattern that wasn't well formed in some way.
     Err(ErrorGuaranteed),
 }
-
 #[derive(Clone, Copy)]
 struct PatRange {
     start: u128,
@@ -208,7 +193,6 @@ impl PatRange {
                 RangeEnd::Excluded => x < self.end,
             }
     }
-
     fn overlaps(&self, other: &Self) -> bool {
         // Note: Empty ranges are impossible, so this is correct even though it would return true if an
         // empty exclusive range were to reside within an inclusive range.
@@ -221,7 +205,6 @@ impl PatRange {
         })
     }
 }
-
 /// Iterates over the pairs of fields with matching names.
 fn iter_matching_struct_fields<'a>(
     left: &'a [(Symbol, NormalizedPat<'a>)],
@@ -248,7 +231,6 @@ fn iter_matching_struct_fields<'a>(
     }
     Iter(left.iter(), right.iter())
 }
-
 #[expect(clippy::similar_names, clippy::too_many_lines)]
 impl<'a> NormalizedPat<'a> {
     fn from_pat(cx: &LateContext<'_>, arena: &'a DroplessArena, pat: &'a Pat<'_>) -> Self {
@@ -364,7 +346,6 @@ impl<'a> NormalizedPat<'a> {
             PatKind::Err(guar) => Self::Err(guar),
         }
     }
-
     /// Checks if two patterns overlap in the values they can match assuming they are for the same
     /// type.
     fn has_overlapping_values(&self, other: &Self) -> bool {
@@ -416,23 +397,19 @@ impl<'a> NormalizedPat<'a> {
                 .zip(rfront.iter())
                 .chain(lback.iter().rev().zip(rback.iter().rev()))
                 .all(|(x, y)| x.has_overlapping_values(y)),
-
             // Enums can mix unit variants with tuple/struct variants. These can never overlap.
             (Self::Path(_), Self::Tuple(..) | Self::Struct(..))
             | (Self::Tuple(..) | Self::Struct(..), Self::Path(_)) => false,
-
             // Tuples can be matched like a struct.
             (Self::Tuple(x, _), Self::Struct(y, _)) | (Self::Struct(x, _), Self::Tuple(y, _)) => {
                 // TODO: check fields here.
                 x == y
             },
-
             // TODO: Lit* with Path, Range with Path, LitBytes with Slice
             _ => true,
         }
     }
 }
-
 fn pat_contains_local(pat: &Pat<'_>, id: HirId) -> bool {
     let mut result = false;
     pat.walk_short(|p| {
@@ -441,7 +418,6 @@ fn pat_contains_local(pat: &Pat<'_>, id: HirId) -> bool {
     });
     result
 }
-
 /// Returns true if all the bindings in the `Pat` are in `ids` and vice versa
 fn bindings_eq(pat: &Pat<'_>, mut ids: HirIdSet) -> bool {
     let mut result = true;

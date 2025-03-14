@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint_and_then, span_lint_hir};
 use clippy_utils::get_parent_expr;
 use clippy_utils::sugg::Sugg;
@@ -14,7 +16,6 @@ use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::ExpnKind;
 use std::ops::ControlFlow;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects closures called in the same expression where they
@@ -38,12 +39,9 @@ declare_clippy_lint! {
     complexity,
     "throwaway closures called in the expression they are defined"
 }
-
 declare_lint_pass!(RedundantClosureCall => [REDUNDANT_CLOSURE_CALL]);
-
 // Used to find `return` statements or equivalents e.g., `?`
 struct ReturnVisitor;
-
 impl<'tcx> Visitor<'tcx> for ReturnVisitor {
     type Result = ControlFlow<()>;
     fn visit_expr(&mut self, ex: &'tcx hir::Expr<'tcx>) -> ControlFlow<()> {
@@ -53,7 +51,6 @@ impl<'tcx> Visitor<'tcx> for ReturnVisitor {
         hir_visit::walk_expr(self, ex)
     }
 }
-
 /// Checks if the body is owned by an async closure.
 /// Returns true for `async || whatever_expression`, but false for `|| async { whatever_expression
 /// }`.
@@ -68,7 +65,6 @@ fn is_async_closure(body: &hir::Body<'_>) -> bool {
         false
     }
 }
-
 /// Tries to find the innermost closure:
 /// ```rust,ignore
 /// (|| || || || 42)()()()()
@@ -88,7 +84,6 @@ fn find_innermost_closure<'tcx>(
     &'tcx [Param<'tcx>],
 )> {
     let mut data = None;
-
     while let ExprKind::Closure(closure) = expr.kind
         && let body = cx.tcx.hir_body(closure.body)
         && {
@@ -110,10 +105,8 @@ fn find_innermost_closure<'tcx>(
         ));
         steps -= 1;
     }
-
     data
 }
-
 /// "Walks up" the chain of calls to find the outermost call expression, and returns the depth:
 /// ```rust,ignore
 /// (|| || || 3)()()()
@@ -134,13 +127,11 @@ fn get_parent_call_exprs<'tcx>(
     }
     (expr, depth)
 }
-
 impl<'tcx> LateLintPass<'tcx> for RedundantClosureCall {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'tcx>) {
         if expr.span.in_external_macro(cx.sess().source_map()) {
             return;
         }
-
         if let ExprKind::Call(recv, _) = expr.kind
             // don't lint if the receiver is a call, too.
             // we do this in order to prevent linting multiple times; consider:
@@ -172,13 +163,11 @@ impl<'tcx> LateLintPass<'tcx> for RedundantClosureCall {
                         let mut applicability = Applicability::MachineApplicable;
                         let mut hint =
                             Sugg::hir_with_context(cx, body, full_expr.span.ctxt(), "..", &mut applicability);
-
                         if coroutine_kind.is_async()
                             && let ExprKind::Closure(closure) = body.kind
                         {
                             // Like `async fn`, async closures are wrapped in an additional block
                             // to move all of the closure's arguments into the future.
-
                             let async_closure_body = cx.tcx.hir_body(closure.body).value;
                             let ExprKind::Block(block, _) = async_closure_body.kind else {
                                 return;
@@ -189,33 +178,27 @@ impl<'tcx> LateLintPass<'tcx> for RedundantClosureCall {
                             let ExprKind::DropTemps(body_expr) = block_expr.kind else {
                                 return;
                             };
-
                             // `async x` is a syntax error, so it becomes `async { x }`
                             if !matches!(body_expr.kind, ExprKind::Block(_, _)) {
                                 hint = hint.blockify();
                             }
-
                             hint = hint.asyncify();
                         }
-
                         let is_in_fn_call_arg = if let Node::Expr(expr) = cx.tcx.parent_hir_node(expr.hir_id) {
                             matches!(expr.kind, ExprKind::Call(_, _))
                         } else {
                             false
                         };
-
                         // avoid clippy::double_parens
                         if !is_in_fn_call_arg {
                             hint = hint.maybe_par();
                         }
-
                         diag.span_suggestion(full_expr.span, "try doing something like", hint, applicability);
                     }
                 },
             );
         }
     }
-
     fn check_block(&mut self, cx: &LateContext<'tcx>, block: &'tcx hir::Block<'_>) {
         fn count_closure_usage<'tcx>(
             cx: &LateContext<'tcx>,
@@ -229,7 +212,6 @@ impl<'tcx> LateLintPass<'tcx> for RedundantClosureCall {
             }
             impl<'tcx> Visitor<'tcx> for ClosureUsageCount<'_, 'tcx> {
                 type NestedFilter = nested_filter::OnlyBodies;
-
                 fn visit_expr(&mut self, expr: &'tcx hir::Expr<'tcx>) {
                     if let ExprKind::Call(closure, _) = expr.kind
                         && let ExprKind::Path(hir::QPath::Resolved(_, path)) = closure.kind
@@ -240,7 +222,6 @@ impl<'tcx> LateLintPass<'tcx> for RedundantClosureCall {
                     }
                     hir_visit::walk_expr(self, expr);
                 }
-
                 fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
                     self.cx.tcx
                 }
@@ -249,7 +230,6 @@ impl<'tcx> LateLintPass<'tcx> for RedundantClosureCall {
             closure_usage_count.visit_block(block);
             closure_usage_count.count
         }
-
         for w in block.stmts.windows(2) {
             if let hir::StmtKind::Let(local) = w[0].kind
                 && let Some(t) = local.init

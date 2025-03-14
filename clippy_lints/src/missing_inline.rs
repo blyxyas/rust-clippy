@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use rustc_hir as hir;
 use rustc_hir::Attribute;
@@ -5,7 +7,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::ty::AssocItemContainer;
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// It lints if an exported function, method, trait method with default impl,
@@ -62,7 +63,6 @@ declare_clippy_lint! {
     restriction,
     "detects missing `#[inline]` attribute for public callables (functions, trait methods, methods...)"
 }
-
 fn check_missing_inline_attrs(cx: &LateContext<'_>, attrs: &[Attribute], sp: Span, desc: &'static str) {
     let has_inline = attrs.iter().any(|a| a.has_name(sym::inline));
     if !has_inline {
@@ -74,24 +74,19 @@ fn check_missing_inline_attrs(cx: &LateContext<'_>, attrs: &[Attribute], sp: Spa
         );
     }
 }
-
 fn is_executable_or_proc_macro(cx: &LateContext<'_>) -> bool {
     use rustc_session::config::CrateType;
-
     cx.tcx
         .crate_types()
         .iter()
         .any(|t: &CrateType| matches!(t, CrateType::Executable | CrateType::ProcMacro))
 }
-
 declare_lint_pass!(MissingInline => [MISSING_INLINE_IN_PUBLIC_ITEMS]);
-
 impl<'tcx> LateLintPass<'tcx> for MissingInline {
     fn check_item(&mut self, cx: &LateContext<'tcx>, it: &'tcx hir::Item<'_>) {
         if it.span.in_external_macro(cx.sess().source_map()) || is_executable_or_proc_macro(cx) {
             return;
         }
-
         if !cx.effective_visibilities.is_exported(it.owner_id.def_id) {
             return;
         }
@@ -137,29 +132,24 @@ impl<'tcx> LateLintPass<'tcx> for MissingInline {
             | hir::ItemKind::Use(..) => {},
         }
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, impl_item: &'tcx hir::ImplItem<'_>) {
         if impl_item.span.in_external_macro(cx.sess().source_map()) || is_executable_or_proc_macro(cx) {
             return;
         }
-
         // If the item being implemented is not exported, then we don't need #[inline]
         if !cx.effective_visibilities.is_exported(impl_item.owner_id.def_id) {
             return;
         }
-
         let desc = match impl_item.kind {
             hir::ImplItemKind::Fn(..) => "a method",
             hir::ImplItemKind::Const(..) | hir::ImplItemKind::Type(_) => return,
         };
-
         let assoc_item = cx.tcx.associated_item(impl_item.owner_id);
         let container_id = assoc_item.container_id(cx.tcx);
         let trait_def_id = match assoc_item.container {
             AssocItemContainer::Trait => Some(container_id),
             AssocItemContainer::Impl => cx.tcx.impl_trait_ref(container_id).map(|t| t.skip_binder().def_id),
         };
-
         if let Some(trait_def_id) = trait_def_id {
             if trait_def_id.is_local() && !cx.effective_visibilities.is_exported(impl_item.owner_id.def_id) {
                 // If a trait is being implemented for an item, and the
@@ -167,7 +157,6 @@ impl<'tcx> LateLintPass<'tcx> for MissingInline {
                 return;
             }
         }
-
         let attrs = cx.tcx.hir().attrs(impl_item.hir_id());
         check_missing_inline_attrs(cx, attrs, impl_item.span, desc);
     }

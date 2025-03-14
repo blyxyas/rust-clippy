@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use arrayvec::ArrayVec;
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
@@ -26,7 +28,6 @@ use rustc_middle::ty::{List, Ty, TyCtxt};
 use rustc_session::impl_lint_pass;
 use rustc_span::edition::Edition::Edition2021;
 use rustc_span::{Span, Symbol, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects `format!` within the arguments of another macro that does
@@ -51,7 +52,6 @@ declare_clippy_lint! {
     perf,
     "`format!` used in a macro that does formatting"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `Debug` formatting (`{:?}`) applied to an `OsStr` or `Path`.
@@ -81,7 +81,6 @@ declare_clippy_lint! {
     pedantic,
     "`Debug` formatting applied to an `OsStr` or `Path` when `.display()` is available"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for [`ToString::to_string`](https://doc.rust-lang.org/std/string/trait.ToString.html#tymethod.to_string)
@@ -107,7 +106,6 @@ declare_clippy_lint! {
     perf,
     "`to_string` applied to a type that implements `Display` in format args"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detect when a variable is not inlined in a format string,
@@ -162,7 +160,6 @@ declare_clippy_lint! {
     pedantic,
     "using non-inlined variables in `format!` calls"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects [formatting parameters] that have no effect on the output of
@@ -193,7 +190,6 @@ declare_clippy_lint! {
     complexity,
     "use of a format specifier that has no effect"
 }
-
 impl_lint_pass!(FormatArgs<'_> => [
     FORMAT_IN_FORMAT_ARGS,
     TO_STRING_IN_FORMAT_ARGS,
@@ -201,7 +197,6 @@ impl_lint_pass!(FormatArgs<'_> => [
     UNNECESSARY_DEBUG_FORMATTING,
     UNUSED_FORMAT_SPECS,
 ]);
-
 #[allow(clippy::struct_field_names)]
 pub struct FormatArgs<'tcx> {
     format_args: FormatArgsStorage,
@@ -209,7 +204,6 @@ pub struct FormatArgs<'tcx> {
     ignore_mixed: bool,
     ty_msrv_map: FxHashMap<Ty<'tcx>, Option<RustcVersion>>,
 }
-
 impl<'tcx> FormatArgs<'tcx> {
     pub fn new(tcx: TyCtxt<'tcx>, conf: &'static Conf, format_args: FormatArgsStorage) -> Self {
         let ty_msrv_map = make_ty_msrv_map(tcx);
@@ -221,7 +215,6 @@ impl<'tcx> FormatArgs<'tcx> {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for FormatArgs<'tcx> {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let Some(macro_call) = root_macro_call_first_node(cx, expr)
@@ -237,16 +230,13 @@ impl<'tcx> LateLintPass<'tcx> for FormatArgs<'tcx> {
                 msrv: &self.msrv,
                 ty_msrv_map: &self.ty_msrv_map,
             };
-
             linter.check_templates();
-
             if self.msrv.meets(cx, msrvs::FORMAT_ARGS_CAPTURE) {
                 linter.check_uninlined_args();
             }
         }
     }
 }
-
 struct FormatArgsExpr<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -256,7 +246,6 @@ struct FormatArgsExpr<'a, 'tcx> {
     msrv: &'a Msrv,
     ty_msrv_map: &'a FxHashMap<Ty<'tcx>, Option<RustcVersion>>,
 }
-
 impl<'tcx> FormatArgsExpr<'_, 'tcx> {
     fn check_templates(&self) {
         for piece in &self.format_args.template {
@@ -266,7 +255,6 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
                 && let Some(arg_expr) = find_format_arg_expr(self.expr, arg)
             {
                 self.check_unused_format_specifier(placeholder, arg_expr);
-
                 if placeholder.format_trait == FormatTrait::Display
                     && placeholder.format_options == FormatOptions::default()
                     && !self.is_aliased(index)
@@ -275,7 +263,6 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
                     self.check_format_in_format_args(name, arg_expr);
                     self.check_to_string_in_format_args(name, arg_expr);
                 }
-
                 if placeholder.format_trait == FormatTrait::Debug {
                     let name = self.cx.tcx.item_name(self.macro_call.def_id);
                     self.check_unnecessary_debug_formatting(name, arg_expr);
@@ -283,10 +270,8 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
             }
         }
     }
-
     fn check_unused_format_specifier(&self, placeholder: &FormatPlaceholder, arg: &Expr<'_>) {
         let options = &placeholder.format_options;
-
         if let Some(placeholder_span) = placeholder.span
             && *options != FormatOptions::default()
             && let ty = self.cx.typeck_results().expr_ty(arg).peel_refs()
@@ -300,7 +285,6 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
                 |diag| {
                     let mut suggest_format = |spec| {
                         let message = format!("for the {spec} to apply consider using `format!()`");
-
                         if let Some(mac_call) = matching_root_macro_call(self.cx, arg.span, sym::format_args_macro) {
                             diag.span_suggestion(
                                 self.cx.sess().source_map().span_until_char(mac_call.span, '!'),
@@ -312,15 +296,12 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
                             diag.help(message);
                         }
                     };
-
                     if options.width.is_some() {
                         suggest_format("width");
                     }
-
                     if options.precision.is_some() {
                         suggest_format("precision");
                     }
-
                     if let Some(format_span) = format_placeholder_format_span(placeholder) {
                         diag.span_suggestion_verbose(
                             format_span,
@@ -333,7 +314,6 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
             );
         }
     }
-
     fn check_uninlined_args(&self) {
         if self.format_args.span.from_expansion() {
             return;
@@ -345,7 +325,6 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
             // non-format
             return;
         }
-
         let mut fixes = Vec::new();
         // If any of the arguments are referenced by an index number,
         // and that argument is not a simple variable and cannot be inlined,
@@ -357,21 +336,17 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
                 return;
             }
         }
-
         if fixes.is_empty() {
             return;
         }
-
         // multiline span display suggestion is sometimes broken: https://github.com/rust-lang/rust/pull/102729#discussion_r988704308
         // in those cases, make the code suggestion hidden
         let multiline_fix = fixes
             .iter()
             .any(|(span, _)| self.cx.sess().source_map().is_multiline(*span));
-
         // Suggest removing each argument only once, for example in `format!("{0} {0}", arg)`.
         fixes.sort_unstable_by_key(|(span, _)| *span);
         fixes.dedup_by_key(|(span, _)| *span);
-
         span_lint_and_then(
             self.cx,
             UNINLINED_FORMAT_ARGS,
@@ -387,11 +362,9 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
             },
         );
     }
-
     fn check_one_arg(&self, pos: &FormatArgPosition, usage: FormatParamUsage, fixes: &mut Vec<(Span, String)>) -> bool {
         let index = pos.index.unwrap();
         let arg = &self.format_args.arguments.all_args()[index];
-
         if !matches!(arg.kind, FormatArgumentKind::Captured(_))
             && let rustc_ast::ExprKind::Path(None, path) = &arg.expr.kind
             && let [segment] = path.segments.as_slice()
@@ -415,7 +388,6 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
                 && (!self.ignore_mixed || matches!(arg.kind, FormatArgumentKind::Captured(_)))
         }
     }
-
     fn check_format_in_format_args(&self, name: Symbol, arg: &Expr<'_>) {
         let expn_data = arg.span.ctxt().outer_expn_data();
         if expn_data.call_site.from_expansion() {
@@ -438,7 +410,6 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
             },
         );
     }
-
     fn check_to_string_in_format_args(&self, name: Symbol, value: &Expr<'_>) {
         let cx = self.cx;
         if !value.span.from_expansion()
@@ -481,7 +452,6 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
             }
         }
     }
-
     fn check_unnecessary_debug_formatting(&self, name: Symbol, value: &Expr<'tcx>) {
         let cx = self.cx;
         if !is_in_test(cx.tcx, value.hir_id)
@@ -509,12 +479,10 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
             );
         }
     }
-
     fn format_arg_positions(&self) -> impl Iterator<Item = (&FormatArgPosition, FormatParamUsage)> {
         self.format_args.template.iter().flat_map(|piece| match piece {
             FormatArgsPiece::Placeholder(placeholder) => {
                 let mut positions = ArrayVec::<_, 3>::new();
-
                 positions.push((&placeholder.argument, FormatParamUsage::Argument));
                 if let Some(FormatCount::Argument(position)) = &placeholder.format_options.width {
                     positions.push((position, FormatParamUsage::Width));
@@ -522,13 +490,11 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
                 if let Some(FormatCount::Argument(position)) = &placeholder.format_options.precision {
                     positions.push((position, FormatParamUsage::Precision));
                 }
-
                 positions
             },
             FormatArgsPiece::Literal(_) => ArrayVec::new(),
         })
     }
-
     /// Returns true if the format argument at `index` is referred to by multiple format params
     fn is_aliased(&self, index: usize) -> bool {
         self.format_arg_positions()
@@ -536,16 +502,13 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
             .at_most_one()
             .is_err()
     }
-
     fn can_display_format(&self, ty: Ty<'tcx>) -> bool {
         let ty = ty.peel_refs();
-
         if let Some(msrv) = self.ty_msrv_map.get(&ty)
             && msrv.is_none_or(|msrv| self.msrv.meets(self.cx, msrv))
         {
             return true;
         }
-
         // Even if `ty` is not in `self.ty_msrv_map`, check whether `ty` implements `Deref` with
         // a `Target` that is in `self.ty_msrv_map`.
         if let Some(deref_trait_id) = self.cx.tcx.lang_items().deref_trait()
@@ -556,11 +519,9 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
         {
             return true;
         }
-
         false
     }
 }
-
 fn make_ty_msrv_map(tcx: TyCtxt<'_>) -> FxHashMap<Ty<'_>, Option<RustcVersion>> {
     [(sym::OsStr, Some(msrvs::OS_STR_DISPLAY)), (sym::Path, None)]
         .into_iter()
@@ -572,7 +533,6 @@ fn make_ty_msrv_map(tcx: TyCtxt<'_>) -> FxHashMap<Ty<'_>, Option<RustcVersion>> 
         })
         .collect()
 }
-
 fn count_needed_derefs<'tcx, I>(mut ty: Ty<'tcx>, mut iter: I) -> (usize, Ty<'tcx>)
 where
     I: Iterator<Item = &'tcx Adjustment<'tcx>>,

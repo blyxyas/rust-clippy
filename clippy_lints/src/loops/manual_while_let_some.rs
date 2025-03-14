@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_WHILE_LET_SOME;
 use clippy_utils::SpanlessEq;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet;
@@ -6,9 +9,6 @@ use rustc_hir::{Expr, ExprKind, Pat, Stmt, StmtKind, UnOp};
 use rustc_lint::LateContext;
 use rustc_span::{Span, Symbol, sym};
 use std::borrow::Cow;
-
-use super::MANUAL_WHILE_LET_SOME;
-
 /// The kind of statement that the `pop()` call appeared in.
 ///
 /// Depending on whether the value was assigned to a variable or not changes what pattern
@@ -24,7 +24,6 @@ enum PopStmt<'hir> {
     /// is replaced with that identifier.
     Anonymous,
 }
-
 fn report_lint(cx: &LateContext<'_>, pop_span: Span, pop_stmt_kind: PopStmt<'_>, loop_span: Span, receiver_span: Span) {
     span_lint_and_then(
         cx,
@@ -36,7 +35,6 @@ fn report_lint(cx: &LateContext<'_>, pop_span: Span, pop_stmt_kind: PopStmt<'_>,
                 PopStmt::Local(pat) => (snippet(cx, pat.span, ".."), String::new()),
                 PopStmt::Anonymous => (Cow::Borrowed("element"), "element".into()),
             };
-
             let loop_replacement = format!("while let Some({}) = {}.pop()", pat, snippet(cx, receiver_span, ".."));
             diag.multipart_suggestion(
                 "consider using a `while..let` loop",
@@ -46,7 +44,6 @@ fn report_lint(cx: &LateContext<'_>, pop_span: Span, pop_stmt_kind: PopStmt<'_>,
         },
     );
 }
-
 fn match_method_call<const ARGS_COUNT: usize>(cx: &LateContext<'_>, expr: &Expr<'_>, method: Symbol) -> bool {
     if let ExprKind::MethodCall(_, _, args, _) = expr.kind
         && args.len() == ARGS_COUNT
@@ -57,7 +54,6 @@ fn match_method_call<const ARGS_COUNT: usize>(cx: &LateContext<'_>, expr: &Expr<
         false
     }
 }
-
 fn is_vec_pop_unwrap(cx: &LateContext<'_>, expr: &Expr<'_>, is_empty_recv: &Expr<'_>) -> bool {
     if (match_method_call::<0>(cx, expr, sym::option_unwrap) || match_method_call::<1>(cx, expr, sym::option_expect))
         && let ExprKind::MethodCall(_, unwrap_recv, ..) = expr.kind
@@ -70,7 +66,6 @@ fn is_vec_pop_unwrap(cx: &LateContext<'_>, expr: &Expr<'_>, is_empty_recv: &Expr
         false
     }
 }
-
 fn check_local(cx: &LateContext<'_>, stmt: &Stmt<'_>, is_empty_recv: &Expr<'_>, loop_span: Span) {
     if let StmtKind::Let(local) = stmt.kind
         && let Some(init) = local.init
@@ -79,21 +74,18 @@ fn check_local(cx: &LateContext<'_>, stmt: &Stmt<'_>, is_empty_recv: &Expr<'_>, 
         report_lint(cx, stmt.span, PopStmt::Local(local.pat), loop_span, is_empty_recv.span);
     }
 }
-
 fn check_call_arguments(cx: &LateContext<'_>, stmt: &Stmt<'_>, is_empty_recv: &Expr<'_>, loop_span: Span) {
     if let StmtKind::Semi(expr) | StmtKind::Expr(expr) = stmt.kind {
         if let ExprKind::MethodCall(.., args, _) | ExprKind::Call(_, args) = expr.kind {
             let offending_arg = args
                 .iter()
                 .find_map(|arg| is_vec_pop_unwrap(cx, arg, is_empty_recv).then_some(arg.span));
-
             if let Some(offending_arg) = offending_arg {
                 report_lint(cx, offending_arg, PopStmt::Anonymous, loop_span, is_empty_recv.span);
             }
         }
     }
 }
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, full_cond: &'tcx Expr<'_>, body: &'tcx Expr<'_>, loop_span: Span) {
     if let ExprKind::Unary(UnOp::Not, cond) = full_cond.kind
         && let ExprKind::MethodCall(_, is_empty_recv, _, _) = cond.kind

@@ -1,21 +1,19 @@
+use crate::HVec;
+
+use super::MIXED_CASE_HEX_LITERALS;
 use clippy_utils::diagnostics::span_lint_and_help;
 use rustc_lint::EarlyContext;
 use rustc_span::Span;
-
-use super::MIXED_CASE_HEX_LITERALS;
-
 pub(super) fn check(cx: &EarlyContext<'_>, lit_span: Span, suffix: &str, lit_snip: &str) {
     let num_end_idx = match lit_snip.strip_suffix(suffix) {
         Some(p) if p.ends_with('_') => lit_snip.len() - (suffix.len() + 1),
         Some(_) => lit_snip.len() - suffix.len(),
         None => lit_snip.len(),
     };
-
     if num_end_idx <= 2 {
         // It's meaningless or causes range error.
         return;
     }
-
     let mut seen = (false, false);
     for ch in &lit_snip.as_bytes()[2..num_end_idx] {
         match ch {
@@ -36,7 +34,6 @@ pub(super) fn check(cx: &EarlyContext<'_>, lit_span: Span, suffix: &str, lit_sni
                     format!("0x{}_{}", raw_digits.to_uppercase(), suffix),
                 )
             };
-
             span_lint_and_help(
                 cx,
                 MIXED_CASE_HEX_LITERALS,

@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::BYTES_COUNT_TO_LEN;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::is_type_lang_item;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
-
-use super::BYTES_COUNT_TO_LEN;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx hir::Expr<'_>,

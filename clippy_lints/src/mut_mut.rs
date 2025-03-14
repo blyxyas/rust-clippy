@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint, span_lint_hir};
 use clippy_utils::higher;
 use rustc_hir::{self as hir, AmbigArg, intravisit};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for instances of `mut mut` references.
@@ -24,14 +25,11 @@ declare_clippy_lint! {
     pedantic,
     "usage of double-mut refs, e.g., `&mut &mut ...`"
 }
-
 declare_lint_pass!(MutMut => [MUT_MUT]);
-
 impl<'tcx> LateLintPass<'tcx> for MutMut {
     fn check_block(&mut self, cx: &LateContext<'tcx>, block: &'tcx hir::Block<'_>) {
         intravisit::walk_block(&mut MutVisitor { cx }, block);
     }
-
     fn check_ty(&mut self, cx: &LateContext<'tcx>, ty: &'tcx hir::Ty<'_, AmbigArg>) {
         if let hir::TyKind::Ref(_, mty) = ty.kind
             && mty.mutbl == hir::Mutability::Mut
@@ -48,17 +46,14 @@ impl<'tcx> LateLintPass<'tcx> for MutMut {
         }
     }
 }
-
 pub struct MutVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
 }
-
 impl<'tcx> intravisit::Visitor<'tcx> for MutVisitor<'_, 'tcx> {
     fn visit_expr(&mut self, expr: &'tcx hir::Expr<'_>) {
         if expr.span.in_external_macro(self.cx.sess().source_map()) {
             return;
         }
-
         if let Some(higher::ForLoop { arg, body, .. }) = higher::ForLoop::hir(expr) {
             // A `for` loop lowers to:
             // ```rust

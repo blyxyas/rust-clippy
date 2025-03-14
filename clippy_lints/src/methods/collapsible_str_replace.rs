@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::{COLLAPSIBLE_STR_REPLACE, method_call};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
 use clippy_utils::visitors::for_each_expr_without_closures;
@@ -7,9 +10,6 @@ use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
 use std::collections::VecDeque;
-
-use super::{COLLAPSIBLE_STR_REPLACE, method_call};
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx hir::Expr<'tcx>,
@@ -28,16 +28,13 @@ pub(super) fn check<'tcx>(
         {
             return;
         }
-
         check_consecutive_replace_calls(cx, expr, &replace_methods, to);
     }
 }
-
 struct ReplaceMethods<'tcx> {
     methods: VecDeque<&'tcx hir::Expr<'tcx>>,
     from_args: VecDeque<&'tcx hir::Expr<'tcx>>,
 }
-
 fn collect_replace_calls<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx hir::Expr<'tcx>,
@@ -45,7 +42,6 @@ fn collect_replace_calls<'tcx>(
 ) -> ReplaceMethods<'tcx> {
     let mut methods = VecDeque::new();
     let mut from_args = VecDeque::new();
-
     let _: Option<()> = for_each_expr_without_closures(expr, |e| {
         if let Some(("replace", _, [from, to], _, _)) = method_call(e) {
             if eq_expr_value(cx, to_arg, to) && cx.typeck_results().expr_ty(from).peel_refs().is_char() {
@@ -59,10 +55,8 @@ fn collect_replace_calls<'tcx>(
             ControlFlow::Continue(())
         }
     });
-
     ReplaceMethods { methods, from_args }
 }
-
 /// Check a chain of `str::replace` calls for `collapsible_str_replace` lint.
 fn check_consecutive_replace_calls<'tcx>(
     cx: &LateContext<'tcx>,

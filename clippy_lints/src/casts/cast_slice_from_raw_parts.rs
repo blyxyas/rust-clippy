@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::CAST_SLICE_FROM_RAW_PARTS;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source::snippet_with_context;
@@ -7,14 +10,10 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::sym;
-
-use super::CAST_SLICE_FROM_RAW_PARTS;
-
 enum RawPartsKind {
     Immutable,
     Mutable,
 }
-
 fn raw_parts_kind(cx: &LateContext<'_>, did: DefId) -> Option<RawPartsKind> {
     match cx.tcx.get_diagnostic_name(did)? {
         sym::slice_from_raw_parts => Some(RawPartsKind::Immutable),
@@ -22,7 +21,6 @@ fn raw_parts_kind(cx: &LateContext<'_>, did: DefId) -> Option<RawPartsKind> {
         _ => None,
     }
 }
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, cast_expr: &Expr<'_>, cast_to: Ty<'_>, msrv: Msrv) {
     if let ty::RawPtr(ptrty, _) = cast_to.kind()
         && let ty::Slice(_) = ptrty.kind()

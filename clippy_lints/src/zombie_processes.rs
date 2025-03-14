@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use ControlFlow::{Break, Continue};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::{fn_def_id, get_enclosing_block, path_to_local_id};
@@ -11,7 +13,6 @@ use rustc_middle::hir::nested_filter;
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
 use std::ops::ControlFlow;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for code that spawns a process but never calls `wait()` on the child.
@@ -53,7 +54,6 @@ declare_clippy_lint! {
     "not waiting on a spawned child process"
 }
 declare_lint_pass!(ZombieProcesses => [ZOMBIE_PROCESSES]);
-
 impl<'tcx> LateLintPass<'tcx> for ZombieProcesses {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let ExprKind::Call(..) | ExprKind::MethodCall(..) = expr.kind
@@ -72,13 +72,11 @@ impl<'tcx> LateLintPass<'tcx> for ZombieProcesses {
                         early_return: None,
                         missing_wait_branch: None,
                     };
-
                     let res = (
                         walk_block(&mut vis, enclosing_block),
                         vis.missing_wait_branch,
                         vis.early_return,
                     );
-
                     let cause = match res {
                         (Break(MaybeWait(wait_span)), _, Some(return_span)) => {
                             Cause::EarlyReturn { wait_span, return_span }
@@ -92,7 +90,6 @@ impl<'tcx> LateLintPass<'tcx> for ZombieProcesses {
                             Cause::MissingWaitInBranch { wait_span, branch_span }
                         },
                     };
-
                     // Don't emit a suggestion since the binding is used later
                     check(cx, expr, cause, false);
                 },
@@ -112,9 +109,7 @@ impl<'tcx> LateLintPass<'tcx> for ZombieProcesses {
         }
     }
 }
-
 struct MaybeWait(Span);
-
 /// A visitor responsible for finding a `wait()` call on a local variable.
 ///
 /// Note that this visitor does NOT explicitly look for `wait()` calls directly, but rather does the
@@ -135,23 +130,19 @@ struct WaitFinder<'a, 'tcx> {
     // messages
     missing_wait_branch: Option<MissingWaitBranch>,
 }
-
 #[derive(PartialEq)]
 enum VisitorState {
     WalkUpToLocal,
     LocalFound,
 }
-
 #[derive(Copy, Clone)]
 enum MissingWaitBranch {
     MissingElse { if_span: Span, wait_span: Span },
     MissingWaitInBranch { branch_span: Span, wait_span: Span },
 }
-
 impl<'tcx> Visitor<'tcx> for WaitFinder<'_, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
     type Result = ControlFlow<MaybeWait>;
-
     fn visit_local(&mut self, l: &'tcx LetStmt<'tcx>) -> Self::Result {
         if self.state == VisitorState::WalkUpToLocal
             && let PatKind::Binding(_, pat_id, ..) = l.pat.kind
@@ -159,15 +150,12 @@ impl<'tcx> Visitor<'tcx> for WaitFinder<'_, 'tcx> {
         {
             self.state = VisitorState::LocalFound;
         }
-
         walk_local(self, l)
     }
-
     fn visit_expr(&mut self, ex: &'tcx Expr<'tcx>) -> Self::Result {
         if self.state != VisitorState::LocalFound {
             return walk_expr(self, ex);
         }
-
         if path_to_local_id(ex, self.local_id) {
             match self.cx.tcx.parent_hir_node(ex.hir_id) {
                 Node::Stmt(Stmt {
@@ -180,7 +168,6 @@ impl<'tcx> Visitor<'tcx> for WaitFinder<'_, 'tcx> {
                     if let Some(fn_did) = fn_def_id(self.cx, expr)
                         && (self.cx.tcx.is_diagnostic_item(sym::child_id, fn_did)
                             || self.cx.tcx.is_diagnostic_item(sym::child_kill, fn_did)) => {},
-
                 // Conservatively assume that all other kinds of nodes call `.wait()` somehow.
                 _ => return Break(MaybeWait(ex.span)),
             }
@@ -191,12 +178,10 @@ impl<'tcx> Visitor<'tcx> for WaitFinder<'_, 'tcx> {
                     if self.early_return.is_none() {
                         self.early_return = Some(ex.span);
                     }
-
                     return Continue(());
                 },
                 ExprKind::If(cond, then, None) => {
                     walk_expr(self, cond)?;
-
                     if let Break(MaybeWait(wait_span)) = walk_expr(self, then)
                         && self.missing_wait_branch.is_none()
                     {
@@ -205,16 +190,12 @@ impl<'tcx> Visitor<'tcx> for WaitFinder<'_, 'tcx> {
                             wait_span,
                         });
                     }
-
                     return Continue(());
                 },
-
                 ExprKind::If(cond, then, Some(else_)) => {
                     walk_expr(self, cond)?;
-
                     match (walk_expr(self, then), walk_expr(self, else_)) {
                         (Continue(()), Continue(())) => {},
-
                         // `wait()` in one branch but nothing in the other does not count
                         (Continue(()), Break(MaybeWait(wait_span))) => {
                             if self.missing_wait_branch.is_none() {
@@ -232,28 +213,23 @@ impl<'tcx> Visitor<'tcx> for WaitFinder<'_, 'tcx> {
                                 });
                             }
                         },
-
                         // `wait()` in both branches is ok
                         (Break(MaybeWait(wait_span)), Break(MaybeWait(_))) => {
                             self.missing_wait_branch = None;
                             return Break(MaybeWait(wait_span));
                         },
                     }
-
                     return Continue(());
                 },
                 _ => {},
             }
         }
-
         walk_expr(self, ex)
     }
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }
 }
-
 #[derive(Copy, Clone)]
 enum Cause {
     /// No call to `wait()` at all
@@ -266,7 +242,6 @@ enum Cause {
     /// `wait()` call exists in an if/then branch but it is missing an else block
     MissingElse { wait_span: Span, if_span: Span },
 }
-
 impl Cause {
     fn message(self) -> &'static str {
         match self {
@@ -276,7 +251,6 @@ impl Cause {
             },
         }
     }
-
     fn fallback_help(self) -> &'static str {
         match self {
             Cause::NeverWait => "consider calling `.wait()`",
@@ -286,7 +260,6 @@ impl Cause {
         }
     }
 }
-
 /// This function has shared logic between the different kinds of nodes that can trigger the lint.
 ///
 /// In particular, `let <binding> = <expr that spawns child>;` requires some custom additional logic
@@ -298,7 +271,6 @@ fn check<'tcx>(cx: &LateContext<'tcx>, spawn_expr: &'tcx Expr<'tcx>, cause: Caus
     let Some(block) = get_enclosing_block(cx, spawn_expr.hir_id) else {
         return;
     };
-
     let mut vis = ExitPointFinder {
         state: ExitPointState::WalkUpTo(spawn_expr.hir_id),
         cx,
@@ -307,7 +279,6 @@ fn check<'tcx>(cx: &LateContext<'tcx>, spawn_expr: &'tcx Expr<'tcx>, cause: Caus
         // Visitor found an unconditional `exit()` call, so don't lint.
         return;
     }
-
     span_lint_and_then(cx, ZOMBIE_PROCESSES, spawn_expr.span, cause.message(), |diag| {
         match cause {
             Cause::EarlyReturn { wait_span, return_span } => {
@@ -333,7 +304,6 @@ fn check<'tcx>(cx: &LateContext<'tcx>, spawn_expr: &'tcx Expr<'tcx>, cause: Caus
             },
             Cause::NeverWait => {},
         }
-
         if emit_suggestion {
             diag.span_suggestion(
                 spawn_expr.span.shrink_to_hi(),
@@ -344,19 +314,16 @@ fn check<'tcx>(cx: &LateContext<'tcx>, spawn_expr: &'tcx Expr<'tcx>, cause: Caus
         } else {
             diag.help(cause.fallback_help());
         }
-
         diag.note("not doing so might leave behind zombie processes")
             .note("see https://doc.rust-lang.org/stable/std/process/struct.Child.html#warning");
     });
 }
-
 /// Checks if the given expression exits the process.
 fn is_exit_expression(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     fn_def_id(cx, expr).is_some_and(|fn_did| {
         cx.tcx.is_diagnostic_item(sym::process_exit, fn_did) || cx.tcx.is_diagnostic_item(sym::process_abort, fn_did)
     })
 }
-
 #[derive(Debug)]
 enum ExitPointState {
     /// Still walking up to the expression that initiated the visitor.
@@ -388,21 +355,16 @@ enum ExitPointState {
     /// No exit call found yet, but looking for one.
     NoExit,
 }
-
 fn expr_enters_control_flow(expr: &Expr<'_>) -> bool {
     matches!(expr.kind, ExprKind::If(..) | ExprKind::Match(..) | ExprKind::Loop(..))
 }
-
 struct ExitPointFinder<'a, 'tcx> {
     state: ExitPointState,
     cx: &'a LateContext<'tcx>,
 }
-
 struct ExitCallFound;
-
 impl<'tcx> Visitor<'tcx> for ExitPointFinder<'_, 'tcx> {
     type Result = ControlFlow<ExitCallFound>;
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'tcx>) -> Self::Result {
         match self.state {
             ExitPointState::WalkUpTo(id) if expr.hir_id == id => {

@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, Ty};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects expressions where
@@ -28,9 +29,7 @@ declare_clippy_lint! {
     correctness,
     "using `size_of::<T>` or `size_of_val::<T>` where a count of elements of `T` is expected"
 }
-
 declare_lint_pass!(SizeOfInElementCount => [SIZE_OF_IN_ELEMENT_COUNT]);
-
 fn get_size_of_ty<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, inverted: bool) -> Option<Ty<'tcx>> {
     match expr.kind {
         ExprKind::Call(count_func, _) => {
@@ -57,7 +56,6 @@ fn get_size_of_ty<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, inverted: 
         _ => None,
     }
 }
-
 fn get_pointee_ty_and_count_expr<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -74,7 +72,6 @@ fn get_pointee_ty_and_count_expr<'tcx>(
         "offset",
         "wrapping_offset",
     ];
-
     if let ExprKind::Call(func, [.., count]) = expr.kind
         // Find calls to ptr::{copy, copy_nonoverlapping}
         // and ptr::swap_nonoverlapping,
@@ -89,7 +86,6 @@ fn get_pointee_ty_and_count_expr<'tcx>(
             | sym::slice_from_raw_parts
             | sym::slice_from_raw_parts_mut
         ))
-
         // Get the pointee type
         && let Some(pointee_ty) = cx.typeck_results().node_args(func.hir_id).types().next()
     {
@@ -99,7 +95,6 @@ fn get_pointee_ty_and_count_expr<'tcx>(
         // Find calls to copy_{from,to}{,_nonoverlapping}
         && let method_ident = method_path.ident.as_str()
         && METHODS.contains(&method_ident)
-
         // Get the pointee type
         && let ty::RawPtr(pointee_ty, _) =
             cx.typeck_results().expr_ty(ptr_self).kind()
@@ -108,21 +103,17 @@ fn get_pointee_ty_and_count_expr<'tcx>(
     }
     None
 }
-
 impl<'tcx> LateLintPass<'tcx> for SizeOfInElementCount {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         const HELP_MSG: &str = "use a count of elements instead of a count of bytes\
             , it already gets multiplied by the size of the type";
-
         const LINT_MSG: &str = "found a count of bytes \
              instead of a count of elements of `T`";
-
         if let Some((pointee_ty, count_expr)) = get_pointee_ty_and_count_expr(cx, expr)
             // Using a number of bytes for a byte type isn't suspicious
             && pointee_ty != cx.tcx.types.u8
             // Find calls to functions with an element count parameter and get
             // the pointee type and count parameter expression
-
             // Find a size_of call in the count parameter expression and
             // check that it's the same type
             && let Some(ty_used_for_size_of) = get_size_of_ty(cx, count_expr, false)

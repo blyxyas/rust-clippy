@@ -1,3 +1,5 @@
+use crate::HVec;
+
 mod empty_loop;
 mod explicit_counter_loop;
 mod explicit_into_iter_loop;
@@ -22,7 +24,6 @@ mod while_float;
 mod while_immutable_condition;
 mod while_let_loop;
 mod while_let_on_iterator;
-
 use clippy_config::Conf;
 use clippy_utils::higher;
 use clippy_utils::msrvs::Msrv;
@@ -32,7 +33,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use utils::{IncrementVisitor, InitializeVisitor, make_iterator_snippet};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for for-loops that manually copy items between
@@ -61,7 +61,6 @@ declare_clippy_lint! {
     perf,
     "manually copying items between slices"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for looping over the range of `0..len` of some
@@ -92,7 +91,6 @@ declare_clippy_lint! {
     style,
     "for-looping over a range of indices where an iterator over items would do"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for loops on `x.iter()` where `&x` will do, and
@@ -126,7 +124,6 @@ declare_clippy_lint! {
     pedantic,
     "for-looping over `_.iter()` or `_.iter_mut()` when `&_` or `&mut _` would do"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for loops on `y.into_iter()` where `y` will do, and
@@ -155,7 +152,6 @@ declare_clippy_lint! {
     pedantic,
     "for-looping over `_.into_iter()` when `_` would do"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for loops on `x.next()`.
@@ -179,7 +175,6 @@ declare_clippy_lint! {
     correctness,
     "for-looping over `_.next()` which is probably not intended"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects `loop + match` combinations that are easier
@@ -212,7 +207,6 @@ declare_clippy_lint! {
     complexity,
     "`loop { if let { ... } else break }`, which can be written as a `while let` loop"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks `for` loops over slices with an explicit counter
@@ -244,7 +238,6 @@ declare_clippy_lint! {
     complexity,
     "for-looping with an explicit counter when `_.enumerate()` would do"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for empty `loop` expressions.
@@ -278,7 +271,6 @@ declare_clippy_lint! {
     suspicious,
     "empty `loop {}`, which should block or sleep"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `while let` expressions on iterators.
@@ -305,7 +297,6 @@ declare_clippy_lint! {
     style,
     "using a `while let` loop instead of a for loop on an iterator"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for iterating a map (`HashMap` or `BTreeMap`) and
@@ -334,7 +325,6 @@ declare_clippy_lint! {
     style,
     "looping on a map using `iter` when `keys` or `values` would do"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for loops that will always `break`, `return` or
@@ -356,7 +346,6 @@ declare_clippy_lint! {
     correctness,
     "any loop that will always `break` or `return`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for loops with a range bound that is a mutable variable.
@@ -392,7 +381,6 @@ declare_clippy_lint! {
     suspicious,
     "for loop over a range where one of the bounds is a mutable variable"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks whether variables used within while loop condition
@@ -419,7 +407,6 @@ declare_clippy_lint! {
     correctness,
     "variables used within while expression are not mutated in the body"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for while loops comparing floating point values.
@@ -452,7 +439,6 @@ declare_clippy_lint! {
     nursery,
     "while loops comparing floating point values"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks whether a for loop is being used to push a constant
@@ -488,7 +474,6 @@ declare_clippy_lint! {
     style,
     "the same item is pushed inside of a for loop"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks whether a for loop has a single element.
@@ -516,7 +501,6 @@ declare_clippy_lint! {
     complexity,
     "there is no reason to have a single element loop"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnecessary `if let` usage in a for loop
@@ -548,7 +532,6 @@ declare_clippy_lint! {
     complexity,
     "for loops over `Option`s or `Result`s with a single expression can be simplified"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for empty spin loops
@@ -584,7 +567,6 @@ declare_clippy_lint! {
     perf,
     "An empty busy waiting loop"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for manual implementations of Iterator::find
@@ -615,7 +597,6 @@ declare_clippy_lint! {
     complexity,
     "manual implementation of `Iterator::find`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for uses of the `enumerate` method where the index is unused (`_`)
@@ -642,7 +623,6 @@ declare_clippy_lint! {
     style,
     "using `.enumerate()` and immediately dropping the index"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for loops that check for emptiness of a `Vec` in the condition and pop an element
@@ -672,7 +652,6 @@ declare_clippy_lint! {
     style,
     "checking for emptiness of a `Vec` in the loop condition and popping an element in the body"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for infinite loops in a function where the return type is not `!`
@@ -714,7 +693,6 @@ declare_clippy_lint! {
     restriction,
     "possibly unintended infinite loop"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for manually filling a slice with a value.
@@ -739,7 +717,6 @@ declare_clippy_lint! {
     style,
     "manually filling a slice with a value"
 }
-
 pub struct Loops {
     msrv: Msrv,
     enforce_iter_loop_reborrow: bool,
@@ -752,7 +729,6 @@ impl Loops {
         }
     }
 }
-
 impl_lint_pass!(Loops => [
     MANUAL_MEMCPY,
     MANUAL_FLATTEN,
@@ -778,7 +754,6 @@ impl_lint_pass!(Loops => [
     INFINITE_LOOP,
     MANUAL_SLICE_FILL,
 ]);
-
 impl<'tcx> LateLintPass<'tcx> for Loops {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         let for_loop = higher::ForLoop::hir(expr);
@@ -802,17 +777,14 @@ impl<'tcx> LateLintPass<'tcx> for Loops {
                 never_loop::check(cx, block, loop_id, span, for_loop.as_ref());
             }
         }
-
         // we don't want to check expanded macros
         if expr.span.from_expansion() {
             return;
         }
-
         // check for never_loop
         if let ExprKind::Loop(block, ..) = expr.kind {
             never_loop::check(cx, block, expr.hir_id, expr.span, None);
         }
-
         // check for `loop { if let {} else break }` that could be `while let`
         // (also matches an explicit "match" instead of "if let")
         // (even if the "match" or "if let" is used for declaration)
@@ -822,9 +794,7 @@ impl<'tcx> LateLintPass<'tcx> for Loops {
             while_let_loop::check(cx, expr, block);
             infinite_loop::check(cx, expr, block, label);
         }
-
         while_let_on_iterator::check(cx, expr);
-
         if let Some(higher::While { condition, body, span }) = higher::While::hir(expr) {
             while_immutable_condition::check(cx, condition, body);
             while_float::check(cx, condition);
@@ -833,7 +803,6 @@ impl<'tcx> LateLintPass<'tcx> for Loops {
         }
     }
 }
-
 impl Loops {
     #[allow(clippy::too_many_arguments)]
     fn check_for_loop<'tcx>(
@@ -861,7 +830,6 @@ impl Loops {
         manual_find::check(cx, pat, arg, body, span, expr);
         unused_enumerate_index::check(cx, pat, arg, body);
     }
-
     fn check_for_loop_arg(&self, cx: &LateContext<'_>, _: &Pat<'_>, arg: &Expr<'_>) {
         if let ExprKind::MethodCall(method, self_arg, [], _) = arg.kind {
             match method.ident.as_str() {

@@ -1,9 +1,10 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::is_from_proc_macro;
 use rustc_hir::{LetStmt, TyKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects when a variable is declared with an explicit type of `_`.
@@ -23,7 +24,6 @@ declare_clippy_lint! {
     "unneeded underscore type (`_`) in a variable declaration"
 }
 declare_lint_pass!(UnderscoreTyped => [LET_WITH_TYPE_UNDERSCORE]);
-
 impl<'tcx> LateLintPass<'tcx> for UnderscoreTyped {
     fn check_local(&mut self, cx: &LateContext<'tcx>, local: &'tcx LetStmt<'_>) {
         if let Some(ty) = local.ty // Ensure that it has a type defined

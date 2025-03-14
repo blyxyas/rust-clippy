@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::UNNECESSARY_TO_OWNED;
 use super::implicit_clone::is_clone_like;
 use super::unnecessary_iter_cloned::{self, is_into_iter};
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
@@ -23,9 +26,6 @@ use rustc_middle::ty::{
 use rustc_span::{Symbol, sym};
 use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _;
 use rustc_trait_selection::traits::{Obligation, ObligationCause};
-
-use super::UNNECESSARY_TO_OWNED;
-
 pub fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -62,7 +62,6 @@ pub fn check<'tcx>(
         check_borrow_predicate(cx, expr);
     }
 }
-
 /// Checks whether `expr` is a referent in an `AddrOf` expression and, if so, determines whether its
 /// call of a `to_owned`-like function is unnecessary.
 #[allow(clippy::too_many_lines)]
@@ -200,7 +199,6 @@ fn check_addr_of_expr(
     }
     false
 }
-
 /// Checks whether `expr` is an argument in an `into_iter` call and, if so, determines whether its
 /// call of a `to_owned`-like function is unnecessary.
 fn check_into_iter_call_arg(
@@ -226,7 +224,6 @@ fn check_into_iter_call_arg(
         if unnecessary_iter_cloned::check_for_loop_iter(cx, parent, method_name, receiver, true) {
             return true;
         }
-
         let cloned_or_copied = if is_copy(cx, item_ty) && msrv.meets(cx, msrvs::ITERATOR_COPIED) {
             "copied"
         } else {
@@ -248,7 +245,6 @@ fn check_into_iter_call_arg(
     }
     false
 }
-
 /// Checks for `&String::from_utf8(bytes.{to_vec,to_owned,...}()).unwrap()` coercing to `&str`,
 /// which can be written as just `std::str::from_utf8(bytes).unwrap()`.
 fn check_string_from_utf8<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, receiver: &'tcx Expr<'tcx>) -> bool {
@@ -281,7 +277,6 @@ fn check_string_from_utf8<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, 
                         "&"
                     }
                 );
-
                 diag.multipart_suggestion(
                     "convert from `&[u8]` to `&str` directly",
                     vec![
@@ -307,7 +302,6 @@ fn check_string_from_utf8<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, 
         false
     }
 }
-
 /// Checks whether `expr` is an argument in an `into_iter` call and, if so, determines whether its
 /// call of a `to_owned`-like function is unnecessary.
 fn check_split_call_arg(cx: &LateContext<'_>, expr: &Expr<'_>, method_name: Symbol, receiver: &Expr<'_>) -> bool {
@@ -329,7 +323,6 @@ fn check_split_call_arg(cx: &LateContext<'_>, expr: &Expr<'_>, method_name: Symb
         } else {
             ""
         };
-
         // The next suggestion may be incorrect because the removal of the `to_owned`-like
         // function could cause the iterator to hold a reference to a resource that is used
         // mutably. See https://github.com/rust-lang/rust-clippy/issues/8148.
@@ -346,7 +339,6 @@ fn check_split_call_arg(cx: &LateContext<'_>, expr: &Expr<'_>, method_name: Symb
     }
     false
 }
-
 fn get_fn_name_and_arg<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> Option<(Symbol, Expr<'tcx>)> {
     match &expr.kind {
         ExprKind::MethodCall(path, _, [arg_expr], ..) => Some((path.ident.name, *arg_expr)),
@@ -372,7 +364,6 @@ fn get_fn_name_and_arg<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> Optio
         _ => None,
     }
 }
-
 /// Checks whether `expr` is an argument in a function call and, if so, determines whether its call
 /// of a `to_owned`-like function is unnecessary.
 fn check_other_call_arg<'tcx>(
@@ -425,7 +416,6 @@ fn check_other_call_arg<'tcx>(
     }
     false
 }
-
 /// Walks an expression's ancestors until it finds a non-`AddrOf` expression. Returns the first such
 /// expression found (if any) along with the immediately prior expression.
 fn skip_addr_of_ancestors<'tcx>(
@@ -441,7 +431,6 @@ fn skip_addr_of_ancestors<'tcx>(
     }
     None
 }
-
 /// Checks whether an expression is a function or method call and, if so, returns its `DefId`,
 /// `GenericArgs`, and arguments.
 fn get_callee_generic_args_and_args<'tcx>(
@@ -468,7 +457,6 @@ fn get_callee_generic_args_and_args<'tcx>(
     }
     None
 }
-
 /// Returns the `TraitPredicate`s and `ProjectionPredicate`s for a function's input type.
 fn get_input_traits_and_projections<'tcx>(
     cx: &LateContext<'tcx>,
@@ -494,7 +482,6 @@ fn get_input_traits_and_projections<'tcx>(
     }
     (trait_predicates, projection_predicates)
 }
-
 #[expect(clippy::too_many_lines)]
 fn can_change_type<'a>(cx: &LateContext<'a>, mut expr: &'a Expr<'a>, mut ty: Ty<'a>) -> bool {
     for (_, node) in cx.tcx.hir_parent_iter(expr.hir_id) {
@@ -543,7 +530,6 @@ fn can_change_type<'a>(cx: &LateContext<'a>, mut expr: &'a Expr<'a>, mut ty: Ty<
                         {
                             return false;
                         }
-
                         let mut trait_predicates =
                             cx.tcx
                                 .param_env(callee_def_id)
@@ -558,7 +544,6 @@ fn can_change_type<'a>(cx: &LateContext<'a>, mut expr: &'a Expr<'a>, mut ty: Ty<
                                         false
                                     }
                                 });
-
                         let new_subst = cx
                             .tcx
                             .mk_args_from_iter(call_generic_args.iter().enumerate().map(|(i, t)| {
@@ -568,7 +553,6 @@ fn can_change_type<'a>(cx: &LateContext<'a>, mut expr: &'a Expr<'a>, mut ty: Ty<
                                     t
                                 }
                             }));
-
                         if trait_predicates.any(|predicate| {
                             let predicate = bound_fn_sig.rebind(predicate).instantiate(cx.tcx, new_subst);
                             let obligation = Obligation::new(cx.tcx, ObligationCause::dummy(), cx.param_env, predicate);
@@ -579,7 +563,6 @@ fn can_change_type<'a>(cx: &LateContext<'a>, mut expr: &'a Expr<'a>, mut ty: Ty<
                         }) {
                             return false;
                         }
-
                         let output_ty = cx.tcx.instantiate_bound_regions_with_erased(fn_sig.output());
                         if output_ty.contains(param_ty) {
                             if let Ok(new_ty) = cx.tcx.try_instantiate_and_normalize_erasing_regions(
@@ -593,7 +576,6 @@ fn can_change_type<'a>(cx: &LateContext<'a>, mut expr: &'a Expr<'a>, mut ty: Ty<
                             }
                             return false;
                         }
-
                         return true;
                     }
                 } else if let ExprKind::Block(..) = parent_expr.kind {
@@ -604,20 +586,16 @@ fn can_change_type<'a>(cx: &LateContext<'a>, mut expr: &'a Expr<'a>, mut ty: Ty<
             _ => return false,
         }
     }
-
     false
 }
-
 fn has_lifetime(ty: Ty<'_>) -> bool {
     ty.walk().any(|t| matches!(t.unpack(), GenericArgKind::Lifetime(_)))
 }
-
 /// Returns true if the named method is `Iterator::cloned` or `Iterator::copied`.
 fn is_cloned_or_copied(cx: &LateContext<'_>, method_name: Symbol, method_def_id: DefId) -> bool {
     (method_name.as_str() == "cloned" || method_name.as_str() == "copied")
         && is_diag_trait_item(cx, method_def_id, sym::Iterator)
 }
-
 /// Returns true if the named method can be used to convert the receiver to its "owned"
 /// representation.
 fn is_to_owned_like<'a>(cx: &LateContext<'a>, call_expr: &Expr<'a>, method_name: Symbol, method_def_id: DefId) -> bool {
@@ -625,12 +603,10 @@ fn is_to_owned_like<'a>(cx: &LateContext<'a>, call_expr: &Expr<'a>, method_name:
         || is_cow_into_owned(cx, method_name, method_def_id)
         || is_to_string_on_string_like(cx, call_expr, method_name, method_def_id)
 }
-
 /// Returns true if the named method is `Cow::into_owned`.
 fn is_cow_into_owned(cx: &LateContext<'_>, method_name: Symbol, method_def_id: DefId) -> bool {
     method_name.as_str() == "into_owned" && is_diag_item_method(cx, method_def_id, sym::Cow)
 }
-
 /// Returns true if the named method is `ToString::to_string` and it's called on a type that
 /// is string-like i.e. implements `AsRef<str>` or `Deref<Target = str>`.
 fn is_to_string_on_string_like<'a>(
@@ -642,7 +618,6 @@ fn is_to_string_on_string_like<'a>(
     if method_name != sym::to_string || !is_diag_trait_item(cx, method_def_id, sym::ToString) {
         return false;
     }
-
     if let Some(args) = cx.typeck_results().node_args_opt(call_expr.hir_id)
         && let [generic_arg] = args.as_slice()
         && let GenericArgKind::Type(ty) = generic_arg.unpack()
@@ -656,23 +631,19 @@ fn is_to_string_on_string_like<'a>(
         false
     }
 }
-
 fn is_a_std_map_type(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
     is_type_diagnostic_item(cx, ty, sym::HashSet)
         || is_type_diagnostic_item(cx, ty, sym::HashMap)
         || is_type_diagnostic_item(cx, ty, sym::BTreeMap)
         || is_type_diagnostic_item(cx, ty, sym::BTreeSet)
 }
-
 fn is_str_and_string(cx: &LateContext<'_>, arg_ty: Ty<'_>, original_arg_ty: Ty<'_>) -> bool {
     original_arg_ty.is_str() && is_type_lang_item(cx, arg_ty, LangItem::String)
 }
-
 fn is_slice_and_vec(cx: &LateContext<'_>, arg_ty: Ty<'_>, original_arg_ty: Ty<'_>) -> bool {
     (original_arg_ty.is_slice() || original_arg_ty.is_array() || original_arg_ty.is_array_slice())
         && is_type_diagnostic_item(cx, arg_ty, sym::Vec)
 }
-
 // This function will check the following:
 // 1. The argument is a non-mutable reference.
 // 2. It calls `to_owned()`, `to_string()` or `to_vec()`.
@@ -717,7 +688,6 @@ fn check_if_applicable_to_argument<'tcx>(cx: &LateContext<'tcx>, arg: &Expr<'tcx
         );
     }
 }
-
 // In std "map types", the getters all expect a `Borrow<Key>` generic argument. So in here, we
 // check that:
 // 1. This is a method with only one argument that doesn't come from a trait.

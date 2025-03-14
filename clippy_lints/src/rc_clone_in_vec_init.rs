@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::higher::VecArgs;
 use clippy_utils::last_path_segment;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, Symbol, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for reference-counted pointers (`Arc`, `Rc`, `rc::Weak`, and `sync::Weak`)
@@ -46,7 +47,6 @@ declare_clippy_lint! {
     "initializing reference-counted pointer in `vec![elem; len]`"
 }
 declare_lint_pass!(RcCloneInVecInit => [RC_CLONE_IN_VEC_INIT]);
-
 impl LateLintPass<'_> for RcCloneInVecInit {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         let Some(macro_call) = root_macro_call_first_node(cx, expr) else {
@@ -58,11 +58,9 @@ impl LateLintPass<'_> for RcCloneInVecInit {
         let Some((symbol, func_span)) = ref_init(cx, elem) else {
             return;
         };
-
         emit_lint(cx, symbol, macro_call.span, elem, len, func_span);
     }
 }
-
 fn loop_init_suggestion(elem: &str, len: &str, indent: &str) -> String {
     format!(
         r"{{
@@ -72,7 +70,6 @@ fn loop_init_suggestion(elem: &str, len: &str, indent: &str) -> String {
 {indent}}}"
     )
 }
-
 fn extract_suggestion(elem: &str, len: &str, indent: &str) -> String {
     format!(
         "{{
@@ -81,10 +78,8 @@ fn extract_suggestion(elem: &str, len: &str, indent: &str) -> String {
 {indent}}}"
     )
 }
-
 fn emit_lint(cx: &LateContext<'_>, symbol: Symbol, lint_span: Span, elem: &Expr<'_>, len: &Expr<'_>, func_span: Span) {
     let symbol_name = symbol.as_str();
-
     span_lint_and_then(
         cx,
         RC_CLONE_IN_VEC_INIT,
@@ -96,7 +91,6 @@ fn emit_lint(cx: &LateContext<'_>, symbol: Symbol, lint_span: Span, elem: &Expr<
             let indentation = " ".repeat(indent_of(cx, lint_span).unwrap_or(0));
             let loop_init_suggestion = loop_init_suggestion(&elem_snippet, len_snippet.as_ref(), &indentation);
             let extract_suggestion = extract_suggestion(&elem_snippet, len_snippet.as_ref(), &indentation);
-
             diag.note(format!("each element will point to the same `{symbol_name}` instance"));
             diag.span_suggestion(
                 lint_span,
@@ -115,7 +109,6 @@ fn emit_lint(cx: &LateContext<'_>, symbol: Symbol, lint_span: Span, elem: &Expr<
         },
     );
 }
-
 /// Checks whether the given `expr` is a call to `Arc::new`, `Rc::new`, or evaluates to a `Weak`
 fn ref_init(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<(Symbol, Span)> {
     if let ExprKind::Call(func, _args) = expr.kind
@@ -131,13 +124,11 @@ fn ref_init(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<(Symbol, Span)> {
         {
             return Some((symbol, func.span));
         }
-
         if let ty::Adt(adt, _) = *cx.typeck_results().expr_ty(expr).kind()
             && matches!(cx.tcx.get_diagnostic_name(adt.did()), Some(sym::RcWeak | sym::ArcWeak))
         {
             return Some((Symbol::intern("Weak"), func.span));
         }
     }
-
     None
 }

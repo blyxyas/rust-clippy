@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::OPTION_AS_REF_DEREF;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source::snippet;
@@ -8,9 +11,6 @@ use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::{Symbol, sym};
-
-use super::OPTION_AS_REF_DEREF;
-
 /// lint use of `_.as_ref().map(Deref::deref)` for `Option`s
 pub(super) fn check(
     cx: &LateContext<'_>,
@@ -21,12 +21,10 @@ pub(super) fn check(
     msrv: Msrv,
 ) {
     let same_mutability = |m| (is_mut && m == &hir::Mutability::Mut) || (!is_mut && m == &hir::Mutability::Not);
-
     let option_ty = cx.typeck_results().expr_ty(as_ref_recv);
     if !is_type_diagnostic_item(cx, option_ty, sym::Option) {
         return;
     }
-
     let deref_aliases: [Symbol; 7] = [
         sym::cstring_as_c_str,
         sym::os_string_as_os_str,
@@ -36,7 +34,6 @@ pub(super) fn check(
         sym::vec_as_slice,
         sym::vec_as_mut_slice,
     ];
-
     let is_deref = match map_arg.kind {
         hir::ExprKind::Path(ref expr_qpath) => {
             cx.qpath_res(expr_qpath, map_arg.hir_id)
@@ -52,7 +49,6 @@ pub(super) fn check(
         hir::ExprKind::Closure(&hir::Closure { body, .. }) => {
             let closure_body = cx.tcx.hir_body(body);
             let closure_expr = peel_blocks(closure_body.value);
-
             match &closure_expr.kind {
                 hir::ExprKind::MethodCall(_, receiver, [], _) => {
                     if path_to_local_id(receiver, closure_body.params[0].pat.hir_id)
@@ -88,7 +84,6 @@ pub(super) fn check(
         },
         _ => false,
     };
-
     if is_deref && msrv.meets(cx, msrvs::OPTION_AS_DEREF) {
         let current_method = if is_mut {
             format!(".as_mut().map({})", snippet(cx, map_arg.span, ".."))
@@ -98,7 +93,6 @@ pub(super) fn check(
         let method_hint = if is_mut { "as_deref_mut" } else { "as_deref" };
         let hint = format!("{}.{method_hint}()", snippet(cx, as_ref_recv.span, ".."));
         let suggestion = format!("consider using {method_hint}");
-
         let msg = format!("called `{current_method}` on an `Option` value");
         span_lint_and_sugg(
             cx,

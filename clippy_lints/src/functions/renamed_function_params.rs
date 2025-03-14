@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::RENAMED_FUNCTION_PARAMS;
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_errors::{Applicability, MultiSpan};
 use rustc_hir::def_id::{DefId, DefIdSet};
@@ -6,9 +9,6 @@ use rustc_hir::{Impl, ImplItem, ImplItemKind, ImplItemRef, ItemKind, Node, Trait
 use rustc_lint::LateContext;
 use rustc_span::Span;
 use rustc_span::symbol::{Ident, Symbol, kw};
-
-use super::RENAMED_FUNCTION_PARAMS;
-
 pub(super) fn check_impl_item(cx: &LateContext<'_>, item: &ImplItem<'_>, ignored_traits: &DefIdSet) {
     if !item.span.from_expansion()
         && let ImplItemKind::Fn(_, body_id) = item.kind
@@ -24,7 +24,6 @@ pub(super) fn check_impl_item(cx: &LateContext<'_>, item: &ImplItem<'_>, ignored
     {
         let mut param_idents_iter = cx.tcx.hir_body_param_names(body_id);
         let mut default_param_idents_iter = cx.tcx.fn_arg_names(did).iter().copied();
-
         let renames = RenamedFnArgs::new(&mut default_param_idents_iter, &mut param_idents_iter);
         if !renames.0.is_empty() {
             let multi_span = renames.multi_span();
@@ -45,9 +44,7 @@ pub(super) fn check_impl_item(cx: &LateContext<'_>, item: &ImplItem<'_>, ignored
         }
     }
 }
-
 struct RenamedFnArgs(Vec<(Span, String)>);
-
 impl RenamedFnArgs {
     /// Comparing between an iterator of default names and one with current names,
     /// then collect the ones that got renamed.
@@ -57,7 +54,6 @@ impl RenamedFnArgs {
         T: Iterator<Item = Ident>,
     {
         let mut renamed: Vec<(Span, String)> = vec![];
-
         debug_assert!(default_names.size_hint() == current_names.size_hint());
         while let (Some(def_name), Some(cur_name)) = (default_names.next(), current_names.next()) {
             let current_name = cur_name.name;
@@ -69,10 +65,8 @@ impl RenamedFnArgs {
                 renamed.push((cur_name.span, default_name.to_string()));
             }
         }
-
         Self(renamed)
     }
-
     fn multi_span(&self) -> MultiSpan {
         self.0
             .iter()
@@ -82,7 +76,6 @@ impl RenamedFnArgs {
             .into()
     }
 }
-
 fn is_unused_or_empty_symbol(symbol: Symbol) -> bool {
     // FIXME: `body_param_names` currently returning empty symbols for `wild` as well,
     // so we need to check if the symbol is empty first.
@@ -90,7 +83,6 @@ fn is_unused_or_empty_symbol(symbol: Symbol) -> bool {
     // but it would be nice to keep it here just to be future-proof.
     symbol.is_empty() || symbol == kw::Underscore || symbol.as_str().starts_with('_')
 }
-
 /// Get the [`trait_item_def_id`](ImplItemRef::trait_item_def_id) of a relevant impl item.
 fn trait_item_def_id_of_impl(items: &[ImplItemRef], target: OwnerId) -> Option<DefId> {
     items.iter().find_map(|item| {
@@ -101,7 +93,6 @@ fn trait_item_def_id_of_impl(items: &[ImplItemRef], target: OwnerId) -> Option<D
         }
     })
 }
-
 fn is_from_ignored_trait(of_trait: &TraitRef<'_>, ignored_traits: &DefIdSet) -> bool {
     let Some(trait_did) = of_trait.trait_def_id() else {
         return false;

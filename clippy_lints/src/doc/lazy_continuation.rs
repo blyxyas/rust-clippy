@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::{DOC_LAZY_CONTINUATION, DOC_OVERINDENTED_LIST_ITEMS};
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use itertools::Itertools;
 use rustc_errors::Applicability;
@@ -5,9 +8,6 @@ use rustc_lint::LateContext;
 use rustc_span::{BytePos, Span};
 use std::cmp::Ordering;
 use std::ops::Range;
-
-use super::{DOC_LAZY_CONTINUATION, DOC_OVERINDENTED_LIST_ITEMS};
-
 fn map_container_to_text(c: &super::Container) -> &'static str {
     match c {
         super::Container::Blockquote => "> ",
@@ -15,7 +15,6 @@ fn map_container_to_text(c: &super::Container) -> &'static str {
         super::Container::List(indent) => &"                  "[0..*indent],
     }
 }
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     doc: &str,
@@ -27,7 +26,6 @@ pub(super) fn check(
         // We don't do tab stops correctly.
         return;
     }
-
     // Blockquote
     let ccount = doc[range.clone()].chars().filter(|c| *c == '>').count();
     let blockquote_level = containers
@@ -71,12 +69,10 @@ pub(super) fn check(
         );
         return;
     }
-
     if ccount != 0 && blockquote_level != 0 {
         // If this doc is a blockquote, we don't go further.
         return;
     }
-
     // List
     let leading_spaces = doc[range].chars().filter(|c| *c == ' ').count();
     let list_indentation = containers

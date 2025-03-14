@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint, span_lint_and_then};
 use clippy_utils::msrvs::{self, Msrv};
@@ -11,7 +13,6 @@ use rustc_hir::{self as hir, BodyId, Expr, ExprKind, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Lints when `once_cell::sync::Lazy` or `lazy_static!` are used to define a static variable,
@@ -42,7 +43,6 @@ declare_clippy_lint! {
     pedantic,
     "lazy static that could be replaced by `std::sync::LazyLock`"
 }
-
 /// A list containing functions with corresponding replacements in `LazyLock`.
 ///
 /// Some functions could be replaced as well if we have replaced `Lazy` to `LazyLock`,
@@ -59,7 +59,6 @@ static FUNCTION_REPLACEMENTS: &[(&str, Option<&str>)] = &[
     // But keep in mind that if somehow we decide to expand this lint to catch non-statics,
     // add those functions into the list.
 ];
-
 pub struct NonStdLazyStatic {
     msrv: Msrv,
     lazy_static_lazy_static: Vec<DefId>,
@@ -70,7 +69,6 @@ pub struct NonStdLazyStatic {
     lazy_type_defs: FxIndexMap<DefId, LazyInfo>,
     uses_other_once_cell_types: bool,
 }
-
 impl NonStdLazyStatic {
     #[must_use]
     pub fn new(conf: &'static Conf) -> Self {
@@ -86,13 +84,10 @@ impl NonStdLazyStatic {
         }
     }
 }
-
 impl_lint_pass!(NonStdLazyStatic => [NON_STD_LAZY_STATICS]);
-
 fn can_use_lazy_cell(cx: &LateContext<'_>, msrv: Msrv) -> bool {
     msrv.meets(cx, msrvs::LAZY_CELL) && !is_no_std_crate(cx)
 }
-
 impl<'hir> LateLintPass<'hir> for NonStdLazyStatic {
     fn check_crate(&mut self, cx: &LateContext<'hir>) {
         // Fetch def_ids for external paths
@@ -101,7 +96,6 @@ impl<'hir> LateLintPass<'hir> for NonStdLazyStatic {
         self.once_cell_sync_lazy_new = def_path_def_ids(cx.tcx, &["once_cell", "sync", "Lazy", "new"]).collect();
         // And CrateNums for `once_cell` crate
         self.once_cell_crate = self.once_cell_sync_lazy.iter().map(|d| d.krate).collect();
-
         // Convert hardcoded fn replacement list into a map with def_id
         for (path, sugg) in FUNCTION_REPLACEMENTS {
             let path_vec: Vec<&str> = path.split("::").collect();
@@ -110,7 +104,6 @@ impl<'hir> LateLintPass<'hir> for NonStdLazyStatic {
             }
         }
     }
-
     fn check_item(&mut self, cx: &LateContext<'hir>, item: &Item<'hir>) {
         if let ItemKind::Static(..) = item.kind
             && let Some(macro_call) = clippy_utils::macros::root_macro_call(item.span)
@@ -125,18 +118,15 @@ impl<'hir> LateLintPass<'hir> for NonStdLazyStatic {
             );
             return;
         }
-
         if item.span.in_external_macro(cx.sess().source_map()) {
             return;
         }
-
         if let Some(lazy_info) = LazyInfo::from_item(self, cx, item)
             && can_use_lazy_cell(cx, self.msrv)
         {
             self.lazy_type_defs.insert(item.owner_id.to_def_id(), lazy_info);
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'hir>, expr: &Expr<'hir>) {
         // All functions in the `FUNCTION_REPLACEMENTS` have only one args
         if let ExprKind::Call(callee, [arg]) = expr.kind
@@ -149,7 +139,6 @@ impl<'hir> LateLintPass<'hir> for NonStdLazyStatic {
             lazy_info.calls_span_and_id.insert(callee.span, call_def_id);
         }
     }
-
     fn check_ty(&mut self, cx: &LateContext<'hir>, ty: &'hir rustc_hir::Ty<'hir, rustc_hir::AmbigArg>) {
         // Record if types from `once_cell` besides `sync::Lazy` are used.
         if let rustc_hir::TyKind::Path(qpath) = ty.peel_refs().kind
@@ -162,7 +151,6 @@ impl<'hir> LateLintPass<'hir> for NonStdLazyStatic {
             self.uses_other_once_cell_types = true;
         }
     }
-
     fn check_crate_post(&mut self, cx: &LateContext<'hir>) {
         if !self.uses_other_once_cell_types {
             for (_, lazy_info) in &self.lazy_type_defs {
@@ -171,7 +159,6 @@ impl<'hir> LateLintPass<'hir> for NonStdLazyStatic {
         }
     }
 }
-
 struct LazyInfo {
     /// Span of the [`hir::Ty`] without including args.
     /// i.e.:
@@ -188,7 +175,6 @@ struct LazyInfo {
     /// ```
     calls_span_and_id: FxIndexMap<Span, DefId>,
 }
-
 impl LazyInfo {
     fn from_item(state: &NonStdLazyStatic, cx: &LateContext<'_>, item: &Item<'_>) -> Option<Self> {
         // Check if item is a `once_cell:sync::Lazy` static.
@@ -199,7 +185,6 @@ impl LazyInfo {
         {
             let ty_span_no_args = path_span_without_args(path);
             let body = cx.tcx.hir_body(body_id);
-
             // visit body to collect `Lazy::new` calls
             let mut new_fn_calls = FxIndexMap::default();
             for_each_expr::<(), ()>(cx, body, |ex| {
@@ -210,7 +195,6 @@ impl LazyInfo {
                 }
                 std::ops::ControlFlow::Continue(())
             });
-
             Some(LazyInfo {
                 ty_span_no_args,
                 calls_span_and_id: new_fn_calls,
@@ -219,13 +203,11 @@ impl LazyInfo {
             None
         }
     }
-
     fn lint(&self, cx: &LateContext<'_>, sugg_map: &FxIndexMap<DefId, Option<String>>) {
         // Applicability might get adjusted to `Unspecified` later if any calls
         // in `calls_span_and_id` are not replaceable judging by the `sugg_map`.
         let mut appl = Applicability::MachineApplicable;
         let mut suggs = vec![(self.ty_span_no_args, "std::sync::LazyLock".to_string())];
-
         for (span, def_id) in &self.calls_span_and_id {
             let maybe_sugg = sugg_map.get(def_id).cloned().flatten();
             if let Some(sugg) = maybe_sugg {
@@ -235,7 +217,6 @@ impl LazyInfo {
                 appl = Applicability::Unspecified;
             }
         }
-
         span_lint_and_then(
             cx,
             NON_STD_LAZY_STATICS,
@@ -247,7 +228,6 @@ impl LazyInfo {
         );
     }
 }
-
 /// Return the span of a given `Path` without including any of its args.
 ///
 /// NB: Re-write of a private function `rustc_lint::non_local_def::path_span_without_args`.
@@ -257,7 +237,6 @@ fn path_span_without_args(path: &hir::Path<'_>) -> Span {
         .and_then(|seg| seg.args)
         .map_or(path.span, |args| path.span.until(args.span_ext))
 }
-
 /// Returns the `DefId` and `Span` of the callee if the given expression is a function call.
 ///
 /// NB: Modified from [`clippy_utils::fn_def_id`], to support calling in an static `Item`'s body.

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::is_from_proc_macro;
 use clippy_utils::ty::needs_ordered_drop;
@@ -10,7 +12,6 @@ use rustc_middle::ty::UpvarCapture;
 use rustc_session::declare_lint_pass;
 use rustc_span::DesugaringKind;
 use rustc_span::symbol::Ident;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for redundant redefinitions of local bindings.
@@ -44,7 +45,6 @@ declare_clippy_lint! {
     "redundant redefinition of a local binding"
 }
 declare_lint_pass!(RedundantLocals => [REDUNDANT_LOCALS]);
-
 impl<'tcx> LateLintPass<'tcx> for RedundantLocals {
     fn check_local(&mut self, cx: &LateContext<'tcx>, local: &'tcx LetStmt<'tcx>) {
         if !local.span.is_desugaring(DesugaringKind::Async)
@@ -83,7 +83,6 @@ impl<'tcx> LateLintPass<'tcx> for RedundantLocals {
         }
     }
 }
-
 /// Checks if the enclosing body is a closure and if the given local is captured by value.
 ///
 /// In those cases, the redefinition may be necessary to force a move:
@@ -99,27 +98,22 @@ impl<'tcx> LateLintPass<'tcx> for RedundantLocals {
 /// ```
 fn is_by_value_closure_capture(cx: &LateContext<'_>, redefinition: HirId, root_variable: HirId) -> bool {
     let closure_def_id = cx.tcx.hir_enclosing_body_owner(redefinition);
-
     cx.tcx.is_closure_like(closure_def_id.to_def_id())
         && cx.tcx.closure_captures(closure_def_id).iter().any(|c| {
             matches!(c.info.capture_kind, UpvarCapture::ByValue)
                 && matches!(c.place.base, PlaceBase::Upvar(upvar) if upvar.var_path.hir_id == root_variable)
         })
 }
-
 /// Find the annotation of a binding introduced by a pattern, or `None` if it's not introduced.
 fn find_binding(pat: &Pat<'_>, name: Ident) -> Option<BindingMode> {
     let mut ret = None;
-
     pat.each_binding_or_first(&mut |annotation, _, _, ident| {
         if ident == name {
             ret = Some(annotation);
         }
     });
-
     ret
 }
-
 /// Check if a rebinding of a local changes the effect of assignments to the binding.
 fn affects_assignments(cx: &LateContext<'_>, mutability: Mutability, bind: HirId, rebind: HirId) -> bool {
     // the binding is mutable and the rebinding is in a different scope than the original binding

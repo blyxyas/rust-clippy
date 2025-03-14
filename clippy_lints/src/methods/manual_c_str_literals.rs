@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_C_STR_LITERALS;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::get_parent_expr;
 use clippy_utils::msrvs::{self, Msrv};
@@ -8,9 +11,6 @@ use rustc_hir::{Expr, ExprKind, Node, QPath, TyKind};
 use rustc_lint::LateContext;
 use rustc_span::edition::Edition::Edition2021;
 use rustc_span::{Span, Symbol, sym};
-
-use super::MANUAL_C_STR_LITERALS;
-
 /// Checks:
 /// - `b"...".as_ptr()`
 /// - `b"...".as_ptr().cast()`
@@ -47,7 +47,6 @@ pub(super) fn check_as_ptr<'tcx>(
         );
     }
 }
-
 /// Checks if the callee is a "relevant" `CStr` function considered by this lint.
 /// Returns the function name.
 fn is_c_str_function(cx: &LateContext<'_>, func: &Expr<'_>) -> Option<Symbol> {
@@ -60,7 +59,6 @@ fn is_c_str_function(cx: &LateContext<'_>, func: &Expr<'_>) -> Option<Symbol> {
         None
     }
 }
-
 /// Checks calls to the `CStr` constructor functions:
 /// - `CStr::from_bytes_with_nul(..)`
 /// - `CStr::from_bytes_with_nul_unchecked(..)`
@@ -84,7 +82,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, func: &Expr<'_>, args
         }
     }
 }
-
 /// Checks `CStr::from_ptr(b"foo\0".as_ptr().cast())`
 fn check_from_ptr(cx: &LateContext<'_>, expr: &Expr<'_>, arg: &Expr<'_>) {
     if let ExprKind::MethodCall(method, lit, [], _) = peel_ptr_cast(arg).kind
@@ -119,11 +116,9 @@ fn check_from_bytes(cx: &LateContext<'_>, expr: &Expr<'_>, arg: &Expr<'_>, metho
         // User needs to remove error handling, can't be machine applicable
         (expr.span, Applicability::HasPlaceholders)
     };
-
     let Some(sugg) = rewrite_as_cstr(cx, arg.span) else {
         return;
     };
-
     span_lint_and_sugg(
         cx,
         MANUAL_C_STR_LITERALS,
@@ -134,14 +129,12 @@ fn check_from_bytes(cx: &LateContext<'_>, expr: &Expr<'_>, arg: &Expr<'_>, metho
         applicability,
     );
 }
-
 /// Rewrites a byte string literal to a c-str literal.
 /// `b"foo\0"` -> `c"foo"`
 ///
 /// Returns `None` if it doesn't end in a NUL byte.
 fn rewrite_as_cstr(cx: &LateContext<'_>, span: Span) -> Option<String> {
     let mut sugg = String::from("c") + snippet(cx, span.source_callsite(), "..").trim_start_matches('b');
-
     // NUL byte should always be right before the closing quote.
     if let Some(quote_pos) = sugg.rfind('"') {
         // Possible values right before the quote:
@@ -162,10 +155,8 @@ fn rewrite_as_cstr(cx: &LateContext<'_>, span: Span) -> Option<String> {
             return None;
         }
     }
-
     Some(sugg)
 }
-
 fn get_cast_target<'tcx>(e: &'tcx Expr<'tcx>) -> Option<&'tcx Expr<'tcx>> {
     match &e.kind {
         ExprKind::MethodCall(method, receiver, [], _) if method.ident.as_str() == "cast" => Some(receiver),
@@ -173,14 +164,12 @@ fn get_cast_target<'tcx>(e: &'tcx Expr<'tcx>) -> Option<&'tcx Expr<'tcx>> {
         _ => None,
     }
 }
-
 /// `x.cast()` -> `x`
 /// `x as *const _` -> `x`
 /// `x` -> `x` (returns the same expression for non-cast exprs)
 fn peel_ptr_cast<'tcx>(e: &'tcx Expr<'tcx>) -> &'tcx Expr<'tcx> {
     get_cast_target(e).map_or(e, peel_ptr_cast)
 }
-
 /// Same as `peel_ptr_cast`, but the other way around, by walking up the ancestor cast expressions:
 ///
 /// `foo(x.cast() as *const _)`

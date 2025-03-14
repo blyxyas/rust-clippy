@@ -1,10 +1,10 @@
-use clippy_utils::diagnostics::span_lint_and_then;
+use crate::HVec;
 
+use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::macros::span_is_local;
 use rustc_hir::{Expr, ExprKind, MatchSource};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for expressions that use the question mark operator and rejects them.
@@ -29,16 +29,13 @@ declare_clippy_lint! {
     restriction,
     "complains if the question mark operator is used"
 }
-
 declare_lint_pass!(QuestionMarkUsed => [QUESTION_MARK_USED]);
-
 impl<'tcx> LateLintPass<'tcx> for QuestionMarkUsed {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Match(_, _, MatchSource::TryDesugar(_)) = expr.kind {
             if !span_is_local(expr.span) {
                 return;
             }
-
             #[expect(clippy::collapsible_span_lint_calls, reason = "rust-clippy#7797")]
             span_lint_and_then(
                 cx,

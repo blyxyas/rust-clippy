@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::path_res;
 use clippy_utils::source::snippet;
@@ -6,7 +8,6 @@ use rustc_hir::def::{DefKind, Res};
 use rustc_hir::{Block, Body, Expr, ExprKind, LangItem, MatchSource, QPath};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Suggests alternatives for useless applications of `?` in terminating expressions
@@ -56,15 +57,12 @@ declare_clippy_lint! {
     complexity,
     "Suggest `value.inner_option` instead of `Some(value.inner_option?)`. The same goes for `Result<T, E>`."
 }
-
 declare_lint_pass!(NeedlessQuestionMark => [NEEDLESS_QUESTION_MARK]);
-
 impl LateLintPass<'_> for NeedlessQuestionMark {
     /*
      * The question mark operator is compatible with both Result<T, E> and Option<T>,
      * from Rust 1.13 and 1.22 respectively.
      */
-
     /*
      * What do we match:
      * Expressions that look like this:
@@ -78,13 +76,11 @@ impl LateLintPass<'_> for NeedlessQuestionMark {
      * What do we not match:
      *      Implicit calls to `from(..)` on the error value
      */
-
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &'_ Expr<'_>) {
         if let ExprKind::Ret(Some(e)) = expr.kind {
             check(cx, e);
         }
     }
-
     fn check_body(&mut self, cx: &LateContext<'_>, body: &'_ Body<'_>) {
         if let ExprKind::Block(
             Block {
@@ -106,7 +102,6 @@ impl LateLintPass<'_> for NeedlessQuestionMark {
         }
     }
 }
-
 fn check(cx: &LateContext<'_>, expr: &Expr<'_>) {
     if let ExprKind::Call(path, [arg]) = expr.kind
         && let Res::Def(DefKind::Ctor(..), ctor_id) = path_res(cx, path)

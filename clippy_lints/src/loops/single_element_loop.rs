@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::SINGLE_ELEMENT_LOOP;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::{indent_of, snippet, snippet_with_applicability};
@@ -9,7 +11,6 @@ use rustc_hir::{BorrowKind, Expr, ExprKind, Pat, PatKind, is_range_literal};
 use rustc_lint::LateContext;
 use rustc_span::edition::Edition;
 use rustc_span::sym;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     pat: &'tcx Pat<'_>,
@@ -79,7 +80,6 @@ pub(super) fn check<'tcx>(
         block_str.remove(0);
         block_str.pop();
         let indent = " ".repeat(indent_of(cx, block.stmts[0].span).unwrap_or(0));
-
         // Reference iterator from `&(mut) []` or `[].iter(_mut)()`.
         if !prefix.is_empty()
             && (
@@ -89,10 +89,8 @@ pub(super) fn check<'tcx>(
         {
             arg_snip = format!("({arg_snip})").into();
         }
-
         if clippy_utils::higher::Range::hir(arg_expression).is_some() {
             let range_expr = snippet(cx, arg_expression.span, "?").to_string();
-
             let sugg = snippet(cx, arg_expression.span, "..");
             span_lint_and_sugg(
                 cx,

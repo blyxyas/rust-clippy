@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::visitors::for_each_expr_without_closures;
 use clippy_utils::{BINOP_TRAITS, OP_ASSIGN_TRAITS, binop_traits, trait_ref_of_method};
@@ -5,7 +7,6 @@ use core::ops::ControlFlow;
 use rustc_hir as hir;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Lints for suspicious operations in impls of arithmetic operators, e.g.
@@ -29,7 +30,6 @@ declare_clippy_lint! {
     suspicious,
     "suspicious use of operators in impl of arithmetic trait"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Lints for suspicious operations in impls of OpAssign, e.g.
@@ -51,16 +51,13 @@ declare_clippy_lint! {
     suspicious,
     "suspicious use of operators in impl of OpAssign trait"
 }
-
 declare_lint_pass!(SuspiciousImpl => [SUSPICIOUS_ARITHMETIC_IMPL, SUSPICIOUS_OP_ASSIGN_IMPL]);
-
 impl<'tcx> LateLintPass<'tcx> for SuspiciousImpl {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) {
         if let hir::ExprKind::Binary(binop, _, _) | hir::ExprKind::AssignOp(binop, ..) = expr.kind
             && let Some((binop_trait_lang, op_assign_trait_lang)) = binop_traits(binop.node)
             && let Some(binop_trait_id) = cx.tcx.lang_items().get(binop_trait_lang)
             && let Some(op_assign_trait_id) = cx.tcx.lang_items().get(op_assign_trait_lang)
-
             // Check for more than one binary operation in the implemented function
             // Linting when multiple operations are involved can result in false positives
             && let parent_fn = cx.tcx.hir_get_parent_item(expr.hir_id).def_id
@@ -92,7 +89,6 @@ impl<'tcx> LateLintPass<'tcx> for SuspiciousImpl {
         }
     }
 }
-
 fn count_binops(expr: &hir::Expr<'_>) -> u32 {
     let mut count = 0u32;
     let _: Option<!> = for_each_expr_without_closures(expr, |e| {

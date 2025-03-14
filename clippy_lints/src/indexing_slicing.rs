@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint, span_lint_and_then};
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, Ty};
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for out of bounds array indexing with a constant
@@ -39,7 +40,6 @@ declare_clippy_lint! {
     correctness,
     "out of bounds constant indexing"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of indexing or slicing that may panic at runtime.
@@ -92,14 +92,11 @@ declare_clippy_lint! {
     restriction,
     "indexing/slicing usage"
 }
-
 impl_lint_pass!(IndexingSlicing => [INDEXING_SLICING, OUT_OF_BOUNDS_INDEXING]);
-
 pub struct IndexingSlicing {
     allow_indexing_slicing_in_tests: bool,
     suppress_restriction_lint_in_const: bool,
 }
-
 impl IndexingSlicing {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -108,7 +105,6 @@ impl IndexingSlicing {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for IndexingSlicing {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Index(array, index, _) = &expr.kind
@@ -133,9 +129,7 @@ impl<'tcx> LateLintPass<'tcx> for IndexingSlicing {
                     } else {
                         return;
                     };
-
                     let const_range = to_const_range(cx, range, size);
-
                     if let (Some(start), _) = const_range {
                         if start > size {
                             span_lint(
@@ -147,7 +141,6 @@ impl<'tcx> LateLintPass<'tcx> for IndexingSlicing {
                             return;
                         }
                     }
-
                     if let (_, Some(end)) = const_range {
                         if end > size {
                             span_lint(
@@ -159,28 +152,23 @@ impl<'tcx> LateLintPass<'tcx> for IndexingSlicing {
                             return;
                         }
                     }
-
                     if let (Some(_), Some(_)) = const_range {
                         // early return because both start and end are constants
                         // and we have proven above that they are in bounds
                         return;
                     }
                 }
-
                 let help_msg = match (range.start, range.end) {
                     (None, Some(_)) => "consider using `.get(..n)`or `.get_mut(..n)` instead",
                     (Some(_), None) => "consider using `.get(n..)` or .get_mut(n..)` instead",
                     (Some(_), Some(_)) => "consider using `.get(n..m)` or `.get_mut(n..m)` instead",
                     (None, None) => return, // [..] is ok.
                 };
-
                 if allowed_in_tests {
                     return;
                 }
-
                 span_lint_and_then(cx, INDEXING_SLICING, expr.span, "slicing may panic", |diag| {
                     diag.help(help_msg);
-
                     if cx.tcx.hir_is_inside_const_context(expr.hir_id) {
                         diag.note(note);
                     }
@@ -206,7 +194,6 @@ impl<'tcx> LateLintPass<'tcx> for IndexingSlicing {
                             // get constant offset and check whether it is in bounds
                             let off = usize::try_from(off).unwrap();
                             let size = usize::try_from(size).unwrap();
-
                             if off >= size {
                                 span_lint(cx, OUT_OF_BOUNDS_INDEXING, expr.span, "index is out of bounds");
                             }
@@ -215,14 +202,11 @@ impl<'tcx> LateLintPass<'tcx> for IndexingSlicing {
                         return;
                     }
                 }
-
                 if allowed_in_tests {
                     return;
                 }
-
                 span_lint_and_then(cx, INDEXING_SLICING, expr.span, "indexing may panic", |diag| {
                     diag.help("consider using `.get(n)` or `.get_mut(n)` instead");
-
                     if cx.tcx.hir_is_inside_const_context(expr.hir_id) {
                         diag.note(note);
                     }
@@ -231,7 +215,6 @@ impl<'tcx> LateLintPass<'tcx> for IndexingSlicing {
         }
     }
 }
-
 /// Returns a tuple of options with the start and end (exclusive) values of
 /// the range. If the start or end is not constant, None is returned.
 fn to_const_range(cx: &LateContext<'_>, range: higher::Range<'_>, array_size: u128) -> (Option<u128>, Option<u128>) {
@@ -242,7 +225,6 @@ fn to_const_range(cx: &LateContext<'_>, range: higher::Range<'_>, array_size: u1
         Some(_) => None,
         None => Some(0),
     };
-
     let e = range.end.map(|expr| ecx.eval(expr));
     let end = match e {
         Some(Some(Constant::Int(x))) => {
@@ -255,10 +237,8 @@ fn to_const_range(cx: &LateContext<'_>, range: higher::Range<'_>, array_size: u1
         Some(_) => None,
         None => Some(array_size),
     };
-
     (start, end)
 }
-
 /// Checks if the output Ty of the `get` method on this Ty (if any) matches the Ty returned by the
 /// indexing operation (if any).
 fn ty_has_applicable_get_function<'tcx>(

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
@@ -7,7 +9,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, LangItem, MatchSource, QPath};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// It checks for the size of a `Future` created by `async fn` or `async {}`.
@@ -39,11 +40,9 @@ declare_clippy_lint! {
     pedantic,
     "large future may lead to unexpected stack overflows"
 }
-
 pub struct LargeFuture {
     future_size_threshold: u64,
 }
-
 impl LargeFuture {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -51,9 +50,7 @@ impl LargeFuture {
         }
     }
 }
-
 impl_lint_pass!(LargeFuture => [LARGE_FUTURES]);
-
 impl<'tcx> LateLintPass<'tcx> for LargeFuture {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let ExprKind::Match(scrutinee, _, MatchSource::AwaitDesugar) = expr.kind

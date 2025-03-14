@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::{TRANSMUTE_BYTES_TO_STR, TRANSMUTE_PTR_TO_PTR};
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::source::snippet;
@@ -6,7 +8,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Expr, Mutability};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
-
 /// Checks for `transmute_bytes_to_str` and `transmute_ptr_to_ptr` lints.
 /// Returns `true` if either one triggered, otherwise returns `false`.
 pub(super) fn check<'tcx>(
@@ -18,7 +19,6 @@ pub(super) fn check<'tcx>(
     const_context: bool,
 ) -> bool {
     let mut triggered = false;
-
     if let (ty::Ref(_, ty_from, from_mutbl), ty::Ref(_, ty_to, to_mutbl)) = (*from_ty.kind(), *to_ty.kind()) {
         if let ty::Slice(slice_ty) = *ty_from.kind()
             && ty_to.is_str()
@@ -26,11 +26,8 @@ pub(super) fn check<'tcx>(
             && from_mutbl == to_mutbl
         {
             let Some(top_crate) = std_or_core(cx) else { return true };
-
             let postfix = if from_mutbl == Mutability::Mut { "_mut" } else { "" };
-
             let snippet = snippet(cx, arg.span, "..");
-
             span_lint_and_sugg(
                 cx,
                 TRANSMUTE_BYTES_TO_STR,
@@ -65,10 +62,8 @@ pub(super) fn check<'tcx>(
                     }
                 },
             );
-
             triggered = true;
         }
     }
-
     triggered
 }

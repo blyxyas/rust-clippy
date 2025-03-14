@@ -1,6 +1,7 @@
+use crate::HVec;
+
 use rustc_lint::LateContext;
 use rustc_middle::ty::Ty;
-
 // check if the component types of the transmuted collection and the result have different ABI,
 // size or alignment
 pub(super) fn is_layout_incompatible<'tcx>(cx: &LateContext<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> bool {

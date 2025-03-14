@@ -1,4 +1,4 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
@@ -16,7 +16,7 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, sym};
-
+use std::ops::ControlFlow;
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for manual `char` comparison in string patterns
@@ -38,7 +38,6 @@ declare_clippy_lint! {
     style,
     "manual char comparison in string patterns"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for string methods that receive a single-character
@@ -70,19 +69,15 @@ declare_clippy_lint! {
     pedantic,
     "using a single-character str where a char could be used, e.g., `_.split(\"x\")`"
 }
-
 pub struct StringPatterns {
     msrv: Msrv,
 }
-
 impl StringPatterns {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(StringPatterns => [MANUAL_PATTERN_CHAR_COMPARISON, SINGLE_CHAR_PATTERN]);
-
 const PATTERN_METHODS: [(&str, usize); 22] = [
     ("contains", 0),
     ("starts_with", 0),
@@ -107,7 +102,6 @@ const PATTERN_METHODS: [(&str, usize); 22] = [
     ("replace", 0),
     ("replacen", 0),
 ];
-
 fn check_single_char_pattern_lint(cx: &LateContext<'_>, arg: &Expr<'_>) {
     let mut applicability = Applicability::MachineApplicable;
     if let Some(hint) = str_literal_to_char_literal(cx, arg, &mut applicability, true) {
@@ -122,7 +116,6 @@ fn check_single_char_pattern_lint(cx: &LateContext<'_>, arg: &Expr<'_>) {
         );
     }
 }
-
 fn get_char_span<'tcx>(cx: &'_ LateContext<'tcx>, expr: &'tcx Expr<'_>) -> Option<Span> {
     if cx.typeck_results().expr_ty_adjusted(expr).is_char()
         && !expr.span.from_expansion()
@@ -133,14 +126,12 @@ fn get_char_span<'tcx>(cx: &'_ LateContext<'tcx>, expr: &'tcx Expr<'_>) -> Optio
         None
     }
 }
-
 fn check_manual_pattern_char_comparison(cx: &LateContext<'_>, method_arg: &Expr<'_>, msrv: Msrv) {
     if let ExprKind::Closure(closure) = method_arg.kind
         && let body = cx.tcx.hir_body(closure.body)
         && let Some(PatKind::Binding(_, binding, ..)) = body.params.first().map(|p| p.pat.kind)
     {
         let mut set_char_spans: Vec<Span> = Vec::new();
-
         // We want to retrieve all the comparisons done.
         // They are ordered in a nested way and so we need to traverse the AST to collect them all.
         if for_each_expr(cx, body.value, |sub_expr| -> ControlFlow<(), Descend> {
@@ -221,7 +212,6 @@ fn check_manual_pattern_char_comparison(cx: &LateContext<'_>, method_arg: &Expr<
         );
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for StringPatterns {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if !expr.span.from_expansion()
@@ -235,7 +225,6 @@ impl<'tcx> LateLintPass<'tcx> for StringPatterns {
             && let Some(arg) = args.get(pos)
         {
             check_single_char_pattern_lint(cx, arg);
-
             check_manual_pattern_char_comparison(cx, arg, self.msrv);
         }
     }

@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::{MATCH_BOOL, SINGLE_MATCH, SINGLE_MATCH_ELSE};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::{SpanRangeExt, expr_block, snippet, snippet_block_with_context};
 use clippy_utils::ty::implements_trait;
@@ -13,9 +16,6 @@ use rustc_hir::{Arm, Expr, ExprKind, HirId, Node, Pat, PatExpr, PatExprKind, Pat
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, AdtDef, TyCtxt, TypeckResults, VariantDef};
 use rustc_span::{Span, sym};
-
-use super::{MATCH_BOOL, SINGLE_MATCH, SINGLE_MATCH_ELSE};
-
 /// Checks if there are comments contained within a span.
 /// This is a very "naive" check, as it just looks for the literal characters // and /* in the
 /// source text. This won't be accurate if there are potentially expressions contained within the
@@ -30,7 +30,6 @@ fn empty_arm_has_comment(cx: &LateContext<'_>, span: Span) -> bool {
         false
     }
 }
-
 #[rustfmt::skip]
 pub(crate) fn check<'tcx>(cx: &LateContext<'tcx>, ex: &'tcx Expr<'_>, arms: &'tcx [Arm<'_>], expr: &'tcx Expr<'_>) {
     if let [arm1, arm2] = arms
@@ -54,7 +53,6 @@ pub(crate) fn check<'tcx>(cx: &LateContext<'tcx>, ex: &'tcx Expr<'_>, arms: &'tc
             // not a block or an empty block w/ comments, don't lint
             return;
         };
-
         let typeck = cx.typeck_results();
         if *typeck.expr_ty(ex).peel_refs().kind() != ty::Bool || is_lint_allowed(cx, MATCH_BOOL, ex.hir_id) {
             let mut v = PatVisitor {
@@ -76,12 +74,10 @@ pub(crate) fn check<'tcx>(cx: &LateContext<'tcx>, ex: &'tcx Expr<'_>, arms: &'tc
                     return;
                 }
             }
-
             report_single_pattern(cx, ex, arm1, expr, els);
         }
     }
 }
-
 fn report_single_pattern(cx: &LateContext<'_>, ex: &Expr<'_>, arm: &Arm<'_>, expr: &Expr<'_>, els: Option<&Expr<'_>>) {
     let lint = if els.is_some() { SINGLE_MATCH_ELSE } else { SINGLE_MATCH };
     let ctxt = expr.span.ctxt();
@@ -89,7 +85,6 @@ fn report_single_pattern(cx: &LateContext<'_>, ex: &Expr<'_>, arm: &Arm<'_>, exp
     let els_str = els.map_or(String::new(), |els| {
         format!(" else {}", expr_block(cx, els, ctxt, "..", Some(expr.span), &mut app))
     });
-
     if snippet(cx, ex.span, "..") == snippet(cx, arm.pat.span, "..") {
         let msg = "this pattern is irrefutable, `match` is useless";
         let (sugg, help) = if is_unit_expr(arm.body) {
@@ -112,7 +107,6 @@ fn report_single_pattern(cx: &LateContext<'_>, ex: &Expr<'_>, arm: &Arm<'_>, exp
         span_lint_and_sugg(cx, lint, expr.span, msg, help, sugg.to_string(), app);
         return;
     }
-
     let (pat, pat_ref_count) = peel_hir_pat_refs(arm.pat);
     let (msg, sugg) = if let PatKind::Expr(_) = pat.kind
         && let (ty, ty_ref_count) = peel_middle_ty_refs(cx.typeck_results().expr_ty(ex))
@@ -136,11 +130,9 @@ fn report_single_pattern(cx: &LateContext<'_>, ex: &Expr<'_>, arm: &Arm<'_>, exp
         // e.g. will work: match &Some(_) { Some(_) => () }
         // will not: match Some(_) { &Some(_) => () }
         let ref_count_diff = ty_ref_count - pat_ref_count;
-
         // Try to remove address of expressions first.
         let (ex, removed) = peel_n_hir_expr_refs(ex, ref_count_diff);
         let ref_count_diff = ref_count_diff - removed;
-
         let msg = "you seem to be trying to use `match` for an equality check. Consider using `if`";
         let sugg = format!(
             "if {} == {}{} {}{els_str}",
@@ -161,10 +153,8 @@ fn report_single_pattern(cx: &LateContext<'_>, ex: &Expr<'_>, arm: &Arm<'_>, exp
         );
         (msg, sugg)
     };
-
     span_lint_and_sugg(cx, lint, expr.span, msg, "try", sugg, app);
 }
-
 struct PatVisitor<'tcx> {
     typeck: &'tcx TypeckResults<'tcx>,
     has_enum: bool,
@@ -180,14 +170,12 @@ impl<'tcx> Visitor<'tcx> for PatVisitor<'tcx> {
         }
     }
 }
-
 /// The context needed to manipulate a `PatState`.
 struct PatCtxt<'tcx> {
     tcx: TyCtxt<'tcx>,
     typeck: &'tcx TypeckResults<'tcx>,
     arena: DroplessArena,
 }
-
 /// State for tracking whether a match can become non-exhaustive by adding a variant to a contained
 /// enum.
 ///
@@ -235,7 +223,6 @@ impl<'a> PatState<'a> {
         }
         is_wild
     }
-
     /// Attempts to get the state for the enum variant, initializing the current state if necessary.
     fn get_std_enum_variant<'tcx>(
         &mut self,
@@ -265,7 +252,6 @@ impl<'a> PatState<'a> {
         };
         Some((&mut states[i.as_usize()], adt.variant(i)))
     }
-
     fn check_all_wild_enum(&mut self) -> bool {
         if let Self::StdEnum(states) = self
             && states.iter().all(|s| matches!(s, Self::Wild))
@@ -276,7 +262,6 @@ impl<'a> PatState<'a> {
             false
         }
     }
-
     #[expect(clippy::similar_names)]
     fn add_struct_pats<'tcx>(
         &mut self,
@@ -325,7 +310,6 @@ impl<'a> PatState<'a> {
             _ => matches!(self, Self::Wild),
         }
     }
-
     /// Adds the pattern into the current state. Returns whether or not the current state is a wild
     /// match after the merge.
     #[expect(clippy::similar_names)]
@@ -344,11 +328,9 @@ impl<'a> PatState<'a> {
             {
                 matches!(self, Self::Wild)
             },
-
             PatKind::Guard(..) => {
                 matches!(self, Self::Wild)
             },
-
             // Patterns for things which can only contain a single sub-pattern.
             PatKind::Binding(_, _, _, Some(pat)) | PatKind::Ref(pat, _) | PatKind::Box(pat) | PatKind::Deref(pat) => {
                 self.add_pat(cx, pat)
@@ -364,11 +346,9 @@ impl<'a> PatState<'a> {
             {
                 self.add_pat(cx, sub_pat)
             },
-
             PatKind::Or(pats) => pats.iter().any(|p| self.add_pat(cx, p)),
             PatKind::Tuple(pats, _) => self.add_product_pat(cx, pats),
             PatKind::Slice(head, _, tail) => self.add_product_pat(cx, head.iter().chain(tail)),
-
             PatKind::TupleStruct(ref path, pats, _) => self.add_struct_pats(
                 cx,
                 pat,
@@ -383,7 +363,6 @@ impl<'a> PatState<'a> {
                 if let [pat] = pats { Some(pat.pat) } else { None },
                 pats.iter().map(|p| p.pat),
             ),
-
             PatKind::Wild
             | PatKind::Binding(_, _, _, None)
             | PatKind::Expr(_)

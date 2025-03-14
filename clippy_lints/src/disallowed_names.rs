@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::is_in_test;
@@ -6,7 +8,6 @@ use rustc_hir::{Pat, PatKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Symbol;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of disallowed names for variables, such
@@ -25,11 +26,9 @@ declare_clippy_lint! {
     style,
     "usage of a disallowed/placeholder name"
 }
-
 pub struct DisallowedNames {
     disallow: FxHashSet<Symbol>,
 }
-
 impl DisallowedNames {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -37,9 +36,7 @@ impl DisallowedNames {
         }
     }
 }
-
 impl_lint_pass!(DisallowedNames => [DISALLOWED_NAMES]);
-
 impl<'tcx> LateLintPass<'tcx> for DisallowedNames {
     fn check_pat(&mut self, cx: &LateContext<'tcx>, pat: &'tcx Pat<'_>) {
         if let PatKind::Binding(.., ident, _) = pat.kind

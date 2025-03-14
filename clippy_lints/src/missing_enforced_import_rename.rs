@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::def_path_def_ids;
 use clippy_utils::diagnostics::span_lint_and_sugg;
@@ -10,7 +12,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::impl_lint_pass;
 use rustc_span::Symbol;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for imports that do not rename the item as specified
@@ -45,11 +46,9 @@ declare_clippy_lint! {
     style,
     "enforce import renames"
 }
-
 pub struct ImportRename {
     renames: DefIdMap<Symbol>,
 }
-
 impl ImportRename {
     pub fn new(tcx: TyCtxt<'_>, conf: &'static Conf) -> Self {
         Self {
@@ -62,9 +61,7 @@ impl ImportRename {
         }
     }
 }
-
 impl_lint_pass!(ImportRename => [MISSING_ENFORCED_IMPORT_RENAMES]);
-
 impl LateLintPass<'_> for ImportRename {
     fn check_item(&mut self, cx: &LateContext<'_>, item: &Item<'_>) {
         if let ItemKind::Use(path, UseKind::Single) = &item.kind {

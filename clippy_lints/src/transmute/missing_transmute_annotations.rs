@@ -1,11 +1,11 @@
+use crate::HVec;
+
+use crate::transmute::MISSING_TRANSMUTE_ANNOTATIONS;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use rustc_errors::Applicability;
 use rustc_hir::{GenericArg, HirId, LetStmt, Node, Path, TyKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::Ty;
-
-use crate::transmute::MISSING_TRANSMUTE_ANNOTATIONS;
-
 fn get_parent_local_binding_ty<'tcx>(cx: &LateContext<'tcx>, expr_hir_id: HirId) -> Option<LetStmt<'tcx>> {
     let mut parent_iter = cx.tcx.hir_parent_iter(expr_hir_id);
     if let Some((_, node)) = parent_iter.next() {
@@ -26,7 +26,6 @@ fn get_parent_local_binding_ty<'tcx>(cx: &LateContext<'tcx>, expr_hir_id: HirId)
         None
     }
 }
-
 fn is_function_block(cx: &LateContext<'_>, expr_hir_id: HirId) -> bool {
     let def_id = cx.tcx.hir_enclosing_body_owner(expr_hir_id);
     if let Some(body) = cx.tcx.hir_maybe_body_owned_by(def_id) {
@@ -34,7 +33,6 @@ fn is_function_block(cx: &LateContext<'_>, expr_hir_id: HirId) -> bool {
     }
     false
 }
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     path: &Path<'tcx>,

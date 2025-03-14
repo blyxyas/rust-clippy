@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::higher::ForLoop;
 use clippy_utils::ty::is_type_diagnostic_item;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// This is a restriction lint which prevents the use of hash types (i.e., `HashSet` and `HashMap`) in for loops.
@@ -34,9 +35,7 @@ declare_clippy_lint! {
     restriction,
     "iterating over unordered hash-based types (`HashMap` and `HashSet`)"
 }
-
 declare_lint_pass!(IterOverHashType => [ITER_OVER_HASH_TYPE]);
-
 impl LateLintPass<'_> for IterOverHashType {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &'_ rustc_hir::Expr<'_>) {
         let hash_iter_tys = [
@@ -51,7 +50,6 @@ impl LateLintPass<'_> for IterOverHashType {
             sym::hashset_iter_ty,
             sym::hashset_drain_ty,
         ];
-
         if let Some(for_loop) = ForLoop::hir(expr)
             && !for_loop.body.span.from_expansion()
             && let ty = cx.typeck_results().expr_ty(for_loop.arg).peel_refs()

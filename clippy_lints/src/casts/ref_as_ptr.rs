@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::REF_AS_PTR;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::sugg::Sugg;
@@ -6,9 +9,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Expr, Mutability, Ty, TyKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
-
-use super::REF_AS_PTR;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -19,7 +19,6 @@ pub(super) fn check<'tcx>(
         cx.typeck_results().expr_ty(cast_expr),
         cx.typeck_results().expr_ty(expr),
     );
-
     if matches!(cast_from.kind(), ty::Ref(..))
         && let ty::RawPtr(_, to_mutbl) = cast_to.kind()
         && let use_cx = expr_use_ctxt(cx, expr)
@@ -31,7 +30,6 @@ pub(super) fn check<'tcx>(
             Mutability::Not => "from_ref",
             Mutability::Mut => "from_mut",
         };
-
         let mut app = Applicability::MachineApplicable;
         let turbofish = match &cast_to_hir_ty.kind {
             TyKind::Infer(()) => String::new(),
@@ -47,9 +45,7 @@ pub(super) fn check<'tcx>(
             },
             _ => return,
         };
-
         let cast_expr_sugg = Sugg::hir_with_applicability(cx, cast_expr, "_", &mut app);
-
         span_lint_and_sugg(
             cx,
             REF_AS_PTR,

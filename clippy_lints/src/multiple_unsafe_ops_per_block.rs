@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::visitors::{Descend, Visitable, for_each_expr};
 use core::ops::ControlFlow::Continue;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::{DesugaringKind, Span};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `unsafe` blocks that contain more than one unsafe operation.
@@ -60,7 +61,6 @@ declare_clippy_lint! {
     "more than one unsafe operation per `unsafe` block"
 }
 declare_lint_pass!(MultipleUnsafeOpsPerBlock => [MULTIPLE_UNSAFE_OPS_PER_BLOCK]);
-
 impl<'tcx> LateLintPass<'tcx> for MultipleUnsafeOpsPerBlock {
     fn check_block(&mut self, cx: &LateContext<'tcx>, block: &'tcx hir::Block<'_>) {
         if !matches!(block.rules, BlockCheckMode::UnsafeBlock(_))
@@ -89,7 +89,6 @@ impl<'tcx> LateLintPass<'tcx> for MultipleUnsafeOpsPerBlock {
         }
     }
 }
-
 fn collect_unsafe_exprs<'tcx>(
     cx: &LateContext<'tcx>,
     node: impl Visitable<'tcx>,
@@ -98,13 +97,11 @@ fn collect_unsafe_exprs<'tcx>(
     for_each_expr(cx, node, |expr| {
         match expr.kind {
             ExprKind::InlineAsm(_) => unsafe_ops.push(("inline assembly used here", expr.span)),
-
             ExprKind::Field(e, _) => {
                 if cx.typeck_results().expr_ty(e).is_union() {
                     unsafe_ops.push(("union field access occurs here", expr.span));
                 }
             },
-
             ExprKind::Path(QPath::Resolved(
                 _,
                 hir::Path {
@@ -121,11 +118,9 @@ fn collect_unsafe_exprs<'tcx>(
             )) => {
                 unsafe_ops.push(("access of a mutable static occurs here", expr.span));
             },
-
             ExprKind::Unary(UnOp::Deref, e) if cx.typeck_results().expr_ty_adjusted(e).is_raw_ptr() => {
                 unsafe_ops.push(("raw pointer dereference occurs here", expr.span));
             },
-
             ExprKind::Call(path_expr, _) => {
                 let sig = match *cx.typeck_results().expr_ty(path_expr).kind() {
                     ty::FnDef(id, _) => cx.tcx.fn_sig(id).skip_binder(),
@@ -136,7 +131,6 @@ fn collect_unsafe_exprs<'tcx>(
                     unsafe_ops.push(("unsafe function call occurs here", expr.span));
                 }
             },
-
             ExprKind::MethodCall(..) => {
                 if let Some(sig) = cx
                     .typeck_results()
@@ -148,7 +142,6 @@ fn collect_unsafe_exprs<'tcx>(
                     }
                 }
             },
-
             ExprKind::AssignOp(_, lhs, rhs) | ExprKind::Assign(lhs, rhs, _) => {
                 if matches!(
                     lhs.kind,
@@ -171,10 +164,8 @@ fn collect_unsafe_exprs<'tcx>(
                     return Continue(Descend::No);
                 }
             },
-
             _ => {},
         }
-
         Continue::<(), _>(Descend::Yes)
     });
 }

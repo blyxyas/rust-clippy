@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::HasSession;
 use rustc_errors::Applicability;
@@ -8,7 +10,6 @@ use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
 use rustc_span::def_id::CRATE_DEF_ID;
 use rustc_span::hygiene::MacroKind;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for items declared `pub(crate)` that are not crate visible because they
@@ -36,14 +37,11 @@ declare_clippy_lint! {
     nursery,
     "Using `pub(crate)` visibility on items that are not crate visible due to the visibility of the module that contains them."
 }
-
 #[derive(Default)]
 pub struct RedundantPubCrate {
     is_exported: Vec<bool>,
 }
-
 impl_lint_pass!(RedundantPubCrate => [REDUNDANT_PUB_CRATE]);
-
 impl<'tcx> LateLintPass<'tcx> for RedundantPubCrate {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if cx.tcx.visibility(item.owner_id.def_id) == ty::Visibility::Restricted(CRATE_DEF_ID.to_def_id())
@@ -69,20 +67,17 @@ impl<'tcx> LateLintPass<'tcx> for RedundantPubCrate {
                 },
             );
         }
-
         if let ItemKind::Mod { .. } = item.kind {
             self.is_exported
                 .push(cx.effective_visibilities.is_exported(item.owner_id.def_id));
         }
     }
-
     fn check_item_post(&mut self, _cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if let ItemKind::Mod { .. } = item.kind {
             self.is_exported.pop().expect("unbalanced check_item/check_item_post");
         }
     }
 }
-
 fn is_not_macro_export<'tcx>(item: &'tcx Item<'tcx>) -> bool {
     if let ItemKind::Use(path, _) = item.kind {
         if path
@@ -95,6 +90,5 @@ fn is_not_macro_export<'tcx>(item: &'tcx Item<'tcx>) -> bool {
     } else if let ItemKind::Macro(..) = item.kind {
         return false;
     }
-
     true
 }

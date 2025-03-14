@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MATCH_BOOL;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_unit_expr;
 use clippy_utils::source::expr_block;
@@ -7,9 +10,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Arm, Expr, PatExprKind, PatKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
-
-use super::MATCH_BOOL;
-
 pub(crate) fn check(cx: &LateContext<'_>, scrutinee: &Expr<'_>, arms: &[Arm<'_>], expr: &Expr<'_>) {
     // Type of expression is `bool`.
     if *cx.typeck_results().expr_ty(scrutinee).kind() == ty::Bool {
@@ -45,7 +45,6 @@ pub(crate) fn check(cx: &LateContext<'_>, scrutinee: &Expr<'_>, arms: &[Arm<'_>]
                     } else {
                         None
                     };
-
                     if let Some(test_sugg) = test_sugg {
                         let ctxt = expr.span.ctxt();
                         let (true_expr, false_expr) = (arms[0].body, arms[1].body);
@@ -68,7 +67,6 @@ pub(crate) fn check(cx: &LateContext<'_>, scrutinee: &Expr<'_>, arms: &[Arm<'_>]
                             )),
                             (true, true) => None,
                         };
-
                         if let Some(sugg) = sugg {
                             diag.span_suggestion(expr.span, "consider using an `if`/`else` expression", sugg, app);
                         }

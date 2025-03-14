@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for references on `std::path::MAIN_SEPARATOR.to_string()` used
@@ -32,19 +33,15 @@ declare_clippy_lint! {
     complexity,
     "`&std::path::MAIN_SEPARATOR.to_string()` can be replaced by `std::path::MAIN_SEPARATOR_STR`"
 }
-
 pub struct ManualMainSeparatorStr {
     msrv: Msrv,
 }
-
 impl ManualMainSeparatorStr {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(ManualMainSeparatorStr => [MANUAL_MAIN_SEPARATOR_STR]);
-
 impl LateLintPass<'_> for ManualMainSeparatorStr {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         let (target, _) = peel_hir_expr_refs(expr);

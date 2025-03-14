@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::DOUBLE_ENDED_ITERATOR_LAST;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::ty::implements_trait;
 use clippy_utils::{is_mutable, is_trait_method, path_to_local};
@@ -6,12 +9,8 @@ use rustc_hir::{Expr, Node, PatKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::Instance;
 use rustc_span::{Span, sym};
-
-use super::DOUBLE_ENDED_ITERATOR_LAST;
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &'_ Expr<'_>, self_expr: &'_ Expr<'_>, call_span: Span) {
     let typeck = cx.typeck_results();
-
     // if the "last" method is that of Iterator
     if is_trait_method(cx, expr, sym::Iterator)
         // if self implements DoubleEndedIterator

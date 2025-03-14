@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::CMP_OWNED;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::path_def_id;
 use clippy_utils::source::snippet;
@@ -7,16 +10,12 @@ use rustc_hir::{BinOpKind, Expr, ExprKind, UnOp};
 use rustc_lint::LateContext;
 use rustc_middle::ty::Ty;
 use rustc_span::symbol::sym;
-
-use super::CMP_OWNED;
-
 pub(super) fn check(cx: &LateContext<'_>, op: BinOpKind, lhs: &Expr<'_>, rhs: &Expr<'_>) {
     if op.is_comparison() {
         check_op(cx, lhs, rhs, true);
         check_op(cx, rhs, lhs, false);
     }
 }
-
 #[derive(Default)]
 struct EqImpl {
     ty_eq_other: bool,
@@ -27,14 +26,12 @@ impl EqImpl {
         self.ty_eq_other || self.other_eq_ty
     }
 }
-
 fn symmetric_partial_eq<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>, other: Ty<'tcx>) -> Option<EqImpl> {
     cx.tcx.lang_items().eq_trait().map(|def_id| EqImpl {
         ty_eq_other: implements_trait(cx, ty, def_id, &[other.into()]),
         other_eq_ty: implements_trait(cx, other, def_id, &[ty.into()]),
     })
 }
-
 fn check_op(cx: &LateContext<'_>, expr: &Expr<'_>, other: &Expr<'_>, left: bool) {
     let typeck = cx.typeck_results();
     let (arg, arg_span) = match expr.kind {
@@ -61,28 +58,22 @@ fn check_op(cx: &LateContext<'_>, expr: &Expr<'_>, other: &Expr<'_>, left: bool)
         },
         _ => return,
     };
-
     let arg_ty = typeck.expr_ty(arg);
     let other_ty = typeck.expr_ty(other);
-
     let without_deref = symmetric_partial_eq(cx, arg_ty, other_ty).unwrap_or_default();
     let with_deref = arg_ty
         .builtin_deref(true)
         .and_then(|ty| symmetric_partial_eq(cx, ty, other_ty))
         .unwrap_or_default();
-
     if !with_deref.is_implemented() && !without_deref.is_implemented() {
         return;
     }
-
     let other_gets_derefed = matches!(other.kind, ExprKind::Unary(UnOp::Deref, _));
-
     let lint_span = if other_gets_derefed {
         expr.span.to(other.span)
     } else {
         expr.span
     };
-
     span_lint_and_then(
         cx,
         CMP_OWNED,
@@ -94,7 +85,6 @@ fn check_op(cx: &LateContext<'_>, expr: &Expr<'_>, other: &Expr<'_>, left: bool)
                 diag.span_label(lint_span, "try implementing the comparison without allocating");
                 return;
             }
-
             let arg_snip = snippet(cx, arg_span, "..");
             let expr_snip;
             let eq_impl;
@@ -105,7 +95,6 @@ fn check_op(cx: &LateContext<'_>, expr: &Expr<'_>, other: &Expr<'_>, left: bool)
                 expr_snip = arg_snip.to_string();
                 eq_impl = without_deref;
             }
-
             let span;
             let hint;
             if (eq_impl.ty_eq_other && left) || (eq_impl.other_eq_ty && !left) {
@@ -113,7 +102,6 @@ fn check_op(cx: &LateContext<'_>, expr: &Expr<'_>, other: &Expr<'_>, left: bool)
                 hint = expr_snip;
             } else {
                 span = expr.span.to(other.span);
-
                 let cmp_span = if other.span < expr.span {
                     other.span.between(expr.span)
                 } else {
@@ -133,7 +121,6 @@ fn check_op(cx: &LateContext<'_>, expr: &Expr<'_>, other: &Expr<'_>, left: bool)
                     );
                 }
             }
-
             diag.span_suggestion(
                 span,
                 "try",

@@ -1,18 +1,17 @@
-use clippy_utils::ty::get_iterator_item_ty;
-use hir::ExprKind;
-use rustc_lint::{LateContext, LintContext};
+use crate::HVec;
 
 use super::{ITER_FILTER_IS_OK, ITER_FILTER_IS_SOME};
-
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::{indent_of, reindent_multiline};
+use clippy_utils::ty::get_iterator_item_ty;
 use clippy_utils::{get_parent_expr, is_trait_method, peel_blocks, span_contains_comment};
+use hir::ExprKind;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_hir::QPath;
+use rustc_lint::{LateContext, LintContext};
 use rustc_span::Span;
 use rustc_span::symbol::{Ident, Symbol, sym};
-
 ///
 /// Returns true if the expression is a method call to `method_name`
 /// e.g. `a.method_name()` or `Option::method_name`.
@@ -102,7 +101,6 @@ fn is_method(
         _ => false,
     }
 }
-
 fn parent_is_map(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> bool {
     if let Some(expr) = get_parent_expr(cx, expr)
         && let ExprKind::MethodCall(path, _, [_], _) = expr.kind
@@ -113,12 +111,10 @@ fn parent_is_map(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> bool {
     }
     false
 }
-
 enum FilterType {
     IsSome,
     IsOk,
 }
-
 /// Returns the `FilterType` of the expression if it is a filter over an Iter<Option> or
 /// Iter<Result> with the parent expression not being a map, and not having a comment in the span of
 /// the filter. If it is not a filter over an Iter<Option> or Iter<Result> then it returns None
@@ -158,7 +154,6 @@ fn expression_type(
         {
             return Some(FilterType::IsSome);
         }
-
         if let Some(opt_defid) = cx.tcx.get_diagnostic_item(sym::Result)
             && let opt_ty = cx.tcx.type_of(opt_defid).skip_binder()
             && iter_item_ty.ty_adt_def() == opt_ty.ty_adt_def()
@@ -169,7 +164,6 @@ fn expression_type(
     }
     None
 }
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, filter_arg: &hir::Expr<'_>, filter_span: Span) {
     // we are in a filter inside an iterator
     match expression_type(cx, expr, filter_arg, filter_span) {

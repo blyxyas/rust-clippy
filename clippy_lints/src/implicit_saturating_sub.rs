@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::msrvs::{self, Msrv};
@@ -12,7 +14,6 @@ use rustc_hir::{BinOp, BinOpKind, Expr, ExprKind, QPath};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for implicit saturating subtraction.
@@ -44,7 +45,6 @@ declare_clippy_lint! {
     style,
     "Perform saturating subtraction instead of implicitly checking lower bound of data type"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for comparisons between integers, followed by subtracting the greater value from the
@@ -74,26 +74,21 @@ declare_clippy_lint! {
     correctness,
     "Check if a variable is smaller than another one and still subtract from it even if smaller"
 }
-
 pub struct ImplicitSaturatingSub {
     msrv: Msrv,
 }
-
 impl_lint_pass!(ImplicitSaturatingSub => [IMPLICIT_SATURATING_SUB, INVERTED_SATURATING_SUB]);
-
 impl ImplicitSaturatingSub {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for ImplicitSaturatingSub {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if expr.span.from_expansion() {
             return;
         }
         if let Some(higher::If { cond, then, r#else: None }) = higher::If::hir(expr)
-
             // Check if the conditional expression is a binary operation
             && let ExprKind::Binary(ref cond_op, cond_left, cond_right) = cond.kind
         {
@@ -111,7 +106,6 @@ impl<'tcx> LateLintPass<'tcx> for ImplicitSaturatingSub {
         }
     }
 }
-
 #[allow(clippy::too_many_arguments)]
 fn check_manual_check<'tcx>(
     cx: &LateContext<'tcx>,
@@ -164,7 +158,6 @@ fn check_manual_check<'tcx>(
         }
     }
 }
-
 #[allow(clippy::too_many_arguments)]
 fn check_gt(
     cx: &LateContext<'_>,
@@ -191,11 +184,9 @@ fn check_gt(
         );
     }
 }
-
 fn is_side_effect_free(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     eq_expr_value(cx, expr, expr)
 }
-
 #[allow(clippy::too_many_arguments)]
 fn check_subtraction(
     cx: &LateContext<'_>,
@@ -284,7 +275,6 @@ fn check_subtraction(
         }
     }
 }
-
 fn check_with_condition<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &Expr<'tcx>,
@@ -295,10 +285,8 @@ fn check_with_condition<'tcx>(
 ) {
     // Ensure that the binary operator is >, !=, or <
     if (BinOpKind::Ne == cond_op || BinOpKind::Gt == cond_op || BinOpKind::Lt == cond_op)
-
         // Check if assign operation is done
         && let Some(target) = subtracts_one(cx, then)
-
         // Extracting out the variable name
         && let ExprKind::Path(QPath::Resolved(_, ares_path)) = target.kind
     {
@@ -318,12 +306,10 @@ fn check_with_condition<'tcx>(
         } else {
             return;
         };
-
         // Check if the variable in the condition statement is an integer
         if !cx.typeck_results().expr_ty(cond_var).is_integral() {
             return;
         }
-
         // Get the variable name
         let var_name = ares_path.segments[0].ident.name.as_str();
         match cond_num_val.kind {
@@ -361,7 +347,6 @@ fn check_with_condition<'tcx>(
         }
     }
 }
-
 fn subtracts_one<'a>(cx: &LateContext<'_>, expr: &'a Expr<'a>) -> Option<&'a Expr<'a>> {
     match peel_blocks_with_stmt(expr).kind {
         ExprKind::AssignOp(ref op1, target, value) => {
@@ -382,7 +367,6 @@ fn subtracts_one<'a>(cx: &LateContext<'_>, expr: &'a Expr<'a>) -> Option<&'a Exp
         _ => None,
     }
 }
-
 fn print_lint_and_sugg(cx: &LateContext<'_>, var_name: &str, expr: &Expr<'_>) {
     span_lint_and_sugg(
         cx,

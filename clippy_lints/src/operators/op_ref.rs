@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::OP_REF;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::get_enclosing_block;
 use clippy_utils::source::snippet;
@@ -8,9 +11,6 @@ use rustc_hir::def_id::DefId;
 use rustc_hir::{BinOpKind, BorrowKind, Expr, ExprKind, GenericArg, ItemKind, QPath, TyKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
-
-use super::OP_REF;
-
 #[expect(clippy::too_many_lines)]
 pub(crate) fn check<'tcx>(
     cx: &LateContext<'tcx>,
@@ -173,7 +173,6 @@ pub(crate) fn check<'tcx>(
         }
     }
 }
-
 fn in_impl<'tcx>(
     cx: &LateContext<'tcx>,
     e: &'tcx Expr<'_>,
@@ -196,7 +195,6 @@ fn in_impl<'tcx>(
         None
     }
 }
-
 fn are_equal(cx: &LateContext<'_>, middle_ty: Ty<'_>, hir_ty: &rustc_hir::Ty<'_>) -> bool {
     if let ty::Adt(adt_def, _) = middle_ty.kind()
         && let Some(local_did) = adt_def.did().as_local()

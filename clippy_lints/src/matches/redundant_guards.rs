@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::{REDUNDANT_GUARDS, pat_contains_disallowed_or};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::macros::matching_root_macro_call;
 use clippy_utils::msrvs::Msrv;
@@ -13,15 +16,11 @@ use rustc_span::symbol::Ident;
 use rustc_span::{Span, sym};
 use std::borrow::Cow;
 use std::ops::ControlFlow;
-
-use super::{REDUNDANT_GUARDS, pat_contains_disallowed_or};
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'tcx>], msrv: Msrv) {
     for outer_arm in arms {
         let Some(guard) = outer_arm.guard else {
             continue;
         };
-
         // `Some(x) if matches!(x, y)`
         if let ExprKind::Match(scrutinee, [arm, _], MatchSource::Normal) = guard.kind
             && matching_root_macro_call(cx, guard.span, sym::matches_macro).is_some()
@@ -99,7 +98,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'tcx>], msrv:
         }
     }
 }
-
 fn check_method_calls<'tcx>(
     cx: &LateContext<'tcx>,
     arm: &Arm<'tcx>,
@@ -111,11 +109,9 @@ fn check_method_calls<'tcx>(
 ) {
     let ty = cx.typeck_results().expr_ty(recv).peel_refs();
     let slice_like = ty.is_slice() || ty.is_array();
-
     let sugg = if method == "is_empty" {
         // `s if s.is_empty()` becomes ""
         // `arr if arr.is_empty()` becomes []
-
         if ty.is_str() && !is_in_const_context(cx) {
             r#""""#.into()
         } else if slice_like {
@@ -132,9 +128,7 @@ fn check_method_calls<'tcx>(
         // `arr if arr.starts_with(&[123])` becomes [123, ..]
         // `arr if arr.ends_with(&[123])` becomes [.., 123]
         // `arr if arr.starts_with(&[])` becomes [..]  (why would anyone write this?)
-
         let mut sugg = snippet(cx, needle.span, "<needle>").into_owned();
-
         if needles.is_empty() {
             sugg.insert_str(1, "..");
         } else if method == "starts_with" {
@@ -144,21 +138,17 @@ fn check_method_calls<'tcx>(
         } else {
             return;
         }
-
         sugg.into()
     } else {
         return;
     };
-
     emit_redundant_guards(cx, arm, if_expr.span, sugg, binding, None);
 }
-
 struct PatBindingInfo {
     span: Span,
     byref_ident: Option<Ident>,
     is_field: bool,
 }
-
 fn get_pat_binding<'tcx>(
     cx: &LateContext<'tcx>,
     guard_expr: &Expr<'_>,
@@ -186,7 +176,6 @@ fn get_pat_binding<'tcx>(
             }
             true
         });
-
         // Ignore bindings from or patterns, like `First(x) | Second(x, _) | Third(x, _, _)`
         if !multiple_bindings {
             return span.map(|span| PatBindingInfo {
@@ -196,10 +185,8 @@ fn get_pat_binding<'tcx>(
             });
         }
     }
-
     None
 }
-
 fn emit_redundant_guards<'tcx>(
     cx: &LateContext<'tcx>,
     outer_arm: &Arm<'tcx>,
@@ -241,7 +228,6 @@ fn emit_redundant_guards<'tcx>(
         },
     );
 }
-
 /// Checks if the given `Expr` can also be represented as a `Pat`.
 fn expr_can_be_pat(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     for_each_expr_without_closures(expr, |expr| {
@@ -267,7 +253,6 @@ fn expr_can_be_pat(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         } {
             return ControlFlow::Continue(());
         }
-
         ControlFlow::Break(())
     })
     .is_none()

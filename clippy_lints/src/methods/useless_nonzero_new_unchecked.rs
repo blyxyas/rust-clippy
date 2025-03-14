@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::USELESS_NONZERO_NEW_UNCHECKED;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::is_inside_always_const_context;
 use clippy_utils::msrvs::{self, Msrv};
@@ -7,9 +10,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Block, BlockCheckMode, Expr, ExprKind, Node, QPath, UnsafeSource};
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::USELESS_NONZERO_NEW_UNCHECKED;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>, func: &Expr<'tcx>, args: &[Expr<'_>], msrv: Msrv) {
     if let ExprKind::Path(QPath::TypeRelative(ty, segment)) = func.kind
         && segment.ident.name == sym::new_unchecked
@@ -25,7 +25,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>, func: &Expr<'
             "{ty_str}::new({}).unwrap()",
             snippet_with_applicability(cx, init_arg.span, "_", &mut app)
         );
-
         if let Node::Block(Block {
             stmts: [],
             span: block_span,

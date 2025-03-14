@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::ty::implements_trait;
@@ -6,7 +8,6 @@ use rustc_hir::{Expr, ExprKind, Pat, PatKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::ty::Ty;
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for pattern matchings that can be expressed using equality.
@@ -36,9 +37,7 @@ declare_clippy_lint! {
     nursery,
     "using pattern matching instead of equality"
 }
-
 declare_lint_pass!(PatternEquality => [EQUATABLE_IF_LET]);
-
 /// detects if pattern matches just one thing
 fn unary_pattern(pat: &Pat<'_>) -> bool {
     fn array_rec(pats: &[Pat<'_>]) -> bool {
@@ -58,7 +57,6 @@ fn unary_pattern(pat: &Pat<'_>) -> bool {
         PatKind::Expr(_) => true,
     }
 }
-
 fn is_structural_partial_eq<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>, other: Ty<'tcx>) -> bool {
     if let Some(def_id) = cx.tcx.lang_items().eq_trait() {
         implements_trait(cx, ty, def_id, &[other.into()])
@@ -66,7 +64,6 @@ fn is_structural_partial_eq<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>, other: T
         false
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for PatternEquality {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let ExprKind::Let(let_expr) = expr.kind
@@ -76,7 +73,6 @@ impl<'tcx> LateLintPass<'tcx> for PatternEquality {
             let exp_ty = cx.typeck_results().expr_ty(let_expr.init);
             let pat_ty = cx.typeck_results().pat_ty(let_expr.pat);
             let mut applicability = Applicability::MachineApplicable;
-
             if is_structural_partial_eq(cx, exp_ty, pat_ty) {
                 let pat_str = match let_expr.pat.kind {
                     PatKind::Struct(..) => format!(

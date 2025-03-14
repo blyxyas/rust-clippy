@@ -1,9 +1,10 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_hir;
 use rustc_hir::{Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for manual re-implementations of `PartialEq::ne`.
@@ -28,9 +29,7 @@ declare_clippy_lint! {
     complexity,
     "re-implementing `PartialEq::ne`"
 }
-
 declare_lint_pass!(PartialEqNeImpl => [PARTIALEQ_NE_IMPL]);
-
 impl<'tcx> LateLintPass<'tcx> for PartialEqNeImpl {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         if let ItemKind::Impl(Impl {

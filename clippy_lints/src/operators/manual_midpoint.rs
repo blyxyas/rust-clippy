@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_MIDPOINT;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::sugg::Sugg;
@@ -7,9 +10,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
-
-use super::MANUAL_MIDPOINT;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -46,7 +46,6 @@ pub(super) fn check<'tcx>(
         );
     }
 }
-
 /// Return the left and right operands if `expr` represents an addition
 fn add_operands<'e, 'tcx>(expr: &'e Expr<'tcx>) -> Option<(&'e Expr<'tcx>, &'e Expr<'tcx>)> {
     match expr.kind {
@@ -54,7 +53,6 @@ fn add_operands<'e, 'tcx>(expr: &'e Expr<'tcx>) -> Option<(&'e Expr<'tcx>, &'e E
         _ => None,
     }
 }
-
 fn is_midpoint_implemented(cx: &LateContext<'_>, ty: Ty<'_>, msrv: Msrv) -> bool {
     match ty.kind() {
         ty::Uint(_) | ty::Float(_) => msrv.meets(cx, msrvs::UINT_FLOAT_MIDPOINT),

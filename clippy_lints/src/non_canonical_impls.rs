@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::ty::implements_trait;
 use clippy_utils::{is_from_proc_macro, is_res_lang_ctor, last_path_segment, path_res, std_or_core};
@@ -9,7 +11,6 @@ use rustc_middle::ty::EarlyBinder;
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
 use rustc_span::symbol::kw;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for non-canonical implementations of `Clone` when `Copy` is already implemented.
@@ -108,7 +109,6 @@ declare_clippy_lint! {
     "non-canonical implementation of `PartialOrd` on an `Ord` type"
 }
 declare_lint_pass!(NonCanonicalImpls => [NON_CANONICAL_CLONE_IMPL, NON_CANONICAL_PARTIAL_ORD_IMPL]);
-
 impl LateLintPass<'_> for NonCanonicalImpls {
     #[expect(clippy::too_many_lines)]
     fn check_impl_item<'tcx>(&mut self, cx: &LateContext<'tcx>, impl_item: &ImplItem<'tcx>) {
@@ -131,7 +131,6 @@ impl LateLintPass<'_> for NonCanonicalImpls {
         if block.span.in_external_macro(cx.sess().source_map()) || is_from_proc_macro(cx, impl_item) {
             return;
         }
-
         if cx.tcx.is_diagnostic_item(sym::Clone, trait_impl.def_id)
             && let Some(copy_def_id) = cx.tcx.get_diagnostic_item(sym::Copy)
             && implements_trait(cx, trait_impl.self_ty(), copy_def_id, &[])
@@ -153,11 +152,9 @@ impl LateLintPass<'_> for NonCanonicalImpls {
                         "{ *self }".to_owned(),
                         Applicability::MaybeIncorrect,
                     );
-
                     return;
                 }
             }
-
             if impl_item.ident.name == sym::clone_from {
                 span_lint_and_sugg(
                     cx,
@@ -168,11 +165,9 @@ impl LateLintPass<'_> for NonCanonicalImpls {
                     String::new(),
                     Applicability::MaybeIncorrect,
                 );
-
                 return;
             }
         }
-
         if cx.tcx.is_diagnostic_item(sym::PartialOrd, trait_impl.def_id)
             && impl_item.ident.name == sym::partial_cmp
             && let Some(ord_def_id) = cx.tcx.get_diagnostic_item(sym::Ord)
@@ -182,7 +177,6 @@ impl LateLintPass<'_> for NonCanonicalImpls {
             // (like `std::cmp::Ord::cmp`). It's unfortunate we must put this here but we can't
             // access `cmp_expr` in the suggestion without major changes, as we lint in `else`.
             let mut needs_fully_qualified = false;
-
             if block.stmts.is_empty()
                 && let Some(expr) = block.expr
                 && expr_is_cmp(cx, &expr.kind, impl_item, &mut needs_fully_qualified)
@@ -205,7 +199,6 @@ impl LateLintPass<'_> for NonCanonicalImpls {
                 {
                     return;
                 }
-
                 span_lint_and_then(
                     cx,
                     NON_CANONICAL_PARTIAL_ORD_IMPL,
@@ -218,7 +211,6 @@ impl LateLintPass<'_> for NonCanonicalImpls {
                         let Some(std_or_core) = std_or_core(cx) else {
                             return;
                         };
-
                         let suggs = match (other.pat.simple_ident(), needs_fully_qualified) {
                             (Some(other_ident), true) => vec![(
                                 block.span,
@@ -239,7 +231,6 @@ impl LateLintPass<'_> for NonCanonicalImpls {
                                 (other.pat.span, "other".to_owned()),
                             ],
                         };
-
                         diag.multipart_suggestion("change this to", suggs, Applicability::Unspecified);
                     },
                 );
@@ -247,7 +238,6 @@ impl LateLintPass<'_> for NonCanonicalImpls {
         }
     }
 }
-
 /// Return true if `expr_kind` is a `cmp` call.
 fn expr_is_cmp<'tcx>(
     cx: &LateContext<'tcx>,
@@ -271,7 +261,6 @@ fn expr_is_cmp<'tcx>(
         false
     }
 }
-
 /// Returns whether this is any of `self.cmp(..)`, `Self::cmp(self, ..)` or `Ord::cmp(self, ..)`.
 fn self_cmp_call<'tcx>(
     cx: &LateContext<'tcx>,
@@ -287,7 +276,6 @@ fn self_cmp_call<'tcx>(
             // We can set this to true here no matter what as if it's a `MethodCall` and goes to the
             // `else` branch, it must be a method named `cmp` that isn't `Ord::cmp`
             *needs_fully_qualified = true;
-
             // It's a bit annoying but `typeck_results` only gives us the CURRENT body, which we
             // have none, not of any `LocalDefId` we want, so we must call the query itself to avoid
             // an immediate ICE

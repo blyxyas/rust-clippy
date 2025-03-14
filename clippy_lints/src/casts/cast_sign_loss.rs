@@ -1,6 +1,6 @@
-use std::convert::Infallible;
-use std::ops::ControlFlow;
+use crate::HVec;
 
+use super::CAST_SIGN_LOSS;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::visitors::{Descend, for_each_expr_without_closures};
@@ -8,9 +8,8 @@ use clippy_utils::{method_chain_args, sext};
 use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
-
-use super::CAST_SIGN_LOSS;
-
+use std::convert::Infallible;
+use std::ops::ControlFlow;
 /// A list of methods that can never return a negative value.
 /// Includes methods that panic rather than returning a negative value.
 ///
@@ -25,16 +24,13 @@ const METHODS_RET_POSITIVE: &[&str] = &[
     "checked_rem_euclid",
     "wrapping_rem_euclid",
 ];
-
 /// A list of methods that act like `pow()`. See `pow_call_result_sign()` for details.
 ///
 /// Methods that can overflow and return a negative value must not be included in this list,
 /// because casting their return values can still result in sign loss.
 const METHODS_POW: &[&str] = &["pow", "saturating_pow", "checked_pow"];
-
 /// A list of methods that act like `unwrap()`, and don't change the sign of the inner value.
 const METHODS_UNWRAP: &[&str] = &["unwrap", "unwrap_unchecked", "expect", "into_ok"];
-
 pub(super) fn check<'cx>(
     cx: &LateContext<'cx>,
     expr: &Expr<'_>,
@@ -51,43 +47,34 @@ pub(super) fn check<'cx>(
         );
     }
 }
-
 fn should_lint<'cx>(cx: &LateContext<'cx>, cast_op: &Expr<'_>, cast_from: Ty<'cx>, cast_to: Ty<'_>) -> bool {
     match (cast_from.is_integral(), cast_to.is_integral()) {
         (true, true) => {
             if !cast_from.is_signed() || cast_to.is_signed() {
                 return false;
             }
-
             // Don't lint if `cast_op` is known to be positive, ignoring overflow.
             if let Sign::ZeroOrPositive = expr_sign(cx, cast_op, cast_from) {
                 return false;
             }
-
             if let Sign::ZeroOrPositive = expr_muldiv_sign(cx, cast_op) {
                 return false;
             }
-
             if let Sign::ZeroOrPositive = expr_add_sign(cx, cast_op) {
                 return false;
             }
-
             true
         },
-
         (false, true) => !cast_to.is_signed(),
-
         (_, _) => false,
     }
 }
-
 fn get_const_signed_int_eval<'cx>(
     cx: &LateContext<'cx>,
     expr: &Expr<'_>,
     ty: impl Into<Option<Ty<'cx>>>,
 ) -> Option<i128> {
     let ty = ty.into().unwrap_or_else(|| cx.typeck_results().expr_ty(expr));
-
     if let Constant::Int(n) = ConstEvalCtxt::new(cx).eval(expr)?
         && let ty::Int(ity) = *ty.kind()
     {
@@ -95,14 +82,12 @@ fn get_const_signed_int_eval<'cx>(
     }
     None
 }
-
 fn get_const_unsigned_int_eval<'cx>(
     cx: &LateContext<'cx>,
     expr: &Expr<'_>,
     ty: impl Into<Option<Ty<'cx>>>,
 ) -> Option<u128> {
     let ty = ty.into().unwrap_or_else(|| cx.typeck_results().expr_ty(expr));
-
     if let Constant::Int(n) = ConstEvalCtxt::new(cx).eval(expr)?
         && let ty::Uint(_ity) = *ty.kind()
     {
@@ -110,14 +95,12 @@ fn get_const_unsigned_int_eval<'cx>(
     }
     None
 }
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum Sign {
     ZeroOrPositive,
     Negative,
     Uncertain,
 }
-
 fn expr_sign<'cx, 'tcx>(cx: &LateContext<'cx>, mut expr: &'tcx Expr<'tcx>, ty: impl Into<Option<Ty<'cx>>>) -> Sign {
     // Try evaluate this expr first to see if it's positive
     if let Some(val) = get_const_signed_int_eval(cx, expr, ty) {
@@ -126,11 +109,9 @@ fn expr_sign<'cx, 'tcx>(cx: &LateContext<'cx>, mut expr: &'tcx Expr<'tcx>, ty: i
     if let Some(_val) = get_const_unsigned_int_eval(cx, expr, None) {
         return Sign::ZeroOrPositive;
     }
-
     // Calling on methods that always return non-negative values.
     if let ExprKind::MethodCall(path, caller, args, ..) = expr.kind {
         let mut method_name = path.ident.name.as_str();
-
         // Peel unwrap(), expect(), etc.
         while let Some(&found_name) = METHODS_UNWRAP.iter().find(|&name| &method_name == name)
             && let Some(arglist) = method_chain_args(expr, &[found_name])
@@ -141,7 +122,6 @@ fn expr_sign<'cx, 'tcx>(cx: &LateContext<'cx>, mut expr: &'tcx Expr<'tcx>, ty: i
             method_name = inner_path.ident.name.as_str();
             expr = recv;
         }
-
         if METHODS_POW.contains(&method_name)
             && let [arg] = args
         {
@@ -150,10 +130,8 @@ fn expr_sign<'cx, 'tcx>(cx: &LateContext<'cx>, mut expr: &'tcx Expr<'tcx>, ty: i
             return Sign::ZeroOrPositive;
         }
     }
-
     Sign::Uncertain
 }
-
 /// Return the sign of the `pow` call's result, ignoring overflow.
 ///
 /// If the base is positive, the result is always positive.
@@ -164,11 +142,9 @@ fn expr_sign<'cx, 'tcx>(cx: &LateContext<'cx>, mut expr: &'tcx Expr<'tcx>, ty: i
 /// Otherwise, returns [`Sign::Uncertain`].
 fn pow_call_result_sign(cx: &LateContext<'_>, base: &Expr<'_>, exponent: &Expr<'_>) -> Sign {
     let base_sign = expr_sign(cx, base, None);
-
     // Rust's integer pow() functions take an unsigned exponent.
     let exponent_val = get_const_unsigned_int_eval(cx, exponent, None);
     let exponent_is_even = exponent_val.map(|val| val % 2 == 0);
-
     match (base_sign, exponent_is_even) {
         // Non-negative bases always return non-negative results, ignoring overflow.
         (Sign::ZeroOrPositive, _) |
@@ -176,24 +152,20 @@ fn pow_call_result_sign(cx: &LateContext<'_>, base: &Expr<'_>, exponent: &Expr<'
         // These both hold even if we don't know the value of the base.
         (_, Some(true))
             => Sign::ZeroOrPositive,
-
         // A negative base raised to an odd exponent is non-negative.
         (Sign::Negative, Some(false)) => Sign::Negative,
-
         // Negative/unknown base to an unknown exponent, or unknown base to an odd exponent.
         // Could be negative or positive depending on the actual values.
         (Sign::Negative | Sign::Uncertain, None) |
         (Sign::Uncertain, Some(false)) => Sign::Uncertain,
     }
 }
-
 /// Peels binary operators such as [`BinOpKind::Mul`] or [`BinOpKind::Rem`],
 /// where the result could always be positive. See [`exprs_with_muldiv_binop_peeled()`] for details.
 ///
 /// Returns the sign of the list of peeled expressions.
 fn expr_muldiv_sign(cx: &LateContext<'_>, expr: &Expr<'_>) -> Sign {
     let mut negative_count = 0;
-
     // Peel off possible binary expressions, for example:
     // x * x / y => [x, x, y]
     // a % b => [a]
@@ -207,7 +179,6 @@ fn expr_muldiv_sign(cx: &LateContext<'_>, expr: &Expr<'_>) -> Sign {
             Sign::ZeroOrPositive => (),
         }
     }
-
     // A mul/div is:
     // - negative if there are an odd number of negative values,
     // - positive or zero otherwise.
@@ -217,7 +188,6 @@ fn expr_muldiv_sign(cx: &LateContext<'_>, expr: &Expr<'_>) -> Sign {
         Sign::ZeroOrPositive
     }
 }
-
 /// Peels binary operators such as [`BinOpKind::Add`], where the result could always be positive.
 /// See [`exprs_with_add_binop_peeled()`] for details.
 ///
@@ -225,7 +195,6 @@ fn expr_muldiv_sign(cx: &LateContext<'_>, expr: &Expr<'_>) -> Sign {
 fn expr_add_sign(cx: &LateContext<'_>, expr: &Expr<'_>) -> Sign {
     let mut negative_count = 0;
     let mut positive_count = 0;
-
     // Peel off possible binary expressions, for example:
     // a + b + c => [a, b, c]
     let exprs = exprs_with_add_binop_peeled(expr);
@@ -238,7 +207,6 @@ fn expr_add_sign(cx: &LateContext<'_>, expr: &Expr<'_>) -> Sign {
             Sign::ZeroOrPositive => positive_count += 1,
         }
     }
-
     // A sum is:
     // - positive or zero if there are only positive (or zero) values,
     // - negative if there are only negative (or zero) values, or
@@ -252,7 +220,6 @@ fn expr_add_sign(cx: &LateContext<'_>, expr: &Expr<'_>) -> Sign {
         Sign::Uncertain
     }
 }
-
 /// Peels binary operators such as [`BinOpKind::Mul`], [`BinOpKind::Div`] or [`BinOpKind::Rem`],
 /// where the result depends on:
 ///
@@ -265,7 +232,6 @@ fn expr_add_sign(cx: &LateContext<'_>, expr: &Expr<'_>) -> Sign {
 /// Expressions using other operators are preserved, so we can try to evaluate them later.
 fn exprs_with_muldiv_binop_peeled<'e>(expr: &'e Expr<'_>) -> Vec<&'e Expr<'e>> {
     let mut res = vec![];
-
     for_each_expr_without_closures(expr, |sub_expr| -> ControlFlow<Infallible, Descend> {
         // We don't check for mul/div/rem methods here, but we could.
         if let ExprKind::Binary(op, lhs, _rhs) = sub_expr.kind {
@@ -283,7 +249,6 @@ fn exprs_with_muldiv_binop_peeled<'e>(expr: &'e Expr<'_>) -> Vec<&'e Expr<'e>> {
                 // > ...
                 // > Arithmetic right shift on signed integer types
                 // https://doc.rust-lang.org/reference/expressions/operator-expr.html#arithmetic-and-logical-binary-operators
-
                 // We want to descend into the lhs, but skip the rhs.
                 // That's tricky to do using for_each_expr(), so we just keep the lhs intact.
                 res.push(lhs);
@@ -300,10 +265,8 @@ fn exprs_with_muldiv_binop_peeled<'e>(expr: &'e Expr<'_>) -> Vec<&'e Expr<'e>> {
             ControlFlow::Continue(Descend::No)
         }
     });
-
     res
 }
-
 /// Peels binary operators such as [`BinOpKind::Add`], where the result depends on:
 ///
 /// - all the expressions being positive, or
@@ -314,7 +277,6 @@ fn exprs_with_muldiv_binop_peeled<'e>(expr: &'e Expr<'_>) -> Vec<&'e Expr<'e>> {
 /// Expressions using other operators are preserved, so we can try to evaluate them later.
 fn exprs_with_add_binop_peeled<'e>(expr: &'e Expr<'_>) -> Vec<&'e Expr<'e>> {
     let mut res = vec![];
-
     for_each_expr_without_closures(expr, |sub_expr| -> ControlFlow<Infallible, Descend> {
         // We don't check for add methods here, but we could.
         if let ExprKind::Binary(op, _lhs, _rhs) = sub_expr.kind {
@@ -334,6 +296,5 @@ fn exprs_with_add_binop_peeled<'e>(expr: &'e Expr<'_>) -> Vec<&'e Expr<'e>> {
             ControlFlow::Continue(Descend::No)
         }
     });
-
     res
 }

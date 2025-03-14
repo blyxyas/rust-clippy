@@ -1,11 +1,11 @@
+use crate::HVec;
+
+use super::UNNEEDED_FIELD_PATTERN;
 use clippy_utils::diagnostics::{span_lint, span_lint_and_then};
 use clippy_utils::source::SpanRangeExt;
 use itertools::Itertools;
 use rustc_ast::ast::{Pat, PatKind};
 use rustc_lint::EarlyContext;
-
-use super::UNNEEDED_FIELD_PATTERN;
-
 pub(super) fn check(cx: &EarlyContext<'_>, pat: &Pat) {
     if let PatKind::Struct(_, ref npat, ref pfields, _) = pat.kind {
         let mut wilds = 0;
@@ -15,7 +15,6 @@ pub(super) fn check(cx: &EarlyContext<'_>, pat: &Pat) {
             .expect("A path must have at least one segment")
             .ident
             .name;
-
         for field in pfields {
             if let PatKind::Wild = field.pat.kind {
                 wilds += 1;

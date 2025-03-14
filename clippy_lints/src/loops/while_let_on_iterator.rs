@@ -1,4 +1,4 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
 use super::WHILE_LET_ON_ITERATOR;
 use clippy_utils::diagnostics::span_lint_and_sugg;
@@ -14,7 +14,7 @@ use rustc_middle::hir::nested_filter::OnlyBodies;
 use rustc_middle::ty::adjustment::Adjust;
 use rustc_span::Symbol;
 use rustc_span::symbol::sym;
-
+use std::ops::ControlFlow;
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
     if let Some(higher::WhileLet { if_then, let_pat, let_expr, label, .. }) = higher::WhileLet::hir(expr)
         // check for `Some(..)` pattern
@@ -29,9 +29,7 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         && !uses_iter(cx, &iter_expr_struct, if_then)
     {
         let mut applicability = Applicability::MachineApplicable;
-
         let loop_label = label.map_or(String::new(), |l| format!("{}: ", l.ident.name));
-
         let loop_var = if let Some(some_pat) = some_pat.first() {
             if is_refutable(cx, some_pat) {
                 // Refutable patterns don't work with for loops.
@@ -41,7 +39,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         } else {
             "_".into()
         };
-
         // If the iterator is a field or the iterator is accessed after the loop is complete it needs to be
         // borrowed mutably. TODO: If the struct can be partially moved from and the struct isn't used
         // afterwards a mutable borrow of a field isn't necessary.
@@ -54,7 +51,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         } else {
             ""
         };
-
         let iterator = snippet_with_applicability(cx, iter_expr.span, "_", &mut applicability);
         span_lint_and_sugg(
             cx,
@@ -67,7 +63,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         );
     }
 }
-
 #[derive(Debug)]
 struct IterExpr {
     /// The fields used, in order of child to parent.
@@ -77,7 +72,6 @@ struct IterExpr {
     /// Whether or not the iterator can be moved.
     can_move: bool,
 }
-
 /// Parses any expression to find out which field of which variable is used. Will return `None` if
 /// the expression might have side effects.
 fn try_parse_iter_expr(cx: &LateContext<'_>, mut e: &Expr<'_>) -> Option<IterExpr> {
@@ -108,7 +102,6 @@ fn try_parse_iter_expr(cx: &LateContext<'_>, mut e: &Expr<'_>) -> Option<IterExp
             },
             // Dereferencing a pointer has no side effects and doesn't affect which field is being used.
             ExprKind::Unary(UnOp::Deref, base) if cx.typeck_results().expr_ty(base).is_ref() => e = base,
-
             // Shouldn't have side effects, but there's no way to trace which field is used. So forget which fields have
             // already been seen.
             ExprKind::Index(base, idx, _) if !idx.can_have_side_effects() => {
@@ -121,14 +114,12 @@ fn try_parse_iter_expr(cx: &LateContext<'_>, mut e: &Expr<'_>) -> Option<IterExp
                 fields.clear();
                 e = base;
             },
-
             // No effect and doesn't affect which field is being used.
             ExprKind::DropTemps(base) | ExprKind::AddrOf(_, _, base) | ExprKind::Type(base, _) => e = base,
             _ => break None,
         }
     }
 }
-
 fn is_expr_same_field(cx: &LateContext<'_>, mut e: &Expr<'_>, mut fields: &[Symbol], path_res: Res) -> bool {
     loop {
         match (&e.kind, fields) {
@@ -144,7 +135,6 @@ fn is_expr_same_field(cx: &LateContext<'_>, mut e: &Expr<'_>, mut fields: &[Symb
         }
     }
 }
-
 /// Checks if the given expression is the same field as, is a child of, or is the parent of the
 /// given field. Used to check if the expression can be used while the given field is borrowed
 /// mutably. e.g. if checking for `x.y`, then `x.y`, `x.y.z`, and `x` will all return true, but
@@ -164,7 +154,6 @@ fn is_expr_same_child_or_parent_field(cx: &LateContext<'_>, expr: &Expr<'_>, fie
                     }
                 }
             }
-
             // Check if the expression is a child field.
             let mut e = base;
             loop {
@@ -186,7 +175,6 @@ fn is_expr_same_child_or_parent_field(cx: &LateContext<'_>, expr: &Expr<'_>, fie
         _ => false,
     }
 }
-
 /// Strips off all field and path expressions. This will return true if a field or path has been
 /// skipped. Used to skip them after failing to check for equality.
 fn skip_fields_and_path<'tcx>(expr: &'tcx Expr<'_>) -> (Option<&'tcx Expr<'tcx>>, bool) {
@@ -200,7 +188,6 @@ fn skip_fields_and_path<'tcx>(expr: &'tcx Expr<'_>) -> (Option<&'tcx Expr<'tcx>>
     };
     (Some(e), e.hir_id != expr.hir_id)
 }
-
 /// Checks if the given expression uses the iterator.
 fn uses_iter<'tcx>(cx: &LateContext<'tcx>, iter_expr: &IterExpr, container: &'tcx Expr<'_>) -> bool {
     struct V<'a, 'b, 'tcx> {
@@ -229,11 +216,9 @@ fn uses_iter<'tcx>(cx: &LateContext<'tcx>, iter_expr: &IterExpr, container: &'tc
             }
         }
     }
-
     let mut v = V { cx, iter_expr };
     v.visit_expr(container).is_break()
 }
-
 #[expect(clippy::too_many_lines)]
 fn needs_mutable_borrow(cx: &LateContext<'_>, iter_expr: &IterExpr, loop_expr: &Expr<'_>) -> bool {
     struct AfterLoopVisitor<'a, 'b, 'tcx> {
@@ -248,7 +233,6 @@ fn needs_mutable_borrow(cx: &LateContext<'_>, iter_expr: &IterExpr, loop_expr: &
         fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
             self.cx.tcx
         }
-
         fn visit_expr(&mut self, e: &'tcx Expr<'_>) -> Self::Result {
             if self.after_loop {
                 if is_expr_same_child_or_parent_field(self.cx, e, &self.iter_expr.fields, self.iter_expr.path) {
@@ -276,7 +260,6 @@ fn needs_mutable_borrow(cx: &LateContext<'_>, iter_expr: &IterExpr, loop_expr: &
             }
         }
     }
-
     struct NestedLoopVisitor<'a, 'b, 'tcx> {
         cx: &'a LateContext<'tcx>,
         iter_expr: &'b IterExpr,
@@ -291,7 +274,6 @@ fn needs_mutable_borrow(cx: &LateContext<'_>, iter_expr: &IterExpr, loop_expr: &
         fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
             self.cx.tcx
         }
-
         fn visit_local(&mut self, l: &'tcx LetStmt<'_>) {
             if !self.after_loop {
                 l.pat.each_binding_or_first(&mut |_, id, _, _| {
@@ -304,7 +286,6 @@ fn needs_mutable_borrow(cx: &LateContext<'_>, iter_expr: &IterExpr, loop_expr: &
                 self.visit_expr(e);
             }
         }
-
         fn visit_expr(&mut self, e: &'tcx Expr<'_>) {
             if self.used_after {
                 return;
@@ -328,7 +309,6 @@ fn needs_mutable_borrow(cx: &LateContext<'_>, iter_expr: &IterExpr, loop_expr: &
             }
         }
     }
-
     if let Some(e) = get_enclosing_loop_or_multi_call_closure(cx, loop_expr) {
         let Res::Local(local_id) = iter_expr.path else {
             return true;

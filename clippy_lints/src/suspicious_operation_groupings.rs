@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::ast_utils::{IdentIter, eq_id, is_useless_with_eq_exprs};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
@@ -10,7 +12,6 @@ use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::source_map::Spanned;
 use rustc_span::symbol::Ident;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unlikely usages of binary operators that are almost
@@ -63,18 +64,14 @@ declare_clippy_lint! {
     nursery,
     "groupings of binary operations that look suspiciously like typos"
 }
-
 declare_lint_pass!(SuspiciousOperationGroupings => [SUSPICIOUS_OPERATION_GROUPINGS]);
-
 impl EarlyLintPass for SuspiciousOperationGroupings {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
         if expr.span.from_expansion() {
             return;
         }
-
         if let Some(binops) = extract_related_binops(&expr.kind) {
             check_binops(cx, &binops.iter().collect::<Vec<_>>());
-
             let mut op_types = Vec::with_capacity(binops.len());
             // We could use a hashmap, etc. to avoid being O(n*m) here, but
             // we want the lints to be emitted in a consistent order. Besides,
@@ -85,16 +82,13 @@ impl EarlyLintPass for SuspiciousOperationGroupings {
                     op_types.push(op);
                 }
             });
-
             for op_type in op_types {
                 let ops: Vec<_> = binops.iter().filter(|b| b.op == op_type).collect();
-
                 check_binops(cx, &ops);
             }
         }
     }
 }
-
 fn check_binops(cx: &EarlyContext<'_>, binops: &[&BinaryOp<'_>]) {
     let binop_count = binops.len();
     if binop_count < 2 {
@@ -102,14 +96,11 @@ fn check_binops(cx: &EarlyContext<'_>, binops: &[&BinaryOp<'_>]) {
         // positives.
         return;
     }
-
     let mut one_ident_difference_count = 0;
     let mut no_difference_info = None;
     let mut double_difference_info = None;
     let mut expected_ident_loc = None;
-
     let mut paired_identifiers = FxHashSet::default();
-
     for (i, BinaryOp { left, right, op, .. }) in binops.iter().enumerate() {
         match ident_difference_expr(left, right) {
             IdentDifference::NoDifference => {
@@ -117,7 +108,6 @@ fn check_binops(cx: &EarlyContext<'_>, binops: &[&BinaryOp<'_>]) {
                     // The `eq_op` lint should catch this in this case.
                     return;
                 }
-
                 no_difference_info = Some(i);
             },
             IdentDifference::Single(ident_loc) => {
@@ -131,7 +121,6 @@ fn check_binops(cx: &EarlyContext<'_>, binops: &[&BinaryOp<'_>]) {
                 } else {
                     expected_ident_loc = Some(ident_loc);
                 }
-
                 // If there was only a single difference, all other idents
                 // must have been the same, and thus were paired.
                 for id in skip_index(IdentIter::from(*left), ident_loc.index) {
@@ -147,9 +136,7 @@ fn check_binops(cx: &EarlyContext<'_>, binops: &[&BinaryOp<'_>]) {
             },
         }
     }
-
     let mut applicability = Applicability::MachineApplicable;
-
     if let Some(expected_loc) = expected_ident_loc {
         match (no_difference_info, double_difference_info) {
             (Some(i), None) => attempt_to_emit_no_difference_lint(cx, binops, i, expected_loc),
@@ -166,7 +153,6 @@ fn check_binops(cx: &EarlyContext<'_>, binops: &[&BinaryOp<'_>]) {
                         // looking for.
                         return;
                     };
-
                     if let Some(sugg) = ident_swap_sugg(cx, &paired_identifiers, binop, changed_loc, &mut applicability)
                     {
                         emit_suggestion(cx, binop.span, sugg, applicability);
@@ -177,7 +163,6 @@ fn check_binops(cx: &EarlyContext<'_>, binops: &[&BinaryOp<'_>]) {
         }
     }
 }
-
 fn attempt_to_emit_no_difference_lint(
     cx: &EarlyContext<'_>,
     binops: &[&BinaryOp<'_>],
@@ -191,13 +176,11 @@ fn attempt_to_emit_no_difference_lint(
         // just taking the first one, we may get some bad lint
         // messages.
         let mut applicability = Applicability::MaybeIncorrect;
-
         // We assume that the correct ident is one used elsewhere in
         // the other binops, in a place that there was a single
         // difference between idents before.
         let old_left_ident = get_ident(binop.left, expected_loc);
         let old_right_ident = get_ident(binop.right, expected_loc);
-
         for b in skip_index(binops.iter(), i) {
             if let (Some(old_ident), Some(new_ident)) = (old_left_ident, get_ident(b.left, expected_loc))
                 && old_ident != new_ident
@@ -212,7 +195,6 @@ fn attempt_to_emit_no_difference_lint(
                 );
                 return;
             }
-
             if let (Some(old_ident), Some(new_ident)) = (old_right_ident, get_ident(b.right, expected_loc))
                 && old_ident != new_ident
                 && let Some(sugg) =
@@ -229,7 +211,6 @@ fn attempt_to_emit_no_difference_lint(
         }
     }
 }
-
 fn emit_suggestion(cx: &EarlyContext<'_>, span: Span, sugg: String, applicability: Applicability) {
     span_lint_and_sugg(
         cx,
@@ -241,7 +222,6 @@ fn emit_suggestion(cx: &EarlyContext<'_>, span: Span, sugg: String, applicabilit
         applicability,
     );
 }
-
 fn ident_swap_sugg(
     cx: &EarlyContext<'_>,
     paired_identifiers: &FxHashSet<Ident>,
@@ -251,7 +231,6 @@ fn ident_swap_sugg(
 ) -> Option<String> {
     let left_ident = get_ident(binop.left, location)?;
     let right_ident = get_ident(binop.right, location)?;
-
     let sugg = match (
         paired_identifiers.contains(&left_ident),
         paired_identifiers.contains(&right_ident),
@@ -260,36 +239,28 @@ fn ident_swap_sugg(
             // We don't have a good guess of what ident should be
             // used instead, in these cases.
             *applicability = Applicability::MaybeIncorrect;
-
             // We arbitrarily choose one side to suggest changing,
             // since we don't have a better guess. If the user
             // ends up duplicating a clause, the `logic_bug` lint
             // should catch it.
-
             let right_suggestion = suggestion_with_swapped_ident(cx, binop.right, location, left_ident, applicability)?;
-
             replace_right_sugg(cx, binop, &right_suggestion, applicability)
         },
         (false, true) => {
             // We haven't seen a pair involving the left one, so
             // it's probably what is wanted.
-
             let right_suggestion = suggestion_with_swapped_ident(cx, binop.right, location, left_ident, applicability)?;
-
             replace_right_sugg(cx, binop, &right_suggestion, applicability)
         },
         (true, false) => {
             // We haven't seen a pair involving the right one, so
             // it's probably what is wanted.
             let left_suggestion = suggestion_with_swapped_ident(cx, binop.left, location, right_ident, applicability)?;
-
             replace_left_sugg(cx, binop, &left_suggestion, applicability)
         },
     };
-
     Some(sugg)
 }
-
 fn replace_left_sugg(
     cx: &EarlyContext<'_>,
     binop: &BinaryOp<'_>,
@@ -302,7 +273,6 @@ fn replace_left_sugg(
         snippet_with_applicability(cx, binop.right.span, "..", applicability),
     )
 }
-
 fn replace_right_sugg(
     cx: &EarlyContext<'_>,
     binop: &BinaryOp<'_>,
@@ -315,7 +285,6 @@ fn replace_right_sugg(
         binop.op.as_str(),
     )
 }
-
 #[derive(Clone, Debug)]
 struct BinaryOp<'exprs> {
     op: BinOpKind,
@@ -323,13 +292,11 @@ struct BinaryOp<'exprs> {
     left: &'exprs Expr,
     right: &'exprs Expr,
 }
-
 impl<'exprs> BinaryOp<'exprs> {
     fn new(op: BinOpKind, span: Span, (left, right): (&'exprs Expr, &'exprs Expr)) -> Self {
         Self { op, span, left, right }
     }
 }
-
 fn strip_non_ident_wrappers(expr: &Expr) -> &Expr {
     let mut output = expr;
     loop {
@@ -341,11 +308,9 @@ fn strip_non_ident_wrappers(expr: &Expr) -> &Expr {
         };
     }
 }
-
 fn extract_related_binops(kind: &ExprKind) -> Option<Vec<BinaryOp<'_>>> {
     append_opt_vecs(chained_binops(kind), if_statement_binops(kind))
 }
-
 fn if_statement_binops(kind: &ExprKind) -> Option<Vec<BinaryOp<'_>>> {
     match kind {
         ExprKind::If(condition, _, _) => chained_binops(&condition.kind),
@@ -365,7 +330,6 @@ fn if_statement_binops(kind: &ExprKind) -> Option<Vec<BinaryOp<'_>>> {
         _ => None,
     }
 }
-
 fn append_opt_vecs<A>(target_opt: Option<Vec<A>>, source_opt: Option<Vec<A>>) -> Option<Vec<A>> {
     match (target_opt, source_opt) {
         (Some(mut target), Some(source)) => {
@@ -379,7 +343,6 @@ fn append_opt_vecs<A>(target_opt: Option<Vec<A>>, source_opt: Option<Vec<A>>) ->
         (None, None) => None,
     }
 }
-
 fn chained_binops(kind: &ExprKind) -> Option<Vec<BinaryOp<'_>>> {
     match kind {
         ExprKind::Binary(_, left_outer, right_outer) => chained_binops_helper(left_outer, right_outer),
@@ -387,7 +350,6 @@ fn chained_binops(kind: &ExprKind) -> Option<Vec<BinaryOp<'_>>> {
         _ => None,
     }
 }
-
 fn chained_binops_helper<'expr>(left_outer: &'expr Expr, right_outer: &'expr Expr) -> Option<Vec<BinaryOp<'expr>>> {
     match (&left_outer.kind, &right_outer.kind) {
         (
@@ -426,28 +388,23 @@ fn chained_binops_helper<'expr>(left_outer: &'expr Expr, right_outer: &'expr Exp
         _ => None,
     }
 }
-
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
 struct IdentLocation {
     index: usize,
 }
-
 impl Add for IdentLocation {
     type Output = IdentLocation;
-
     fn add(self, other: Self) -> Self::Output {
         Self {
             index: self.index + other.index,
         }
     }
 }
-
 impl AddAssign for IdentLocation {
     fn add_assign(&mut self, other: Self) {
         *self = *self + other;
     }
 }
-
 #[derive(Clone, Copy, Debug)]
 enum IdentDifference {
     NoDifference,
@@ -456,10 +413,8 @@ enum IdentDifference {
     Multiple,
     NonIdent,
 }
-
 impl Add for IdentDifference {
     type Output = IdentDifference;
-
     fn add(self, other: Self) -> Self::Output {
         match (self, other) {
             (Self::NoDifference, output) | (output, Self::NoDifference) => output,
@@ -472,13 +427,11 @@ impl Add for IdentDifference {
         }
     }
 }
-
 impl AddAssign for IdentDifference {
     fn add_assign(&mut self, other: Self) {
         *self = *self + other;
     }
 }
-
 impl IdentDifference {
     /// Returns true if learning about more differences will not change the value
     /// of this `IdentDifference`, and false otherwise.
@@ -489,11 +442,9 @@ impl IdentDifference {
         }
     }
 }
-
 fn ident_difference_expr(left: &Expr, right: &Expr) -> IdentDifference {
     ident_difference_expr_with_base_location(left, right, IdentLocation::default()).0
 }
-
 fn ident_difference_expr_with_base_location(
     left: &Expr,
     right: &Expr,
@@ -520,10 +471,8 @@ fn ident_difference_expr_with_base_location(
     // If it turns out that problematic cases are more prevalent than we assume,
     // then we should be able to change this function to do the correct traversal,
     // without needing to change the rest of the code.
-
     #![allow(clippy::enum_glob_use)]
     use ExprKind::*;
-
     match (
         &strip_non_ident_wrappers(left).kind,
         &strip_non_ident_wrappers(right).kind,
@@ -572,9 +521,7 @@ fn ident_difference_expr_with_base_location(
             return (IdentDifference::NonIdent, base);
         },
     }
-
     let mut difference = IdentDifference::NoDifference;
-
     for (left_attr, right_attr) in left.attrs.iter().zip(right.attrs.iter()) {
         let (new_difference, new_base) =
             ident_difference_via_ident_iter_with_base_location(left_attr, right_attr, base);
@@ -584,14 +531,11 @@ fn ident_difference_expr_with_base_location(
             return (difference, base);
         }
     }
-
     let (new_difference, new_base) = ident_difference_via_ident_iter_with_base_location(left, right, base);
     base = new_base;
     difference += new_difference;
-
     (difference, base)
 }
-
 fn ident_difference_via_ident_iter_with_base_location<Iterable: Into<IdentIter>>(
     left: Iterable,
     right: Iterable,
@@ -599,10 +543,8 @@ fn ident_difference_via_ident_iter_with_base_location<Iterable: Into<IdentIter>>
 ) -> (IdentDifference, IdentLocation) {
     // See the note in `ident_difference_expr_with_base_location` about `IdentIter`
     let mut difference = IdentDifference::NoDifference;
-
     let mut left_iterator = left.into();
     let mut right_iterator = right.into();
-
     loop {
         match (left_iterator.next(), right_iterator.next()) {
             (Some(left_ident), Some(right_ident)) => {
@@ -623,11 +565,9 @@ fn ident_difference_via_ident_iter_with_base_location<Iterable: Into<IdentIter>>
         base += IdentLocation { index: 1 };
     }
 }
-
 fn get_ident(expr: &Expr, location: IdentLocation) -> Option<Ident> {
     IdentIter::from(expr).nth(location.index)
 }
-
 fn suggestion_with_swapped_ident(
     cx: &EarlyContext<'_>,
     expr: &Expr,
@@ -640,7 +580,6 @@ fn suggestion_with_swapped_ident(
             // We never want to suggest a non-change
             return None;
         }
-
         Some(format!(
             "{}{new_ident}{}",
             snippet_with_applicability(cx, expr.span.with_hi(current_ident.span.lo()), "..", applicability),
@@ -648,7 +587,6 @@ fn suggestion_with_swapped_ident(
         ))
     })
 }
-
 fn skip_index<A, Iter>(iter: Iter, index: usize) -> impl Iterator<Item = A>
 where
     Iter: Iterator<Item = A>,

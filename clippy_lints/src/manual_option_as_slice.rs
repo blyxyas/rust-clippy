@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg};
 use clippy_utils::msrvs::Msrv;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, Symbol, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// This detects various manual reimplementations of `Option::as_slice`.
@@ -39,19 +40,15 @@ declare_clippy_lint! {
     complexity,
     "manual `Option::as_slice`"
 }
-
 pub struct ManualOptionAsSlice {
     msrv: Msrv,
 }
-
 impl ManualOptionAsSlice {
     pub fn new(conf: &Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(ManualOptionAsSlice => [MANUAL_OPTION_AS_SLICE]);
-
 impl LateLintPass<'_> for ManualOptionAsSlice {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         let span = expr.span;
@@ -110,7 +107,6 @@ impl LateLintPass<'_> for ManualOptionAsSlice {
         }
     }
 }
-
 fn check_map(cx: &LateContext<'_>, map: &Expr<'_>, span: Span, msrv: Msrv) {
     if let ExprKind::MethodCall(seg, callee, [mapping], _) = map.kind
         && seg.ident.name == sym::map
@@ -119,7 +115,6 @@ fn check_map(cx: &LateContext<'_>, map: &Expr<'_>, span: Span, msrv: Msrv) {
         check_as_ref(cx, callee, span, msrv);
     }
 }
-
 fn check_as_ref(cx: &LateContext<'_>, expr: &Expr<'_>, span: Span, msrv: Msrv) {
     if let ExprKind::MethodCall(seg, callee, [], _) = expr.kind
         && seg.ident.name == sym::as_ref
@@ -149,7 +144,6 @@ fn check_as_ref(cx: &LateContext<'_>, expr: &Expr<'_>, span: Span, msrv: Msrv) {
         }
     }
 }
-
 fn extract_ident_from_some_pat(cx: &LateContext<'_>, pat: &Pat<'_>) -> Option<Symbol> {
     if let PatKind::TupleStruct(QPath::Resolved(None, path), [binding], _) = pat.kind
         && let Res::Def(DefKind::Ctor(..), def_id) = path.res
@@ -161,7 +155,6 @@ fn extract_ident_from_some_pat(cx: &LateContext<'_>, pat: &Pat<'_>) -> Option<Sy
         None
     }
 }
-
 /// Returns true if `expr` is `std::slice::from_ref(<name>)`. Used in `if let`s.
 fn check_some_body(cx: &LateContext<'_>, name: Symbol, expr: &Expr<'_>) -> bool {
     if let ExprKind::Call(slice_from_ref, [arg]) = expr.peel_blocks().kind
@@ -174,7 +167,6 @@ fn check_some_body(cx: &LateContext<'_>, name: Symbol, expr: &Expr<'_>) -> bool 
         false
     }
 }
-
 fn check_arms(cx: &LateContext<'_>, none_arm: &Arm<'_>, some_arm: &Arm<'_>) -> bool {
     if none_arm.guard.is_none()
         && some_arm.guard.is_none()
@@ -186,7 +178,6 @@ fn check_arms(cx: &LateContext<'_>, none_arm: &Arm<'_>, some_arm: &Arm<'_>) -> b
         false
     }
 }
-
 fn returns_empty_slice(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     match expr.kind {
         ExprKind::Path(_) => clippy_utils::is_path_diagnostic_item(cx, expr, sym::default_fn),
@@ -194,7 +185,6 @@ fn returns_empty_slice(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         _ => false,
     }
 }
-
 /// Returns if expr returns an empty slice. If:
 /// - An indexing operation to an empty array with a built-in range. `[][..]`
 /// - An indexing operation with a zero-ended range. `expr[..0]`
@@ -218,7 +208,6 @@ fn is_empty_slice(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         _ => false,
     }
 }
-
 fn is_slice_from_ref(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     clippy_utils::is_expr_path_def_path(cx, expr, &["core", "slice", "raw", "from_ref"])
 }

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_errors::Applicability;
@@ -5,7 +7,6 @@ use rustc_hir::{Block, Expr, ExprKind, Stmt, StmtKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -64,12 +65,10 @@ declare_clippy_lint! {
     "add a semicolon outside the block"
 }
 impl_lint_pass!(SemicolonBlock => [SEMICOLON_INSIDE_BLOCK, SEMICOLON_OUTSIDE_BLOCK]);
-
 pub struct SemicolonBlock {
     semicolon_inside_block_ignore_singleline: bool,
     semicolon_outside_block_ignore_multiline: bool,
 }
-
 impl SemicolonBlock {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -77,15 +76,12 @@ impl SemicolonBlock {
             semicolon_outside_block_ignore_multiline: conf.semicolon_outside_block_ignore_multiline,
         }
     }
-
     fn semicolon_inside_block(&self, cx: &LateContext<'_>, block: &Block<'_>, tail: &Expr<'_>, semi_span: Span) {
         let insert_span = tail.span.source_callsite().shrink_to_hi();
         let remove_span = semi_span.with_lo(block.span.hi());
-
         if self.semicolon_inside_block_ignore_singleline && get_line(cx, remove_span) == get_line(cx, insert_span) {
             return;
         }
-
         span_lint_and_then(
             cx,
             SEMICOLON_INSIDE_BLOCK,
@@ -100,10 +96,8 @@ impl SemicolonBlock {
             },
         );
     }
-
     fn semicolon_outside_block(&self, cx: &LateContext<'_>, block: &Block<'_>, tail_stmt_expr: &Expr<'_>) {
         let insert_span = block.span.with_lo(block.span.hi());
-
         // For macro call semicolon statements (`mac!();`), the statement's span does not actually
         // include the semicolon itself, so use `mac_call_stmt_semi_span`, which finds the semicolon
         // based on a source snippet.
@@ -116,11 +110,9 @@ impl SemicolonBlock {
         else {
             return;
         };
-
         if self.semicolon_outside_block_ignore_multiline && get_line(cx, remove_span) != get_line(cx, insert_span) {
             return;
         }
-
         span_lint_and_then(
             cx,
             SEMICOLON_OUTSIDE_BLOCK,
@@ -136,7 +128,6 @@ impl SemicolonBlock {
         );
     }
 }
-
 impl LateLintPass<'_> for SemicolonBlock {
     fn check_stmt(&mut self, cx: &LateContext<'_>, stmt: &Stmt<'_>) {
         match stmt.kind {
@@ -171,11 +162,9 @@ impl LateLintPass<'_> for SemicolonBlock {
         }
     }
 }
-
 fn get_line(cx: &LateContext<'_>, span: Span) -> Option<usize> {
     if let Ok(line) = cx.sess().source_map().lookup_line(span.lo()) {
         return Some(line.line);
     }
-
     None
 }

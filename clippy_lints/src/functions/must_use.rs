@@ -1,3 +1,13 @@
+use crate::HVec;
+
+use super::{DOUBLE_MUST_USE, MUST_USE_CANDIDATE, MUST_USE_UNIT};
+use clippy_utils::attrs::is_proc_macro;
+use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_then};
+use clippy_utils::source::SpanRangeExt;
+use clippy_utils::ty::is_must_use_ty;
+use clippy_utils::visitors::for_each_expr_without_closures;
+use clippy_utils::{return_ty, trait_ref_of_method};
+use core::ops::ControlFlow;
 use hir::FnSig;
 use rustc_errors::Applicability;
 use rustc_hir::def::Res;
@@ -7,19 +17,7 @@ use rustc_infer::infer::TyCtxtInferExt;
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty::{self, Ty};
 use rustc_span::{Span, sym};
-
-use clippy_utils::attrs::is_proc_macro;
-use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_then};
-use clippy_utils::source::SpanRangeExt;
-use clippy_utils::ty::is_must_use_ty;
-use clippy_utils::visitors::for_each_expr_without_closures;
-use clippy_utils::{return_ty, trait_ref_of_method};
 use rustc_trait_selection::error_reporting::InferCtxtErrorExt;
-
-use core::ops::ControlFlow;
-
-use super::{DOUBLE_MUST_USE, MUST_USE_CANDIDATE, MUST_USE_UNIT};
-
 pub(super) fn check_item<'tcx>(cx: &LateContext<'tcx>, item: &'tcx hir::Item<'_>) {
     let attrs = cx.tcx.hir().attrs(item.hir_id());
     let attr = cx.tcx.get_attr(item.owner_id, sym::must_use);
@@ -46,7 +44,6 @@ pub(super) fn check_item<'tcx>(cx: &LateContext<'tcx>, item: &'tcx hir::Item<'_>
         }
     }
 }
-
 pub(super) fn check_impl_item<'tcx>(cx: &LateContext<'tcx>, item: &'tcx hir::ImplItem<'_>) {
     if let hir::ImplItemKind::Fn(ref sig, ref body_id) = item.kind {
         let is_public = cx.effective_visibilities.is_exported(item.owner_id.def_id);
@@ -68,12 +65,10 @@ pub(super) fn check_impl_item<'tcx>(cx: &LateContext<'tcx>, item: &'tcx hir::Imp
         }
     }
 }
-
 pub(super) fn check_trait_item<'tcx>(cx: &LateContext<'tcx>, item: &'tcx hir::TraitItem<'_>) {
     if let hir::TraitItemKind::Fn(ref sig, ref eid) = item.kind {
         let is_public = cx.effective_visibilities.is_exported(item.owner_id.def_id);
         let fn_header_span = item.span.with_hi(sig.decl.output.span().hi());
-
         let attrs = cx.tcx.hir().attrs(item.hir_id());
         let attr = cx.tcx.get_attr(item.owner_id, sym::must_use);
         if let Some(attr) = attr {
@@ -94,7 +89,6 @@ pub(super) fn check_trait_item<'tcx>(cx: &LateContext<'tcx>, item: &'tcx hir::Tr
         }
     }
 }
-
 // FIXME: needs to be an EARLY LINT. all attribute lints should be
 #[allow(clippy::too_many_arguments)]
 fn check_needless_must_use(
@@ -151,7 +145,6 @@ fn check_needless_must_use(
                 return;
             }
         }
-
         span_lint_and_help(
             cx,
             DOUBLE_MUST_USE,
@@ -162,7 +155,6 @@ fn check_needless_must_use(
         );
     }
 }
-
 fn check_must_use_candidate<'tcx>(
     cx: &LateContext<'tcx>,
     decl: &'tcx hir::FnDecl<'_>,
@@ -192,7 +184,6 @@ fn check_must_use_candidate<'tcx>(
         }
     });
 }
-
 fn returns_unit(decl: &hir::FnDecl<'_>) -> bool {
     match decl.output {
         hir::FnRetTy::DefaultReturn(_) => true,
@@ -203,12 +194,10 @@ fn returns_unit(decl: &hir::FnDecl<'_>) -> bool {
         },
     }
 }
-
 fn has_mutable_arg(cx: &LateContext<'_>, body: &hir::Body<'_>) -> bool {
     let mut tys = DefIdSet::default();
     body.params.iter().any(|param| is_mutable_pat(cx, param.pat, &mut tys))
 }
-
 fn is_mutable_pat(cx: &LateContext<'_>, pat: &hir::Pat<'_>, tys: &mut DefIdSet) -> bool {
     if let hir::PatKind::Wild = pat.kind {
         return false; // ignore `_` patterns
@@ -219,7 +208,6 @@ fn is_mutable_pat(cx: &LateContext<'_>, pat: &hir::Pat<'_>, tys: &mut DefIdSet) 
         false
     }
 }
-
 fn is_mutable_ty<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>, tys: &mut DefIdSet) -> bool {
     match *ty.kind() {
         // primitive types are never mutable
@@ -237,10 +225,8 @@ fn is_mutable_ty<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>, tys: &mut DefIdSet)
         _ => true,
     }
 }
-
 fn is_mutated_static(e: &hir::Expr<'_>) -> bool {
     use hir::ExprKind::{Field, Index, Path};
-
     match e.kind {
         Path(QPath::Resolved(_, path)) => !matches!(path.res, Res::Local(_)),
         Path(_) => true,
@@ -248,11 +234,9 @@ fn is_mutated_static(e: &hir::Expr<'_>) -> bool {
         _ => false,
     }
 }
-
 fn mutates_static<'tcx>(cx: &LateContext<'tcx>, body: &'tcx hir::Body<'_>) -> bool {
     for_each_expr_without_closures(body.value, |e| {
         use hir::ExprKind::{AddrOf, Assign, AssignOp, Call, MethodCall};
-
         match e.kind {
             Call(_, args) => {
                 let mut tys = DefIdSet::default();

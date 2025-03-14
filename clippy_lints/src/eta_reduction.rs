@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::higher::VecArgs;
 use clippy_utils::source::{snippet_opt, snippet_with_applicability};
@@ -17,7 +19,6 @@ use rustc_middle::ty::{
 use rustc_session::declare_lint_pass;
 use rustc_span::symbol::sym;
 use rustc_trait_selection::error_reporting::InferCtxtErrorExt as _;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for closures which just call another function where
@@ -49,7 +50,6 @@ declare_clippy_lint! {
     style,
     "redundant closures, i.e., `|a| foo(a)` (which can be written as just `foo`)"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for closures which only invoke a method on the closure
@@ -71,9 +71,7 @@ declare_clippy_lint! {
     pedantic,
     "redundant closures for method calls"
 }
-
 declare_lint_pass!(EtaReduction => [REDUNDANT_CLOSURE, REDUNDANT_CLOSURE_FOR_METHOD_CALLS]);
-
 impl<'tcx> LateLintPass<'tcx> for EtaReduction {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
         if let ExprKind::MethodCall(_method, receiver, args, _) = expr.kind {
@@ -89,7 +87,6 @@ impl<'tcx> LateLintPass<'tcx> for EtaReduction {
         }
     }
 }
-
 #[allow(clippy::too_many_lines)]
 fn check_closure<'tcx>(cx: &LateContext<'tcx>, outer_receiver: Option<&Expr<'tcx>>, expr: &Expr<'tcx>) {
     let body = if let ExprKind::Closure(c) = expr.kind
@@ -101,7 +98,6 @@ fn check_closure<'tcx>(cx: &LateContext<'tcx>, outer_receiver: Option<&Expr<'tcx
     } else {
         return;
     };
-
     if body.value.span.from_expansion() {
         if body.params.is_empty()
             && let Some(VecArgs::Vec(&[])) = VecArgs::hir(cx, body.value)
@@ -121,11 +117,9 @@ fn check_closure<'tcx>(cx: &LateContext<'tcx>, outer_receiver: Option<&Expr<'tcx
         // skip `foo(|| macro!())`
         return;
     }
-
     if is_adjusted(cx, body.value) {
         return;
     }
-
     let typeck = cx.typeck_results();
     let closure = if let ty::Closure(_, closure_subs) = typeck.expr_ty(expr).kind() {
         closure_subs.as_closure()
@@ -151,14 +145,12 @@ fn check_closure<'tcx>(cx: &LateContext<'tcx>, outer_receiver: Option<&Expr<'tcx
                 .expr_adjustments(callee)
                 .last()
                 .map_or(callee_ty, |a| a.target.peel_refs());
-
             let sig = match callee_ty_adjusted.kind() {
                 ty::FnDef(def, _) => {
                     // Rewriting `x(|| f())` to `x(f)` where f is marked `#[track_caller]` moves the `Location`
                     if cx.tcx.has_attr(*def, sym::track_caller) {
                         return;
                     }
-
                     cx.tcx.fn_sig(def).skip_binder().skip_binder()
                 },
                 ty::FnPtr(sig_tys, hdr) => sig_tys.with(*hdr).skip_binder(),
@@ -266,7 +258,6 @@ fn check_closure<'tcx>(cx: &LateContext<'tcx>, outer_receiver: Option<&Expr<'tcx
         _ => (),
     }
 }
-
 fn check_inputs(
     typeck: &TypeckResults<'_>,
     params: &[Param<'_>],
@@ -287,11 +278,9 @@ fn check_inputs(
                 .is_none_or(|a| a.target == typeck.expr_ty(arg))
         })
 }
-
 fn check_sig<'tcx>(closure_sig: FnSig<'tcx>, call_sig: FnSig<'tcx>) -> bool {
     call_sig.safety.is_safe() && !has_late_bound_to_non_late_bound_regions(closure_sig, call_sig)
 }
-
 /// This walks through both signatures and checks for any time a late-bound region is expected by an
 /// `impl Fn` type, but the target signature does not have a late-bound region in the same position.
 ///
@@ -300,7 +289,6 @@ fn has_late_bound_to_non_late_bound_regions(from_sig: FnSig<'_>, to_sig: FnSig<'
     fn check_region(from_region: Region<'_>, to_region: Region<'_>) -> bool {
         from_region.is_bound() && !to_region.is_bound()
     }
-
     fn check_subs(from_subs: &[GenericArg<'_>], to_subs: &[GenericArg<'_>]) -> bool {
         if from_subs.len() != to_subs.len() {
             return true;
@@ -323,7 +311,6 @@ fn has_late_bound_to_non_late_bound_regions(from_sig: FnSig<'_>, to_sig: FnSig<'
         }
         false
     }
-
     fn check_ty(from_ty: Ty<'_>, to_ty: Ty<'_>) -> bool {
         match (from_ty.kind(), to_ty.kind()) {
             (&ty::Adt(_, from_subs), &ty::Adt(_, to_subs)) => check_subs(from_subs, to_subs),
@@ -343,7 +330,6 @@ fn has_late_bound_to_non_late_bound_regions(from_sig: FnSig<'_>, to_sig: FnSig<'
             _ => from_ty.has_bound_regions(),
         }
     }
-
     assert!(from_sig.inputs_and_output.len() == to_sig.inputs_and_output.len());
     from_sig
         .inputs_and_output
@@ -351,7 +337,6 @@ fn has_late_bound_to_non_late_bound_regions(from_sig: FnSig<'_>, to_sig: FnSig<'
         .zip(to_sig.inputs_and_output)
         .any(|(from_ty, to_ty)| check_ty(from_ty, to_ty))
 }
-
 fn ty_has_static(ty: Ty<'_>) -> bool {
     ty.walk()
         .any(|arg| matches!(arg.unpack(), GenericArgKind::Lifetime(re) if re.is_static()))

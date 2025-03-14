@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::TRANSMUTE_INT_TO_BOOL;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::sugg;
@@ -7,7 +9,6 @@ use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 use std::borrow::Cow;
-
 /// Checks for `transmute_int_to_bool` lint.
 /// Returns `true` if it's triggered, otherwise returns `false`.
 pub(super) fn check<'tcx>(

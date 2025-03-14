@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::{IntoSpan, SpanRangeExt};
 use rustc_ast::ast::{Expr, ExprKind};
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for empty `else` branches.
@@ -33,7 +34,6 @@ declare_clippy_lint! {
     "empty else branch"
 }
 declare_lint_pass!(NeedlessElse => [NEEDLESS_ELSE]);
-
 impl EarlyLintPass for NeedlessElse {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
         if let ExprKind::If(_, then_block, Some(else_clause)) = &expr.kind

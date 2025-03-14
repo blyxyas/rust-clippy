@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::UNNECESSARY_JOIN;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::ty::is_type_lang_item;
 use rustc_ast::ast::LitKind;
@@ -6,9 +9,6 @@ use rustc_hir::{Expr, ExprKind, LangItem};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::Span;
-
-use super::UNNECESSARY_JOIN;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,

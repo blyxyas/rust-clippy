@@ -1,12 +1,12 @@
+use crate::HVec;
+
 mod let_unit_value;
 mod unit_arg;
 mod unit_cmp;
 mod utils;
-
 use rustc_hir::{Expr, LetStmt};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for binding a unit value.
@@ -26,7 +26,6 @@ declare_clippy_lint! {
     style,
     "creating a `let` binding to a value of unit type, which usually can't be used afterwards"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for comparisons to unit. This includes all binary
@@ -74,7 +73,6 @@ declare_clippy_lint! {
     correctness,
     "comparing unit values"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for passing a unit value as an argument to a function without using a
@@ -95,14 +93,11 @@ declare_clippy_lint! {
     complexity,
     "passing unit to a function"
 }
-
 declare_lint_pass!(UnitTypes => [LET_UNIT_VALUE, UNIT_CMP, UNIT_ARG]);
-
 impl<'tcx> LateLintPass<'tcx> for UnitTypes {
     fn check_local(&mut self, cx: &LateContext<'tcx>, local: &'tcx LetStmt<'tcx>) {
         let_unit_value::check(cx, local);
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         unit_cmp::check(cx, expr);
         unit_arg::check(cx, expr);

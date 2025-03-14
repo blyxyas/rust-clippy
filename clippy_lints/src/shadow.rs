@@ -1,4 +1,4 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::path_to_local_id;
@@ -12,7 +12,7 @@ use rustc_hir::{Block, Body, BodyOwnerKind, Expr, ExprKind, HirId, LetExpr, Node
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, Symbol};
-
+use std::ops::ControlFlow;
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for bindings that shadow other bindings already in
@@ -39,7 +39,6 @@ declare_clippy_lint! {
     restriction,
     "rebinding a name to itself, e.g., `let mut x = &mut x`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for bindings that shadow other bindings already in
@@ -67,7 +66,6 @@ declare_clippy_lint! {
     restriction,
     "rebinding a name to an expression that re-uses the original value, e.g., `let x = x + 1`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for bindings that shadow other bindings already in
@@ -103,40 +101,32 @@ declare_clippy_lint! {
     restriction,
     "rebinding a name without even using the original value"
 }
-
 #[derive(Default)]
 pub(crate) struct Shadow {
     bindings: Vec<(FxHashMap<Symbol, Vec<ItemLocalId>>, LocalDefId)>,
 }
-
 impl_lint_pass!(Shadow => [SHADOW_SAME, SHADOW_REUSE, SHADOW_UNRELATED]);
-
 impl<'tcx> LateLintPass<'tcx> for Shadow {
     fn check_pat(&mut self, cx: &LateContext<'tcx>, pat: &'tcx Pat<'_>) {
         let PatKind::Binding(_, id, ident, _) = pat.kind else {
             return;
         };
-
         if pat.span.desugaring_kind().is_some() || pat.span.from_expansion() {
             return;
         }
-
         if ident.span.from_expansion() || ident.span.is_dummy() {
             return;
         }
-
         let HirId { owner, local_id } = id;
         // get (or insert) the list of items for this owner and symbol
         let (ref mut data, scope_owner) = *self.bindings.last_mut().unwrap();
         let items_with_name = data.entry(ident.name).or_default();
-
         // check other bindings with the same name, most recently seen first
         for &prev in items_with_name.iter().rev() {
             if prev == local_id {
                 // repeated binding in an `Or` pattern
                 return;
             }
-
             if is_shadow(cx, scope_owner, prev, local_id) {
                 let prev_hir_id = HirId { owner, local_id: prev };
                 lint_shadow(cx, pat, prev_hir_id, ident.span);
@@ -147,14 +137,12 @@ impl<'tcx> LateLintPass<'tcx> for Shadow {
         // store the binding
         items_with_name.push(local_id);
     }
-
     fn check_body(&mut self, cx: &LateContext<'_>, body: &Body<'_>) {
         let owner_id = cx.tcx.hir_body_owner_def_id(body.id());
         if !matches!(cx.tcx.hir_body_owner_kind(owner_id), BodyOwnerKind::Closure) {
             self.bindings.push((FxHashMap::default(), owner_id));
         }
     }
-
     fn check_body_post(&mut self, cx: &LateContext<'_>, body: &Body<'_>) {
         if !matches!(
             cx.tcx.hir_body_owner_kind(cx.tcx.hir_body_owner_def_id(body.id())),
@@ -164,7 +152,6 @@ impl<'tcx> LateLintPass<'tcx> for Shadow {
         }
     }
 }
-
 fn is_shadow(cx: &LateContext<'_>, owner: LocalDefId, first: ItemLocalId, second: ItemLocalId) -> bool {
     let scope_tree = cx.tcx.region_scope_tree(owner.to_def_id());
     if let Some(first_scope) = scope_tree.var_scope(first) {
@@ -172,10 +159,8 @@ fn is_shadow(cx: &LateContext<'_>, owner: LocalDefId, first: ItemLocalId, second
             return scope_tree.is_subscope_of(second_scope, first_scope);
         }
     }
-
     false
 }
-
 /// Checks if the given local is used, except for in child expression of `except`.
 ///
 /// This is a version of [`is_local_used`](clippy_utils::visitors::is_local_used), used to
@@ -197,7 +182,6 @@ pub fn is_local_used_except<'tcx>(
     })
     .is_some()
 }
-
 fn lint_shadow(cx: &LateContext<'_>, pat: &Pat<'_>, shadowed: HirId, span: Span) {
     let (lint, msg) = match find_init(cx, pat.hir_id) {
         Some((expr, _)) if is_self_shadow(cx, pat, expr, shadowed) => {
@@ -221,7 +205,6 @@ fn lint_shadow(cx: &LateContext<'_>, pat: &Pat<'_>, shadowed: HirId, span: Span)
         diag.span_note(cx.tcx.hir().span(shadowed), "previous binding is here");
     });
 }
-
 /// Returns true if the expression is a simple transformation of a local binding such as `&x`
 fn is_self_shadow(cx: &LateContext<'_>, pat: &Pat<'_>, mut expr: &Expr<'_>, hir_id: HirId) -> bool {
     let is_direct_binding = cx
@@ -252,7 +235,6 @@ fn is_self_shadow(cx: &LateContext<'_>, pat: &Pat<'_>, mut expr: &Expr<'_>, hir_
         }
     }
 }
-
 /// Finds the "init" expression for a pattern: `let <pat> = <init>;` (or `if let`) or
 /// `match <init> { .., <pat> => .., .. }`
 ///

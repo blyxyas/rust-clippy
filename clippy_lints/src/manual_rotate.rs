@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use crate::HVec;
 
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_sugg;
@@ -8,7 +8,7 @@ use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
-
+use std::fmt::Display;
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -38,15 +38,12 @@ declare_clippy_lint! {
     style,
     "using bit shifts to rotate integers"
 }
-
 declare_lint_pass!(ManualRotate => [MANUAL_ROTATE]);
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ShiftDirection {
     Left,
     Right,
 }
-
 impl Display for ShiftDirection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
@@ -55,7 +52,6 @@ impl Display for ShiftDirection {
         })
     }
 }
-
 fn parse_shift<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -73,7 +69,6 @@ fn parse_shift<'tcx>(
     }
     None
 }
-
 impl LateLintPass<'_> for ManualRotate {
     fn check_expr<'tcx>(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
         if let ExprKind::Binary(op, l, r) = expr.kind

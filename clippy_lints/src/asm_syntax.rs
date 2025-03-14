@@ -1,4 +1,4 @@
-use std::fmt;
+use crate::HVec;
 
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_ast::ast::{Expr, ExprKind, InlineAsmOptions};
@@ -7,13 +7,12 @@ use rustc_lint::{EarlyContext, EarlyLintPass, Lint, LintContext};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_target::asm::InlineAsmArch;
-
+use std::fmt;
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum AsmStyle {
     Intel,
     Att,
 }
-
 impl fmt::Display for AsmStyle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -22,10 +21,8 @@ impl fmt::Display for AsmStyle {
         }
     }
 }
-
 impl std::ops::Not for AsmStyle {
     type Output = AsmStyle;
-
     fn not(self) -> AsmStyle {
         match self {
             AsmStyle::Intel => AsmStyle::Att,
@@ -33,7 +30,6 @@ impl std::ops::Not for AsmStyle {
         }
     }
 }
-
 fn check_asm_syntax(
     lint: &'static Lint,
     cx: &EarlyContext<'_>,
@@ -47,7 +43,6 @@ fn check_asm_syntax(
         } else {
             AsmStyle::Intel
         };
-
         if style == check_for {
             #[expect(clippy::collapsible_span_lint_calls, reason = "rust-clippy#7797")]
             span_lint_and_then(cx, lint, span, format!("{style} x86 assembly syntax used"), |diag| {
@@ -56,7 +51,6 @@ fn check_asm_syntax(
         }
     }
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of Intel x86 assembly syntax.
@@ -88,23 +82,19 @@ declare_clippy_lint! {
     restriction,
     "prefer AT&T x86 assembly syntax"
 }
-
 declare_lint_pass!(InlineAsmX86IntelSyntax => [INLINE_ASM_X86_INTEL_SYNTAX]);
-
 impl EarlyLintPass for InlineAsmX86IntelSyntax {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
         if let ExprKind::InlineAsm(inline_asm) = &expr.kind {
             check_asm_syntax(INLINE_ASM_X86_INTEL_SYNTAX, cx, inline_asm, expr.span, AsmStyle::Intel);
         }
     }
-
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         if let ItemKind::GlobalAsm(inline_asm) = &item.kind {
             check_asm_syntax(INLINE_ASM_X86_INTEL_SYNTAX, cx, inline_asm, item.span, AsmStyle::Intel);
         }
     }
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of AT&T x86 assembly syntax.
@@ -136,16 +126,13 @@ declare_clippy_lint! {
     restriction,
     "prefer Intel x86 assembly syntax"
 }
-
 declare_lint_pass!(InlineAsmX86AttSyntax => [INLINE_ASM_X86_ATT_SYNTAX]);
-
 impl EarlyLintPass for InlineAsmX86AttSyntax {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
         if let ExprKind::InlineAsm(inline_asm) = &expr.kind {
             check_asm_syntax(INLINE_ASM_X86_ATT_SYNTAX, cx, inline_asm, expr.span, AsmStyle::Att);
         }
     }
-
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         if let ItemKind::GlobalAsm(inline_asm) = &item.kind {
             check_asm_syntax(INLINE_ASM_X86_ATT_SYNTAX, cx, inline_asm, item.span, AsmStyle::Att);

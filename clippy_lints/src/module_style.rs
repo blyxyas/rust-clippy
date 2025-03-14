@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_ast::ast;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet, FxIndexSet};
@@ -7,7 +9,6 @@ use rustc_span::def_id::LOCAL_CRATE;
 use rustc_span::{FileName, SourceFile, Span, SyntaxContext};
 use std::ffi::OsStr;
 use std::path::{Component, Path};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks that module layout uses only self named module files; bans `mod.rs` files.
@@ -36,7 +37,6 @@ declare_clippy_lint! {
     restriction,
     "checks that module layout is consistent"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks that module layout uses only `mod.rs` files.
@@ -60,17 +60,13 @@ declare_clippy_lint! {
     ///     mod.rs
     ///   lib.rs
     /// ```
-
     #[clippy::version = "1.57.0"]
     pub SELF_NAMED_MODULE_FILES,
     restriction,
     "checks that module layout is consistent"
 }
-
 pub struct ModStyle;
-
 impl_lint_pass!(ModStyle => [MOD_MODULE_FILES, SELF_NAMED_MODULE_FILES]);
-
 impl EarlyLintPass for ModStyle {
     fn check_crate(&mut self, cx: &EarlyContext<'_>, _: &ast::Crate) {
         if cx.builder.lint_level(MOD_MODULE_FILES).0 == Level::Allow
@@ -78,13 +74,10 @@ impl EarlyLintPass for ModStyle {
         {
             return;
         }
-
         let files = cx.sess().source_map().files();
-
         let Some(trim_to_src) = cx.sess().opts.working_dir.local_path() else {
             return;
         };
-
         // `folder_segments` is all unique folder path segments `path/to/foo.rs` gives
         // `[path, to]` but not foo
         let mut folder_segments = FxIndexSet::default();
@@ -109,7 +102,6 @@ impl EarlyLintPass for ModStyle {
                 } else {
                     continue;
                 };
-
                 if let Some(stem) = path.file_stem() {
                     file_map.insert(stem, (file, path));
                 }
@@ -117,7 +109,6 @@ impl EarlyLintPass for ModStyle {
                 check_self_named_mod_exists(cx, path, file);
             }
         }
-
         for folder in &folder_segments {
             if !mod_folders.contains(folder) {
                 if let Some((file, path)) = file_map.get(folder) {
@@ -139,7 +130,6 @@ impl EarlyLintPass for ModStyle {
         }
     }
 }
-
 /// For each `path` we add each folder component to `folder_segments` and if the file name
 /// is `mod.rs` we add it's parent folder to `mod_folders`.
 fn process_paths_for_mod_files<'a>(
@@ -155,7 +145,6 @@ fn process_paths_for_mod_files<'a>(
     let folders = comp.filter_map(|c| if let Component::Normal(s) = c { Some(s) } else { None });
     folder_segments.extend(folders);
 }
-
 /// Checks every path for the presence of `mod.rs` files and emits the lint if found.
 /// We should not emit a lint for test modules in the presence of `mod.rs`.
 /// Using `mod.rs` in integration tests is a [common pattern](https://doc.rust-lang.org/book/ch11-03-test-organization.html#submodules-in-integration-test)
@@ -171,7 +160,6 @@ fn check_self_named_mod_exists(cx: &EarlyContext<'_>, path: &Path, file: &Source
                 let mut mod_file = path.to_path_buf();
                 mod_file.pop();
                 mod_file.set_extension("rs");
-
                 diag.help(format!("move `{}` to `{}`", path.display(), mod_file.display()));
             },
         );

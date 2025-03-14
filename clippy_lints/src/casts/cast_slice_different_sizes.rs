@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::CAST_SLICE_DIFFERENT_SIZES;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source;
@@ -6,16 +9,12 @@ use rustc_hir::{Expr, ExprKind, Node};
 use rustc_lint::LateContext;
 use rustc_middle::ty::layout::LayoutOf;
 use rustc_middle::ty::{self, Ty, TypeAndMut};
-
-use super::CAST_SLICE_DIFFERENT_SIZES;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>, msrv: Msrv) {
     // if this cast is the child of another cast expression then don't emit something for it, the full
     // chain will be analyzed
     if is_child_of_cast(cx, expr) {
         return;
     }
-
     if let Some(CastChainInfo {
         left_cast,
         start_ty,
@@ -36,7 +35,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>, msrv: Msrv)
                     ),
                     |diag| {
                         let ptr_snippet = source::snippet(cx, left_cast.span, "..");
-
                         let (mutbl_fn_str, mutbl_ptr_str) = match end_ty.mutbl {
                             Mutability::Mut => ("_mut", "mut"),
                             Mutability::Not => ("", "const"),
@@ -47,7 +45,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>, msrv: Msrv)
                             // T`, extract just the `T`
                             end_ty.ty
                         );
-
                         diag.span_suggestion(
                             expr.span,
                             format!("replace with `ptr::slice_from_raw_parts{mutbl_fn_str}`"),
@@ -60,7 +57,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>, msrv: Msrv)
         }
     }
 }
-
 fn is_child_of_cast(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     let parent = cx.tcx.parent_hir_node(expr.hir_id);
     let expr = match parent {
@@ -74,10 +70,8 @@ fn is_child_of_cast(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         Node::Expr(expr) => expr,
         _ => return false,
     };
-
     matches!(expr.kind, ExprKind::Cast(..))
 }
-
 /// Returns the type T of the pointed to *const [T] or *mut [T] and the mutability of the slice if
 /// the type is one of those slices
 fn get_raw_slice_ty_mut(ty: Ty<'_>) -> Option<TypeAndMut<'_>> {
@@ -89,7 +83,6 @@ fn get_raw_slice_ty_mut(ty: Ty<'_>) -> Option<TypeAndMut<'_>> {
         _ => None,
     }
 }
-
 struct CastChainInfo<'tcx> {
     /// The left most part of the cast chain, or in other words, the first cast in the chain
     /// Used for diagnostics
@@ -99,7 +92,6 @@ struct CastChainInfo<'tcx> {
     /// The final type of the cast chain
     end_ty: TypeAndMut<'tcx>,
 }
-
 /// Returns a `CastChainInfo` with the left-most cast in the chain and the original ptr T and final
 /// ptr U if the expression is composed of casts.
 /// Returns None if the expr is not a Cast
@@ -107,7 +99,6 @@ fn expr_cast_chain_tys<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> Optio
     if let ExprKind::Cast(cast_expr, _cast_to_hir_ty) = expr.peel_blocks().kind {
         let cast_to = cx.typeck_results().expr_ty(expr);
         let to_slice_ty = get_raw_slice_ty_mut(cast_to)?;
-
         // If the expression that makes up the source of this cast is itself a cast, recursively
         // call `expr_cast_chain_tys` and update the end type with the final target type.
         // Otherwise, this cast is not immediately nested, just construct the info for this cast

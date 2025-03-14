@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::SEARCH_IS_SOME;
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_sugg};
 use clippy_utils::source::{snippet, snippet_with_applicability};
 use clippy_utils::sugg::deref_closure_args;
@@ -10,9 +13,6 @@ use rustc_hir::PatKind;
 use rustc_lint::LateContext;
 use rustc_span::Span;
 use rustc_span::symbol::sym;
-
-use super::SEARCH_IS_SOME;
-
 /// lint searching an Iterator followed by `is_some()`
 /// or calling `find()` on a string followed by `is_some()` or `is_none()`
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]

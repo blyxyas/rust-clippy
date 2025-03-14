@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use rustc_ast::BinOpKind;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the usage of division (`/`) and remainder (`%`) operations
@@ -27,9 +28,7 @@ declare_clippy_lint! {
     restriction,
     "use of disallowed default division and remainder operations"
 }
-
 declare_lint_pass!(IntegerDivisionRemainderUsed => [INTEGER_DIVISION_REMAINDER_USED]);
-
 impl LateLintPass<'_> for IntegerDivisionRemainderUsed {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         if let ExprKind::Binary(op, lhs, rhs) = &expr.kind

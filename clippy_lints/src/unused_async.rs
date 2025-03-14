@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::is_def_id_trait_method;
 use rustc_hir::def::DefKind;
@@ -8,7 +10,6 @@ use rustc_middle::hir::nested_filter;
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::{LocalDefId, LocalDefIdSet};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions that are declared `async` but have no `.await`s inside of them.
@@ -38,7 +39,6 @@ declare_clippy_lint! {
     pedantic,
     "finds async functions with no await statements"
 }
-
 #[derive(Default)]
 pub struct UnusedAsync {
     /// Keeps track of async functions used as values (i.e. path expressions to async functions that
@@ -48,16 +48,13 @@ pub struct UnusedAsync {
     /// functions
     unused_async_fns: Vec<UnusedAsyncFn>,
 }
-
 #[derive(Copy, Clone)]
 struct UnusedAsyncFn {
     def_id: LocalDefId,
     fn_span: Span,
     await_in_async_block: Option<Span>,
 }
-
 impl_lint_pass!(UnusedAsync => [UNUSED_ASYNC]);
-
 struct AsyncFnVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     found_await: bool,
@@ -66,10 +63,8 @@ struct AsyncFnVisitor<'a, 'tcx> {
     await_in_async_block: Option<Span>,
     async_depth: usize,
 }
-
 impl<'tcx> Visitor<'tcx> for AsyncFnVisitor<'_, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
-
     fn visit_expr(&mut self, ex: &'tcx Expr<'tcx>) {
         if let ExprKind::Yield(_, YieldSource::Await { .. }) = ex.kind {
             if self.async_depth == 1 {
@@ -78,7 +73,6 @@ impl<'tcx> Visitor<'tcx> for AsyncFnVisitor<'_, 'tcx> {
                 self.await_in_async_block = Some(ex.span);
             }
         }
-
         let is_async_block = matches!(
             ex.kind,
             ExprKind::Closure(rustc_hir::Closure {
@@ -89,23 +83,18 @@ impl<'tcx> Visitor<'tcx> for AsyncFnVisitor<'_, 'tcx> {
                 ..
             })
         );
-
         if is_async_block {
             self.async_depth += 1;
         }
-
         walk_expr(self, ex);
-
         if is_async_block {
             self.async_depth -= 1;
         }
     }
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for UnusedAsync {
     fn check_fn(
         &mut self,
@@ -136,7 +125,6 @@ impl<'tcx> LateLintPass<'tcx> for UnusedAsync {
             }
         }
     }
-
     fn check_path(&mut self, cx: &LateContext<'tcx>, path: &rustc_hir::Path<'tcx>, hir_id: HirId) {
         // Find paths to local async functions that aren't immediately called.
         // E.g. `async fn f() {}; let x = f;`
@@ -158,7 +146,6 @@ impl<'tcx> LateLintPass<'tcx> for UnusedAsync {
             self.async_fns_as_value.insert(local_def_id);
         }
     }
-
     // After collecting all unused `async` and problematic paths to such functions,
     // lint those unused ones that didn't have any path expressions to them.
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
@@ -166,7 +153,6 @@ impl<'tcx> LateLintPass<'tcx> for UnusedAsync {
             .unused_async_fns
             .iter()
             .filter(|UnusedAsyncFn { def_id, .. }| (!self.async_fns_as_value.contains(def_id)));
-
         for fun in iter {
             span_lint_hir_and_then(
                 cx,
@@ -176,7 +162,6 @@ impl<'tcx> LateLintPass<'tcx> for UnusedAsync {
                 "unused `async` for function with no await statements",
                 |diag| {
                     diag.help("consider removing the `async` from this function");
-
                     if let Some(span) = fun.await_in_async_block {
                         diag.span_note(
                             span,

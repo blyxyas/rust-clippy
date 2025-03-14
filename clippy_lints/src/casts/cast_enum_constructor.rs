@@ -1,11 +1,11 @@
+use crate::HVec;
+
+use super::CAST_ENUM_CONSTRUCTOR;
 use clippy_utils::diagnostics::span_lint;
 use rustc_hir::def::{CtorKind, CtorOf, DefKind, Res};
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
-
-use super::CAST_ENUM_CONSTRUCTOR;
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, cast_expr: &Expr<'_>, cast_from: Ty<'_>) {
     if matches!(cast_from.kind(), ty::FnDef(..))
         && let ExprKind::Path(path) = &cast_expr.kind

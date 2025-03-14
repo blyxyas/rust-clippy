@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::PTR_AS_PTR;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source::snippet_with_applicability;
@@ -8,15 +11,11 @@ use rustc_hir_pretty::qpath_to_string;
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::sym;
-
-use super::PTR_AS_PTR;
-
 enum OmitFollowedCastReason<'a> {
     None,
     Null(&'a QPath<'a>),
     NullMut(&'a QPath<'a>),
 }
-
 impl OmitFollowedCastReason<'_> {
     fn corresponding_item(&self) -> Option<&QPath<'_>> {
         match self {
@@ -25,7 +24,6 @@ impl OmitFollowedCastReason<'_> {
         }
     }
 }
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, msrv: Msrv) {
     if let ExprKind::Cast(cast_expr, cast_to_hir_ty) = expr.kind
         && let (cast_from, cast_to) = (cx.typeck_results().expr_ty(cast_expr), cx.typeck_results().expr_ty(expr))
@@ -53,7 +51,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, msrv: Msrv) {
             },
             _ => return,
         };
-
         // following `cast` does not compile because it fails to infer what type is expected
         // as type argument to `std::ptr::ptr_null` or `std::ptr::ptr_null_mut`, so
         // we omit following `cast`:
@@ -71,20 +68,17 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, msrv: Msrv) {
         } else {
             OmitFollowedCastReason::None
         };
-
         let (help, final_suggestion) = if let Some(method) = omit_cast.corresponding_item() {
             // don't force absolute path
             let method = qpath_to_string(&cx.tcx, method);
             ("try call directly", format!("{method}{turbofish}()"))
         } else {
             let cast_expr_sugg = Sugg::hir_with_applicability(cx, cast_expr, "_", &mut app);
-
             (
                 "try `pointer::cast`, a safer alternative",
                 format!("{}.cast{turbofish}()", cast_expr_sugg.maybe_par()),
             )
         };
-
         span_lint_and_sugg(
             cx,
             PTR_AS_PTR,

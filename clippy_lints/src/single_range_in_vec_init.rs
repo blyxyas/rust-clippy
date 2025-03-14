@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::higher::VecArgs;
 use clippy_utils::macros::root_macro_call_first_node;
@@ -10,7 +12,6 @@ use rustc_hir::{Expr, ExprKind, LangItem, QPath, StructTailExpr};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use std::fmt::{self, Display, Formatter};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `Vec` or array initializations that contain only one range.
@@ -37,12 +38,10 @@ declare_clippy_lint! {
     "checks for initialization of `Vec` or arrays which consist of a single range"
 }
 declare_lint_pass!(SingleRangeInVecInit => [SINGLE_RANGE_IN_VEC_INIT]);
-
 enum SuggestedType {
     Vec,
     Array,
 }
-
 impl SuggestedType {
     fn starts_with(&self) -> &'static str {
         if matches!(self, SuggestedType::Vec) {
@@ -51,12 +50,10 @@ impl SuggestedType {
             "["
         }
     }
-
     fn ends_with(&self) -> &'static str {
         if matches!(self, SuggestedType::Vec) { "" } else { "]" }
     }
 }
-
 impl Display for SuggestedType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if matches!(&self, SuggestedType::Vec) {
@@ -66,7 +63,6 @@ impl Display for SuggestedType {
         }
     }
 }
-
 impl LateLintPass<'_> for SingleRangeInVecInit {
     fn check_expr<'tcx>(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
         // inner_expr: `vec![0..200]` or `[0..200]`
@@ -85,12 +81,10 @@ impl LateLintPass<'_> for SingleRangeInVecInit {
         } else {
             return;
         };
-
         let ExprKind::Struct(QPath::LangItem(lang_item, ..), [start, end], StructTailExpr::None) = inner_expr.kind
         else {
             return;
         };
-
         if matches!(lang_item, LangItem::Range)
             && let ty = cx.typeck_results().expr_ty(start.expr)
             && let Some(snippet) = span.get_source_text(cx)
@@ -117,7 +111,6 @@ impl LateLintPass<'_> for SingleRangeInVecInit {
             } else {
                 false
             };
-
             if should_emit_every_value || should_emit_of_len {
                 span_lint_and_then(
                     cx,
@@ -133,7 +126,6 @@ impl LateLintPass<'_> for SingleRangeInVecInit {
                                 Applicability::MaybeIncorrect,
                             );
                         }
-
                         if should_emit_of_len {
                             diag.span_suggestion(
                                 inner_expr.span,

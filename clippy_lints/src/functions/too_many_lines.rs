@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::TOO_MANY_LINES;
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::source::SpanRangeExt;
 use rustc_hir as hir;
 use rustc_hir::intravisit::FnKind;
 use rustc_lint::{LateContext, LintContext};
 use rustc_span::Span;
-
-use super::TOO_MANY_LINES;
-
 pub(super) fn check_fn(
     cx: &LateContext<'_>,
     kind: FnKind<'_>,
@@ -19,12 +19,10 @@ pub(super) fn check_fn(
     if matches!(kind, FnKind::Closure) || span.in_external_macro(cx.sess().source_map()) {
         return;
     }
-
     let mut line_count: u64 = 0;
     let too_many = body.value.span.check_source_text(cx, |src| {
         let mut in_comment = false;
         let mut code_in_line;
-
         let function_lines = if matches!(body.value.kind, hir::ExprKind::Block(..))
             && src.as_bytes().first().copied() == Some(b'{')
             && src.as_bytes().last().copied() == Some(b'}')
@@ -36,7 +34,6 @@ pub(super) fn check_fn(
         }
         .trim() // Remove leading and trailing blank lines
         .lines();
-
         for mut line in function_lines {
             code_in_line = false;
             loop {
@@ -69,7 +66,6 @@ pub(super) fn check_fn(
         }
         line_count > too_many_lines_threshold
     });
-
     if too_many {
         span_lint(
             cx,

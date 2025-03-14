@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::{DocHeaders, MISSING_ERRORS_DOC, MISSING_PANICS_DOC, MISSING_SAFETY_DOC, UNNECESSARY_SAFETY_DOC};
 use clippy_utils::diagnostics::{span_lint, span_lint_and_note};
 use clippy_utils::ty::{implements_trait_with_env, is_type_diagnostic_item};
@@ -6,7 +8,6 @@ use rustc_hir::{BodyId, FnSig, OwnerId, Safety};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::{Span, sym};
-
 pub fn check(
     cx: &LateContext<'_>,
     owner_id: OwnerId,
@@ -19,7 +20,6 @@ pub fn check(
     if !check_private_items && !cx.effective_visibilities.is_exported(owner_id.def_id) {
         return; // Private functions do not require doc comments
     }
-
     // do not lint if any parent has `#[doc(hidden)]` attribute (#7347)
     if !check_private_items
         && cx
@@ -29,7 +29,6 @@ pub fn check(
     {
         return;
     }
-
     let span = cx.tcx.def_span(owner_id);
     match (headers.safety, sig.header.safety()) {
         (false, Safety::Unsafe) => span_lint(

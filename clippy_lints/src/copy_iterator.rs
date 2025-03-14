@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_note;
 use clippy_utils::ty::is_copy;
 use rustc_hir::{Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for types that implement `Copy` as well as
@@ -31,9 +32,7 @@ declare_clippy_lint! {
     pedantic,
     "implementing `Iterator` on a `Copy` type"
 }
-
 declare_lint_pass!(CopyIterator => [COPY_ITERATOR]);
-
 impl<'tcx> LateLintPass<'tcx> for CopyIterator {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         if let ItemKind::Impl(Impl {

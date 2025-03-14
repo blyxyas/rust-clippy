@@ -1,24 +1,21 @@
-use std::iter::once;
+use crate::HVec;
 
+use super::{ITER_ON_EMPTY_COLLECTIONS, ITER_ON_SINGLE_ITEMS};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
 use clippy_utils::{get_expr_use_or_unification_node, is_res_lang_ctor, path_res, std_or_core};
-
 use rustc_errors::Applicability;
 use rustc_hir::LangItem::{OptionNone, OptionSome};
 use rustc_hir::def_id::DefId;
 use rustc_hir::hir_id::HirId;
 use rustc_hir::{Expr, ExprKind, Node};
 use rustc_lint::LateContext;
-
-use super::{ITER_ON_EMPTY_COLLECTIONS, ITER_ON_SINGLE_ITEMS};
-
+use std::iter::once;
 enum IterType {
     Iter,
     IterMut,
     IntoIter,
 }
-
 impl IterType {
     fn ref_prefix(&self) -> &'static str {
         match self {
@@ -28,7 +25,6 @@ impl IterType {
         }
     }
 }
-
 fn is_arg_ty_unified_in_fn<'tcx>(
     cx: &LateContext<'tcx>,
     fn_id: DefId,
@@ -38,7 +34,6 @@ fn is_arg_ty_unified_in_fn<'tcx>(
     let fn_sig = cx.tcx.fn_sig(fn_id).instantiate_identity();
     let arg_id_in_args = args.into_iter().position(|e| e.hir_id == arg_id).unwrap();
     let arg_ty_in_args = fn_sig.input(arg_id_in_args).skip_binder();
-
     cx.tcx.predicates_of(fn_id).predicates.iter().any(|(clause, _)| {
         clause
             .as_projection_clause()
@@ -50,7 +45,6 @@ fn is_arg_ty_unified_in_fn<'tcx>(
         .enumerate()
         .any(|(i, ty)| i != arg_id_in_args && ty.skip_binder().walk().any(|arg| arg.as_type() == Some(arg_ty_in_args)))
 }
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, method_name: &str, recv: &'tcx Expr<'tcx>) {
     let item = match recv.kind {
         ExprKind::Array([]) => None,
@@ -65,7 +59,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, method
         "into_iter" => IterType::IntoIter,
         _ => return,
     };
-
     let is_unified = match get_expr_use_or_unification_node(cx.tcx, expr) {
         Some((Node::Expr(parent), child_id)) => match parent.kind {
             ExprKind::If(e, _, _) | ExprKind::Match(e, _, _) if e.hir_id == child_id => false,
@@ -98,11 +91,9 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, method
         Some((Node::Stmt(_) | Node::LetStmt(_), _)) => false,
         _ => true,
     };
-
     if is_unified {
         return;
     }
-
     let Some(top_crate) = std_or_core(cx) else { return };
     if let Some(i) = item {
         let sugg = format!(

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::macros::macro_backtrace;
 use clippy_utils::ty::expr_sig;
@@ -9,7 +11,6 @@ use rustc_hir::{AmbigArg, Block, Expr, ExprKind, HirId, LetStmt, Node, QPath, Ty
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// checks for `Box::new(Default::default())`, which can be written as
@@ -31,9 +32,7 @@ declare_clippy_lint! {
     style,
     "Using Box::new(T::default()) instead of Box::default()"
 }
-
 declare_lint_pass!(BoxDefault => [BOX_DEFAULT]);
-
 impl LateLintPass<'_> for BoxDefault {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         // If the expression is a call (`Box::new(...)`)
@@ -68,7 +67,6 @@ impl LateLintPass<'_> for BoxDefault {
         }
     }
 }
-
 fn is_plain_default(cx: &LateContext<'_>, arg_path: &Expr<'_>) -> bool {
     // we need to match the actual path so we don't match e.g. "u8::default"
     if let ExprKind::Path(QPath::Resolved(None, path)) = &arg_path.kind
@@ -80,22 +78,18 @@ fn is_plain_default(cx: &LateContext<'_>, arg_path: &Expr<'_>) -> bool {
         false
     }
 }
-
 fn is_local_vec_expn(cx: &LateContext<'_>, expr: &Expr<'_>, ref_expr: &Expr<'_>) -> bool {
     macro_backtrace(expr.span)
         .next()
         .is_some_and(|call| cx.tcx.is_diagnostic_item(sym::vec_macro, call.def_id) && call.span.eq_ctxt(ref_expr.span))
 }
-
 #[derive(Default)]
 struct InferVisitor(bool);
-
 impl Visitor<'_> for InferVisitor {
     fn visit_infer(&mut self, inf_id: HirId, _inf_span: Span, _kind: InferKind<'_>) -> Self::Result {
         self.0 = true;
         self.visit_id(inf_id);
     }
-
     fn visit_ty(&mut self, t: &Ty<'_, AmbigArg>) {
         self.0 |= matches!(t.kind, TyKind::OpaqueDef(..) | TyKind::TraitObject(..));
         if !self.0 {
@@ -103,7 +97,6 @@ impl Visitor<'_> for InferVisitor {
         }
     }
 }
-
 fn given_type(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     match cx.tcx.parent_hir_node(expr.hir_id) {
         Node::LetStmt(LetStmt { ty: Some(ty), .. }) => {

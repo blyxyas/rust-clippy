@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use rustc_ast::ast::BinOpKind::{Add, BitAnd, BitOr, BitXor, Div, Mul, Rem, Shl, Shr, Sub};
@@ -6,7 +8,6 @@ use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass, Lint};
 use rustc_session::declare_lint_pass;
 use rustc_span::source_map::Spanned;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for operations where precedence may be unclear and suggests to add parentheses.
@@ -24,7 +25,6 @@ declare_clippy_lint! {
     complexity,
     "operations where precedence may be unclear"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for bit shifting operations combined with bit masking/combining operators
@@ -42,15 +42,12 @@ declare_clippy_lint! {
     restriction,
     "operations mixing bit shifting with bit combining/masking"
 }
-
 declare_lint_pass!(Precedence => [PRECEDENCE, PRECEDENCE_BITS]);
-
 impl EarlyLintPass for Precedence {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
         if expr.span.from_expansion() {
             return;
         }
-
         if let ExprKind::Binary(Spanned { node: op, .. }, ref left, ref right) = expr.kind {
             let span_sugg = |lint: &'static Lint, expr: &Expr, sugg, appl| {
                 span_lint_and_sugg(
@@ -63,7 +60,6 @@ impl EarlyLintPass for Precedence {
                     appl,
                 );
             };
-
             if !is_bit_op(op) {
                 return;
             }
@@ -112,19 +108,16 @@ impl EarlyLintPass for Precedence {
         }
     }
 }
-
 fn get_bin_opt(expr: &Expr) -> Option<BinOpKind> {
     match expr.kind {
         ExprKind::Binary(Spanned { node: op, .. }, _, _) => Some(op),
         _ => None,
     }
 }
-
 #[must_use]
 fn is_bit_op(op: BinOpKind) -> bool {
     matches!(op, BitXor | BitAnd | BitOr | Shl | Shr)
 }
-
 fn lint_for(ops: &[BinOpKind]) -> &'static Lint {
     if ops.iter().all(|op| is_bit_op(*op)) {
         PRECEDENCE_BITS

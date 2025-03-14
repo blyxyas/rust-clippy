@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::fulfill_or_allowed;
@@ -10,7 +12,6 @@ use rustc_middle::ty::TyCtxt;
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::symbol::Symbol;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for struct constructors where the order of the field
@@ -63,11 +64,9 @@ declare_clippy_lint! {
     pedantic,
     "the order of the field init is inconsistent with the order in the struct definition"
 }
-
 pub struct InconsistentStructConstructor {
     lint_inconsistent_struct_field_initializers: bool,
 }
-
 impl InconsistentStructConstructor {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -75,9 +74,7 @@ impl InconsistentStructConstructor {
         }
     }
 }
-
 impl_lint_pass!(InconsistentStructConstructor => [INCONSISTENT_STRUCT_CONSTRUCTOR]);
-
 impl<'tcx> LateLintPass<'tcx> for InconsistentStructConstructor {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) {
         let ExprKind::Struct(_, fields, _) = expr.kind else {
@@ -103,14 +100,11 @@ impl<'tcx> LateLintPass<'tcx> for InconsistentStructConstructor {
             for (idx, field) in variant.fields.iter().enumerate() {
                 def_order_map.insert(field.name, idx);
             }
-
             if is_consistent_order(fields, &def_order_map) {
                 return;
             }
-
             let span = field_with_attrs_span(cx.tcx, fields.first().unwrap())
                 .with_hi(field_with_attrs_span(cx.tcx, fields.last().unwrap()).hi());
-
             if !fulfill_or_allowed(cx, INCONSISTENT_STRUCT_CONSTRUCTOR, Some(ty_hir_id)) {
                 span_lint_and_then(
                     cx,
@@ -131,7 +125,6 @@ impl<'tcx> LateLintPass<'tcx> for InconsistentStructConstructor {
         }
     }
 }
-
 // Check whether the order of the fields in the constructor is consistent with the order in the
 // definition.
 fn is_consistent_order<'tcx>(fields: &'tcx [hir::ExprField<'tcx>], def_order_map: &FxHashMap<Symbol, usize>) -> bool {
@@ -143,10 +136,8 @@ fn is_consistent_order<'tcx>(fields: &'tcx [hir::ExprField<'tcx>], def_order_map
         }
         cur_idx = next_idx;
     }
-
     true
 }
-
 fn suggestion<'tcx>(
     cx: &LateContext<'_>,
     fields: &'tcx [hir::ExprField<'tcx>],
@@ -161,16 +152,13 @@ fn suggestion<'tcx>(
             snippet(cx, span, " ")
         })
         .collect::<Vec<_>>();
-
     let mut fields = fields.to_vec();
     fields.sort_unstable_by_key(|field| def_order_map[&field.ident.name]);
     let field_snippets = fields
         .iter()
         .map(|field| snippet(cx, field_with_attrs_span(cx.tcx, field), ".."))
         .collect::<Vec<_>>();
-
     assert_eq!(field_snippets.len(), ws.len() + 1);
-
     let mut sugg = String::new();
     for i in 0..field_snippets.len() {
         sugg += &field_snippets[i];
@@ -180,7 +168,6 @@ fn suggestion<'tcx>(
     }
     sugg
 }
-
 fn field_with_attrs_span(tcx: TyCtxt<'_>, field: &hir::ExprField<'_>) -> Span {
     if let Some(attr) = tcx.hir().attrs(field.hir_id).first() {
         field.span.with_lo(attr.span().lo())

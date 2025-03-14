@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::higher::{VecInitKind, get_vec_init_kind};
 use clippy_utils::source::snippet;
@@ -8,7 +10,6 @@ use rustc_hir::{BindingMode, Block, Expr, ExprKind, HirId, LetStmt, PatKind, QPa
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Informs the user about a more concise way to create a vector with a known capacity.
@@ -31,12 +32,10 @@ declare_clippy_lint! {
     "`reserve` called immediately after `Vec` creation"
 }
 impl_lint_pass!(ReserveAfterInitialization => [RESERVE_AFTER_INITIALIZATION]);
-
 #[derive(Default)]
 pub struct ReserveAfterInitialization {
     searcher: Option<VecReserveSearcher>,
 }
-
 struct VecReserveSearcher {
     local_id: HirId,
     err_span: Span,
@@ -48,9 +47,7 @@ impl VecReserveSearcher {
         if self.space_hint.is_empty() {
             return;
         }
-
         let s = format!("{}Vec::with_capacity({});", self.init_part, self.space_hint);
-
         span_lint_and_sugg(
             cx,
             RESERVE_AFTER_INITIALIZATION,
@@ -62,12 +59,10 @@ impl VecReserveSearcher {
         );
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for ReserveAfterInitialization {
     fn check_block(&mut self, _: &LateContext<'tcx>, _: &'tcx Block<'tcx>) {
         self.searcher = None;
     }
-
     fn check_local(&mut self, cx: &LateContext<'tcx>, local: &'tcx LetStmt<'tcx>) {
         if let Some(init_expr) = local.init
             && let PatKind::Binding(BindingMode::MUT, id, _, None) = local.pat.kind
@@ -94,7 +89,6 @@ impl<'tcx> LateLintPass<'tcx> for ReserveAfterInitialization {
             });
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if self.searcher.is_none()
             && let ExprKind::Assign(left, right, _) = expr.kind
@@ -120,7 +114,6 @@ impl<'tcx> LateLintPass<'tcx> for ReserveAfterInitialization {
             });
         }
     }
-
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'_>) {
         if let Some(searcher) = self.searcher.take() {
             if let StmtKind::Expr(expr) | StmtKind::Semi(expr) = stmt.kind
@@ -139,7 +132,6 @@ impl<'tcx> LateLintPass<'tcx> for ReserveAfterInitialization {
             }
         }
     }
-
     fn check_block_post(&mut self, cx: &LateContext<'tcx>, _: &'tcx Block<'tcx>) {
         if let Some(searcher) = self.searcher.take() {
             searcher.display_err(cx);

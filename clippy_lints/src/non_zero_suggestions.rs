@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
 use rustc_ast::ast::BinOpKind;
@@ -7,7 +9,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, Ty};
 use rustc_session::declare_lint_pass;
 use rustc_span::symbol::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for conversions from `NonZero` types to regular integer types,
@@ -44,9 +45,7 @@ declare_clippy_lint! {
     restriction,
     "suggests using `NonZero#` from `u#` or `i#` for more efficient and type-safe conversions"
 }
-
 declare_lint_pass!(NonZeroSuggestions => [NON_ZERO_SUGGESTIONS]);
-
 impl<'tcx> LateLintPass<'tcx> for NonZeroSuggestions {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let ExprKind::Binary(op, _, rhs) = expr.kind
@@ -58,14 +57,12 @@ impl<'tcx> LateLintPass<'tcx> for NonZeroSuggestions {
             let parent_is_binary = cx.tcx.hir_parent_iter(expr.hir_id).any(|(_, node)| {
                 matches!(node, rustc_hir::Node::Expr(parent_expr) if matches!(parent_expr.kind, ExprKind::Binary(..)))
             });
-
             if !parent_is_binary {
                 check_non_zero_conversion(cx, expr, Applicability::MaybeIncorrect);
             }
         }
     }
 }
-
 fn check_non_zero_conversion(cx: &LateContext<'_>, expr: &Expr<'_>, applicability: Applicability) {
     // Check if the expression is a function call with one argument
     if let ExprKind::Call(func, [arg]) = expr.kind
@@ -77,7 +74,6 @@ fn check_non_zero_conversion(cx: &LateContext<'_>, expr: &Expr<'_>, applicabilit
         let fn_name = cx.tcx.item_name(def_id);
         let target_ty = cx.typeck_results().expr_ty(expr);
         let receiver_ty = cx.typeck_results().expr_ty(receiver);
-
         // Check if the receiver type is a NonZero type
         if let ty::Adt(adt_def, _) = receiver_ty.kind()
             && adt_def.is_struct()
@@ -90,7 +86,6 @@ fn check_non_zero_conversion(cx: &LateContext<'_>, expr: &Expr<'_>, applicabilit
         }
     }
 }
-
 fn get_arg_snippet(cx: &LateContext<'_>, arg: &Expr<'_>, rcv_path: &rustc_hir::PathSegment<'_>) -> String {
     let arg_snippet = snippet(cx, arg.span, "..");
     if let Some(index) = arg_snippet.rfind(&format!(".{}", rcv_path.ident.name)) {
@@ -99,7 +94,6 @@ fn get_arg_snippet(cx: &LateContext<'_>, arg: &Expr<'_>, rcv_path: &rustc_hir::P
         arg_snippet.to_string()
     }
 }
-
 fn suggest_non_zero_conversion(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -119,7 +113,6 @@ fn suggest_non_zero_conversion(
         applicability,
     );
 }
-
 fn get_target_non_zero_type(ty: Ty<'_>) -> Option<&'static str> {
     match ty.kind() {
         ty::Uint(uint_ty) => Some(match uint_ty {

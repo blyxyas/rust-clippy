@@ -1,13 +1,12 @@
+use crate::HVec;
+
+use super::{NEGATIVE_FEATURE_NAMES, REDUNDANT_FEATURE_NAMES};
 use cargo_metadata::Metadata;
 use clippy_utils::diagnostics::span_lint_and_help;
 use rustc_lint::LateContext;
 use rustc_span::DUMMY_SP;
-
-use super::{NEGATIVE_FEATURE_NAMES, REDUNDANT_FEATURE_NAMES};
-
 static PREFIXES: [&str; 8] = ["no-", "no_", "not-", "not_", "use-", "use_", "with-", "with_"];
 static SUFFIXES: [&str; 2] = ["-support", "_support"];
-
 pub(super) fn check(cx: &LateContext<'_>, metadata: &Metadata) {
     for package in &metadata.packages {
         let mut features: Vec<&String> = package.features.keys().collect();
@@ -24,7 +23,6 @@ pub(super) fn check(cx: &LateContext<'_>, metadata: &Metadata) {
             if let Some(prefix) = prefix_opt {
                 lint(cx, feature, prefix, true);
             }
-
             let suffix_opt: Option<&str> = {
                 let i = SUFFIXES.partition_point(|suffix| {
                     suffix.bytes().rev().cmp(feature.bytes().rev()) == std::cmp::Ordering::Less
@@ -41,11 +39,9 @@ pub(super) fn check(cx: &LateContext<'_>, metadata: &Metadata) {
         }
     }
 }
-
 fn is_negative_prefix(s: &str) -> bool {
     s.starts_with("no")
 }
-
 fn lint(cx: &LateContext<'_>, feature: &str, substring: &str, is_prefix: bool) {
     let is_negative = is_prefix && is_negative_prefix(substring);
     span_lint_and_help(
@@ -78,7 +74,6 @@ fn lint(cx: &LateContext<'_>, feature: &str, substring: &str, is_prefix: bool) {
         ),
     );
 }
-
 #[test]
 fn test_prefixes_sorted() {
     let mut sorted_prefixes = PREFIXES;

@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::ITER_OUT_OF_BOUNDS;
 use clippy_utils::diagnostics::span_lint_and_note;
 use clippy_utils::higher::VecArgs;
 use clippy_utils::{expr_or_init, is_trait_method};
@@ -6,9 +9,6 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self};
 use rustc_span::sym;
-
-use super::ITER_OUT_OF_BOUNDS;
-
 fn expr_as_u128(cx: &LateContext<'_>, e: &Expr<'_>) -> Option<u128> {
     if let ExprKind::Lit(lit) = expr_or_init(cx, e).kind
         && let LitKind::Int(n, _) = lit.node
@@ -18,14 +18,12 @@ fn expr_as_u128(cx: &LateContext<'_>, e: &Expr<'_>) -> Option<u128> {
         None
     }
 }
-
 /// Attempts to extract the length out of an iterator expression.
 fn get_iterator_length<'tcx>(cx: &LateContext<'tcx>, iter: &'tcx Expr<'tcx>) -> Option<u128> {
     let ty::Adt(adt, substs) = cx.typeck_results().expr_ty(iter).kind() else {
         return None;
     };
     let did = adt.did();
-
     if cx.tcx.is_diagnostic_item(sym::ArrayIntoIter, did) {
         // For array::IntoIter<T, const N: usize>, the length is the second generic
         // parameter.
@@ -52,7 +50,6 @@ fn get_iterator_length<'tcx>(cx: &LateContext<'tcx>, iter: &'tcx Expr<'tcx>) -> 
         None
     }
 }
-
 fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -69,7 +66,6 @@ fn check<'tcx>(
         span_lint_and_note(cx, ITER_OUT_OF_BOUNDS, expr.span, message, None, note);
     }
 }
-
 pub(super) fn check_skip<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -85,7 +81,6 @@ pub(super) fn check_skip<'tcx>(
         "this operation is useless and will create an empty iterator",
     );
 }
-
 pub(super) fn check_take<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,

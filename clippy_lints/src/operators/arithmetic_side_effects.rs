@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::ARITHMETIC_SIDE_EFFECTS;
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
@@ -11,7 +13,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::symbol::sym;
 use rustc_span::{Span, Symbol};
 use {rustc_ast as ast, rustc_hir as hir};
-
 pub struct ArithmeticSideEffects {
     allowed_binary: FxHashMap<&'static str, FxHashSet<&'static str>>,
     allowed_unary: FxHashSet<&'static str>,
@@ -20,14 +21,11 @@ pub struct ArithmeticSideEffects {
     disallowed_int_methods: FxHashSet<Symbol>,
     expr_span: Option<Span>,
 }
-
 impl_lint_pass!(ArithmeticSideEffects => [ARITHMETIC_SIDE_EFFECTS]);
-
 impl ArithmeticSideEffects {
     pub fn new(conf: &'static Conf) -> Self {
         let mut allowed_binary = FxHashMap::<&'static str, FxHashSet<&'static str>>::default();
         let mut allowed_unary = FxHashSet::<&'static str>::default();
-
         allowed_unary.extend(["f32", "f64", "std::num::Saturating", "std::num::Wrapping"]);
         allowed_unary.extend(conf.arithmetic_side_effects_allowed_unary.iter().map(|x| &**x));
         allowed_binary.extend([
@@ -43,7 +41,6 @@ impl ArithmeticSideEffects {
             allowed_binary.entry("*").or_default().insert(s);
             allowed_unary.insert(s);
         }
-
         Self {
             allowed_binary,
             allowed_unary,
@@ -59,7 +56,6 @@ impl ArithmeticSideEffects {
             expr_span: None,
         }
     }
-
     /// Checks if the lhs and the rhs types of a binary operation like "addition" or
     /// "multiplication" are present in the inner set of allowed types.
     fn has_allowed_binary(&self, lhs_ty: Ty<'_>, rhs_ty: Ty<'_>) -> bool {
@@ -80,7 +76,6 @@ impl ArithmeticSideEffects {
             false
         }
     }
-
     /// Checks if the type of an unary operation like "negation" is present in the inner set of
     /// allowed types.
     fn has_allowed_unary(&self, ty: Ty<'_>) -> bool {
@@ -88,7 +83,6 @@ impl ArithmeticSideEffects {
         let ty_string_elem = ty_string.split('<').next().unwrap_or_default();
         self.allowed_unary.contains(ty_string_elem)
     }
-
     /// Verifies built-in types that have specific allowed operations
     fn has_specific_allowed_type_and_operation<'tcx>(
         cx: &LateContext<'tcx>,
@@ -99,13 +93,10 @@ impl ArithmeticSideEffects {
         let is_div_or_rem = matches!(op, hir::BinOpKind::Div | hir::BinOpKind::Rem);
         let is_non_zero_u = |cx: &LateContext<'tcx>, ty: Ty<'tcx>| {
             let tcx = cx.tcx;
-
             let ty::Adt(adt, substs) = ty.kind() else { return false };
-
             if !tcx.is_diagnostic_item(sym::NonZero, adt.did()) {
                 return false;
             }
-
             let int_type = substs.type_at(0);
             let unsigned_int_types = [
                 tcx.types.u8,
@@ -115,42 +106,34 @@ impl ArithmeticSideEffects {
                 tcx.types.u128,
                 tcx.types.usize,
             ];
-
             unsigned_int_types.contains(&int_type)
         };
         let is_sat_or_wrap = |ty: Ty<'_>| {
             is_type_diagnostic_item(cx, ty, sym::Saturating) || is_type_diagnostic_item(cx, ty, sym::Wrapping)
         };
-
         // If the RHS is `NonZero<u*>`, then division or module by zero will never occur.
         if is_non_zero_u(cx, rhs_ty) && is_div_or_rem {
             return true;
         }
-
         // `Saturation` and `Wrapping` can overflow if the RHS is zero in a division or module.
         if is_sat_or_wrap(lhs_ty) {
             return !is_div_or_rem;
         }
-
         false
     }
-
     // For example, 8i32 or &i64::MAX.
     fn is_integral(ty: Ty<'_>) -> bool {
         ty.peel_refs().is_integral()
     }
-
     // Common entry-point to avoid code duplication.
     fn issue_lint<'tcx>(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) {
         if is_from_proc_macro(cx, expr) {
             return;
         }
-
         let msg = "arithmetic operation that can potentially result in unexpected side-effects";
         span_lint(cx, ARITHMETIC_SIDE_EFFECTS, expr.span, msg);
         self.expr_span = Some(expr.span);
     }
-
     /// Returns the numeric value of a literal integer originated from `expr`, if any.
     ///
     /// Literal integers can be originated from adhoc declarations like `1`, associated constants
@@ -167,7 +150,6 @@ impl ArithmeticSideEffects {
         }
         None
     }
-
     /// Methods like `add_assign` are send to their `BinOps` references.
     fn manage_sugar_methods<'tcx>(
         &mut self,
@@ -189,7 +171,6 @@ impl ArithmeticSideEffects {
             self.manage_bin_ops(cx, expr, hir::BinOpKind::Sub, lhs, rhs);
         }
     }
-
     /// Manages when the lint should be triggered. Operations in constant environments, hard coded
     /// types, custom allowed types and non-constant operations that don't overflow are ignored.
     fn manage_bin_ops<'tcx>(
@@ -266,7 +247,6 @@ impl ArithmeticSideEffects {
             self.issue_lint(cx, expr);
         }
     }
-
     /// There are some integer methods like `wrapping_div` that will panic depending on the
     /// provided input.
     fn manage_method_call<'tcx>(
@@ -297,7 +277,6 @@ impl ArithmeticSideEffects {
             Some(_) => {},
         }
     }
-
     fn manage_unary_ops<'tcx>(
         &mut self,
         cx: &LateContext<'tcx>,
@@ -321,14 +300,12 @@ impl ArithmeticSideEffects {
         }
         self.issue_lint(cx, expr);
     }
-
     fn should_skip_expr<'tcx>(&mut self, cx: &LateContext<'tcx>, expr: &hir::Expr<'tcx>) -> bool {
         is_lint_allowed(cx, ARITHMETIC_SIDE_EFFECTS, expr.hir_id)
             || self.expr_span.is_some()
             || self.const_span.is_some_and(|sp| sp.contains(expr.span))
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for ArithmeticSideEffects {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'tcx>) {
         if self.should_skip_expr(cx, expr) {
@@ -347,11 +324,9 @@ impl<'tcx> LateLintPass<'tcx> for ArithmeticSideEffects {
             _ => {},
         }
     }
-
     fn check_body(&mut self, cx: &LateContext<'_>, body: &hir::Body<'_>) {
         let body_owner = cx.tcx.hir_body_owner(body.id());
         let body_owner_def_id = cx.tcx.hir_body_owner_def_id(body.id());
-
         let body_owner_kind = cx.tcx.hir_body_owner_kind(body_owner_def_id);
         if let hir::BodyOwnerKind::Const { .. } | hir::BodyOwnerKind::Static(_) = body_owner_kind {
             let body_span = cx.tcx.hir().span_with_body(body_owner);
@@ -363,7 +338,6 @@ impl<'tcx> LateLintPass<'tcx> for ArithmeticSideEffects {
             self.const_span = Some(body_span);
         }
     }
-
     fn check_body_post(&mut self, cx: &LateContext<'_>, body: &hir::Body<'_>) {
         let body_owner = cx.tcx.hir_body_owner(body.id());
         let body_span = cx.tcx.hir().span(body_owner);
@@ -374,7 +348,6 @@ impl<'tcx> LateLintPass<'tcx> for ArithmeticSideEffects {
         }
         self.const_span = None;
     }
-
     fn check_expr_post(&mut self, _: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) {
         if Some(expr.span) == self.expr_span {
             self.expr_span = None;

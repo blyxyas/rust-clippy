@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::STABLE_SORT_PRIMITIVE;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_slice_of_primitives;
 use clippy_utils::source::snippet_with_context;
 use rustc_errors::Applicability;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
-
-use super::STABLE_SORT_PRIMITIVE;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, e: &'tcx Expr<'_>, recv: &'tcx Expr<'_>) {
     if let Some(method_id) = cx.typeck_results().type_dependent_def_id(e.hir_id)
         && let Some(impl_id) = cx.tcx.impl_of_method(method_id)

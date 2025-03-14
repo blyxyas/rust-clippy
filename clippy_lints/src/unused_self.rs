@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::macros::root_macro_call_first_node;
@@ -6,7 +8,6 @@ use rustc_hir::{Body, Impl, ImplItem, ImplItemKind, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use std::ops::ControlFlow;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks methods that contain a `self` argument but don't use it
@@ -36,13 +37,10 @@ declare_clippy_lint! {
     pedantic,
     "methods that contain a `self` argument but don't use it"
 }
-
 pub struct UnusedSelf {
     avoid_breaking_exported_api: bool,
 }
-
 impl_lint_pass!(UnusedSelf => [UNUSED_SELF]);
-
 impl UnusedSelf {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -50,7 +48,6 @@ impl UnusedSelf {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for UnusedSelf {
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, impl_item: &ImplItem<'_>) {
         if impl_item.span.from_expansion() {

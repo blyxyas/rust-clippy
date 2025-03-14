@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context};
 use rustc_errors::Applicability;
@@ -7,7 +9,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::SyntaxContext;
 use std::borrow::Cow;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for tuple structs initialized with field syntax.
@@ -38,9 +39,7 @@ declare_clippy_lint! {
     style,
     "numbered fields in tuple struct initializer"
 }
-
 declare_lint_pass!(NumberedFields => [INIT_NUMBERED_FIELDS]);
-
 impl<'tcx> LateLintPass<'tcx> for NumberedFields {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         if let ExprKind::Struct(path, fields @ [field, ..], StructTailExpr::None) = e.kind

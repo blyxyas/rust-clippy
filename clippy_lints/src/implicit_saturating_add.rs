@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::get_parent_expr;
@@ -9,7 +11,6 @@ use rustc_hir::{BinOpKind, Block, Expr, ExprKind, Stmt, StmtKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{IntTy, Ty, UintTy};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for implicit saturating addition.
@@ -37,7 +38,6 @@ declare_clippy_lint! {
     "Perform saturating addition instead of implicitly checking max bound of data type"
 }
 declare_lint_pass!(ImplicitSaturatingAdd => [IMPLICIT_SATURATING_ADD]);
-
 impl<'tcx> LateLintPass<'tcx> for ImplicitSaturatingAdd {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let ExprKind::If(cond, then, None) = expr.kind
@@ -95,7 +95,6 @@ impl<'tcx> LateLintPass<'tcx> for ImplicitSaturatingAdd {
         }
     }
 }
-
 fn get_int_max(ty: Ty<'_>) -> Option<u128> {
     use rustc_middle::ty::{Int, Uint};
     match ty.peel_refs().kind() {
@@ -114,7 +113,6 @@ fn get_int_max(ty: Ty<'_>) -> Option<u128> {
         _ => None,
     }
 }
-
 fn get_const<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> Option<(u128, BinOpKind, &'tcx Expr<'tcx>)> {
     if let ExprKind::Binary(op, l, r) = expr.kind {
         let ecx = ConstEvalCtxt::new(cx);
@@ -127,7 +125,6 @@ fn get_const<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> Option<(u128, B
     }
     None
 }
-
 fn invert_op(op: BinOpKind) -> Option<BinOpKind> {
     use rustc_hir::BinOpKind::{Ge, Gt, Le, Lt, Ne};
     match op {

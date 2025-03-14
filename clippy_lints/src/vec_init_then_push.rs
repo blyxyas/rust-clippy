@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::higher::{VecInitKind, get_vec_init_kind};
 use clippy_utils::source::snippet;
@@ -10,7 +12,6 @@ use rustc_hir::{BindingMode, Block, Expr, ExprKind, HirId, LetStmt, Mutability, 
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, Symbol};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `push` immediately after creating a new `Vec`.
@@ -42,14 +43,11 @@ declare_clippy_lint! {
     perf,
     "`push` immediately after `Vec` creation"
 }
-
 impl_lint_pass!(VecInitThenPush => [VEC_INIT_THEN_PUSH]);
-
 #[derive(Default)]
 pub struct VecInitThenPush {
     searcher: Option<VecPushSearcher>,
 }
-
 struct VecPushSearcher {
     local_id: HirId,
     init: VecInitKind,
@@ -69,7 +67,6 @@ impl VecPushSearcher {
             VecInitKind::WithExprCapacity(_) => return,
             _ => 3,
         };
-
         let mut needs_mut = false;
         let res = for_each_local_use_after_expr(cx, self.local_id, self.last_push_expr, |e| {
             let Some(parent) = get_parent_expr(cx, e) else {
@@ -116,12 +113,10 @@ impl VecPushSearcher {
             }
             ControlFlow::Continue(())
         });
-
         // Avoid allocating small `Vec`s when they'll be extended right after.
         if res == ControlFlow::Break(true) && self.found <= required_pushes_before_extension {
             return;
         }
-
         let mut s = if self.lhs_is_let {
             String::from("let ")
         } else {
@@ -136,7 +131,6 @@ impl VecPushSearcher {
             s.push_str(&snippet(cx, span, "_"));
         }
         s.push_str(" = vec![..];");
-
         span_lint_and_sugg(
             cx,
             VEC_INIT_THEN_PUSH,
@@ -148,12 +142,10 @@ impl VecPushSearcher {
         );
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for VecInitThenPush {
     fn check_block(&mut self, _: &LateContext<'tcx>, _: &'tcx Block<'tcx>) {
         self.searcher = None;
     }
-
     fn check_local(&mut self, cx: &LateContext<'tcx>, local: &'tcx LetStmt<'tcx>) {
         if let Some(init_expr) = local.init
             && let PatKind::Binding(BindingMode::MUT, id, name, None) = local.pat.kind
@@ -173,7 +165,6 @@ impl<'tcx> LateLintPass<'tcx> for VecInitThenPush {
             });
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if self.searcher.is_none()
             && let ExprKind::Assign(left, right, _) = expr.kind
@@ -196,7 +187,6 @@ impl<'tcx> LateLintPass<'tcx> for VecInitThenPush {
             });
         }
     }
-
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'_>) {
         if let Some(searcher) = self.searcher.take() {
             if let StmtKind::Expr(expr) | StmtKind::Semi(expr) = stmt.kind
@@ -215,7 +205,6 @@ impl<'tcx> LateLintPass<'tcx> for VecInitThenPush {
             }
         }
     }
-
     fn check_block_post(&mut self, cx: &LateContext<'tcx>, _: &'tcx Block<'tcx>) {
         if let Some(searcher) = self.searcher.take() {
             searcher.display_err(cx);

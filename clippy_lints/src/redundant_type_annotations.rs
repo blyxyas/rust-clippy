@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::is_lint_allowed;
 use rustc_ast::LitKind;
@@ -6,7 +8,6 @@ use rustc_hir::def::DefKind;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::Ty;
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns about needless / redundant type annotations.
@@ -37,7 +38,6 @@ declare_clippy_lint! {
     "warns about needless / redundant type annotations."
 }
 declare_lint_pass!(RedundantTypeAnnotations => [REDUNDANT_TYPE_ANNOTATIONS]);
-
 fn is_same_type<'tcx>(cx: &LateContext<'tcx>, ty_resolved_path: hir::def::Res, func_return_type: Ty<'tcx>) -> bool {
     // type annotation is primitive
     if let hir::def::Res::PrimTy(primty) = ty_resolved_path
@@ -46,17 +46,14 @@ fn is_same_type<'tcx>(cx: &LateContext<'tcx>, ty_resolved_path: hir::def::Res, f
     {
         return primty.name() == func_return_type_sym;
     }
-
     // type annotation is a non generic type
     if let hir::def::Res::Def(DefKind::Struct | DefKind::Union | DefKind::Enum, defid) = ty_resolved_path
         && let Some(annotation_ty) = cx.tcx.type_of(defid).no_bound_vars()
     {
         return annotation_ty == func_return_type;
     }
-
     false
 }
-
 fn func_hir_id_to_func_ty<'tcx>(cx: &LateContext<'tcx>, hir_id: hir::hir_id::HirId) -> Option<Ty<'tcx>> {
     if let Some((defkind, func_defid)) = cx.typeck_results().type_dependent_def(hir_id)
         && defkind == DefKind::AssocFn
@@ -67,7 +64,6 @@ fn func_hir_id_to_func_ty<'tcx>(cx: &LateContext<'tcx>, hir_id: hir::hir_id::Hir
         None
     }
 }
-
 fn func_ty_to_return_type<'tcx>(cx: &LateContext<'tcx>, func_ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
     if func_ty.is_fn() {
         Some(func_ty.fn_sig(cx.tcx).output().skip_binder())
@@ -75,7 +71,6 @@ fn func_ty_to_return_type<'tcx>(cx: &LateContext<'tcx>, func_ty: Ty<'tcx>) -> Op
         None
     }
 }
-
 /// Extracts the fn Ty, e.g. `fn() -> std::string::String {f}`
 fn extract_fn_ty<'tcx>(
     cx: &LateContext<'tcx>,
@@ -100,7 +95,6 @@ fn extract_fn_ty<'tcx>(
         hir::QPath::LangItem(..) => None,
     }
 }
-
 fn is_redundant_in_func_call<'tcx>(
     cx: &LateContext<'tcx>,
     ty_resolved_path: hir::def::Res,
@@ -108,17 +102,14 @@ fn is_redundant_in_func_call<'tcx>(
 ) -> bool {
     if let hir::ExprKind::Path(init_path) = &call.kind {
         let func_type = extract_fn_ty(cx, call, init_path);
-
         if let Some(func_type) = func_type
             && let Some(init_return_type) = func_ty_to_return_type(cx, func_type)
         {
             return is_same_type(cx, ty_resolved_path, init_return_type);
         }
     }
-
     false
 }
-
 fn extract_primty(ty_kind: &hir::TyKind<'_>) -> Option<hir::PrimTy> {
     if let hir::TyKind::Path(ty_path) = ty_kind
         && let hir::QPath::Resolved(_, resolved_path_ty) = ty_path
@@ -129,14 +120,12 @@ fn extract_primty(ty_kind: &hir::TyKind<'_>) -> Option<hir::PrimTy> {
         None
     }
 }
-
 impl LateLintPass<'_> for RedundantTypeAnnotations {
     fn check_local<'tcx>(&mut self, cx: &LateContext<'tcx>, local: &'tcx rustc_hir::LetStmt<'tcx>) {
         if !is_lint_allowed(cx, REDUNDANT_TYPE_ANNOTATIONS, local.hir_id)
             // type annotation part
             && !local.span.from_expansion()
             && let Some(ty) = &local.ty
-
             // initialization part
             && let Some(init) = local.init
         {
@@ -153,13 +142,11 @@ impl LateLintPass<'_> for RedundantTypeAnnotations {
                 hir::ExprKind::MethodCall(_, _, _, _) => {
                     let mut is_ref = false;
                     let mut ty_kind = &ty.kind;
-
                     // If the annotation is a ref we "peel" it
                     if let hir::TyKind::Ref(_, mut_ty) = &ty.kind {
                         is_ref = true;
                         ty_kind = &mut_ty.ty.kind;
                     }
-
                     if let hir::TyKind::Path(ty_path) = ty_kind
                         && let hir::QPath::Resolved(_, resolved_path_ty) = ty_path
                         && let Some(func_ty) = func_hir_id_to_func_ty(cx, init.hir_id)

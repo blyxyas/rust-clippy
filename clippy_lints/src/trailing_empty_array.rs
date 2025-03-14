@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::{has_repr_attr, is_in_test};
 use rustc_hir::{Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Displays a warning when a struct with a trailing zero-sized array is declared without a `repr` attribute.
@@ -34,7 +35,6 @@ declare_clippy_lint! {
     "struct with a trailing zero-sized array but without `#[repr(C)]` or another `repr` attribute"
 }
 declare_lint_pass!(TrailingEmptyArray => [TRAILING_EMPTY_ARRAY]);
-
 impl<'tcx> LateLintPass<'tcx> for TrailingEmptyArray {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if is_struct_with_trailing_zero_sized_array(cx, item)
@@ -55,7 +55,6 @@ impl<'tcx> LateLintPass<'tcx> for TrailingEmptyArray {
         }
     }
 }
-
 fn is_struct_with_trailing_zero_sized_array<'tcx>(cx: &LateContext<'tcx>, item: &Item<'tcx>) -> bool {
     if let ItemKind::Struct(data, _) = &item.kind
         && let Some(last_field) = data.fields().last()

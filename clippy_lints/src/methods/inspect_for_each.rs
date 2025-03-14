@@ -1,11 +1,11 @@
+use crate::HVec;
+
+use super::INSPECT_FOR_EACH;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::is_trait_method;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_span::{Span, sym};
-
-use super::INSPECT_FOR_EACH;
-
 /// lint use of `inspect().for_each()` for `Iterators`
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>, inspect_span: Span) {
     if is_trait_method(cx, expr, sym::Iterator) {

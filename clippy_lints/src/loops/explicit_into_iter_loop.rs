@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::EXPLICIT_INTO_ITER_LOOP;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_trait_method;
@@ -7,7 +9,6 @@ use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_middle::ty::adjustment::{Adjust, Adjustment, AutoBorrow, AutoBorrowMutability};
 use rustc_span::symbol::sym;
-
 #[derive(Clone, Copy)]
 enum AdjustKind {
     None,
@@ -23,14 +24,12 @@ impl AdjustKind {
             AutoBorrowMutability::Mut { .. } => Self::BorrowMut,
         }
     }
-
     fn reborrow(mutbl: AutoBorrowMutability) -> Self {
         match mutbl {
             AutoBorrowMutability::Not => Self::Reborrow,
             AutoBorrowMutability::Mut { .. } => Self::ReborrowMut,
         }
     }
-
     fn display(self) -> &'static str {
         match self {
             Self::None => "",
@@ -41,12 +40,10 @@ impl AdjustKind {
         }
     }
 }
-
 pub(super) fn check(cx: &LateContext<'_>, self_arg: &Expr<'_>, call_expr: &Expr<'_>) {
     if !is_trait_method(cx, call_expr, sym::IntoIterator) {
         return;
     }
-
     let typeck = cx.typeck_results();
     let self_ty = typeck.expr_ty(self_arg);
     let adjust = match typeck.expr_adjustments(self_arg) {
@@ -74,7 +71,6 @@ pub(super) fn check(cx: &LateContext<'_>, self_arg: &Expr<'_>, call_expr: &Expr<
         },
         _ => return,
     };
-
     let mut applicability = Applicability::MachineApplicable;
     let object = snippet_with_applicability(cx, self_arg.span, "_", &mut applicability);
     span_lint_and_sugg(

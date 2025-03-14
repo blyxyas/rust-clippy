@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint, span_lint_hir_and_then};
 use clippy_utils::path_res;
 use clippy_utils::ty::implements_trait;
@@ -7,7 +9,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::Visibility;
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for types named `Error` that implement `Error`.
@@ -33,7 +34,6 @@ declare_clippy_lint! {
     "exported types named `Error` that implement `Error`"
 }
 declare_lint_pass!(ErrorImplError => [ERROR_IMPL_ERROR]);
-
 impl<'tcx> LateLintPass<'tcx> for ErrorImplError {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         match item.kind {
@@ -75,7 +75,6 @@ impl<'tcx> LateLintPass<'tcx> for ErrorImplError {
         }
     }
 }
-
 /// Do not lint private `Error`s, i.e., ones without any `pub` (minus `pub(self)` of course) and
 /// which aren't reexported
 fn is_visible_outside_module(cx: &LateContext<'_>, def_id: LocalDefId) -> bool {

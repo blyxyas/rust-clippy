@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::BOX_COLLECTION;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::{path_def_id, qpath_generic_tys};
 use rustc_hir::def_id::DefId;
 use rustc_hir::{self as hir, QPath};
 use rustc_lint::LateContext;
 use rustc_span::{Symbol, sym};
-
-use super::BOX_COLLECTION;
-
 pub(super) fn check(cx: &LateContext<'_>, hir_ty: &hir::Ty<'_>, qpath: &QPath<'_>, def_id: DefId) -> bool {
     if Some(def_id) == cx.tcx.lang_items().owned_box()
         && let Some(item_type) = get_std_collection(cx, qpath)
@@ -15,7 +15,6 @@ pub(super) fn check(cx: &LateContext<'_>, hir_ty: &hir::Ty<'_>, qpath: &QPath<'_
             sym::String => "",
             _ => "<..>",
         };
-
         let box_content = format!("{item_type}{generic}");
         span_lint_and_help(
             cx,
@@ -30,7 +29,6 @@ pub(super) fn check(cx: &LateContext<'_>, hir_ty: &hir::Ty<'_>, qpath: &QPath<'_
         false
     }
 }
-
 fn get_std_collection(cx: &LateContext<'_>, qpath: &QPath<'_>) -> Option<Symbol> {
     let param = qpath_generic_tys(qpath).next()?;
     let id = path_def_id(cx, param)?;

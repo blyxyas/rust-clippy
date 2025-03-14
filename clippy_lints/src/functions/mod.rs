@@ -1,3 +1,5 @@
+use crate::HVec;
+
 mod impl_trait_in_params;
 mod misnamed_getters;
 mod must_use;
@@ -7,7 +9,6 @@ mod renamed_function_params;
 mod result;
 mod too_many_arguments;
 mod too_many_lines;
-
 use clippy_config::Conf;
 use clippy_utils::def_path_def_ids;
 use clippy_utils::msrvs::Msrv;
@@ -18,7 +19,6 @@ use rustc_middle::ty::TyCtxt;
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::{DefIdSet, LocalDefId};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions with too many parameters.
@@ -40,7 +40,6 @@ declare_clippy_lint! {
     complexity,
     "functions with too many arguments"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions with a large amount of lines.
@@ -64,7 +63,6 @@ declare_clippy_lint! {
     pedantic,
     "functions with too many lines"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for public functions that dereference raw pointer
@@ -124,7 +122,6 @@ declare_clippy_lint! {
     correctness,
     "public functions dereferencing raw pointer arguments but not marked `unsafe`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for a `#[must_use]` attribute on
@@ -144,7 +141,6 @@ declare_clippy_lint! {
     style,
     "`#[must_use]` attribute on a unit-returning function / method"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for a `#[must_use]` attribute without
@@ -168,7 +164,6 @@ declare_clippy_lint! {
     style,
     "`#[must_use]` attribute on a `#[must_use]`-returning function / method"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for public functions that have no
@@ -198,7 +193,6 @@ declare_clippy_lint! {
     pedantic,
     "function or method that could take a `#[must_use]` attribute"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for public functions that return a `Result`
@@ -248,7 +242,6 @@ declare_clippy_lint! {
     style,
     "public function returning `Result` with an `Err` type of `()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions that return `Result` with an unusually large
@@ -296,7 +289,6 @@ declare_clippy_lint! {
     perf,
     "function returning `Result` with large `Err` type"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for getter methods that return a field that doesn't correspond
@@ -306,7 +298,6 @@ declare_clippy_lint! {
     /// It is most likely that such a  method is a bug caused by a typo or by copy-pasting.
     ///
     /// ### Example
-
     /// ```no_run
     /// struct A {
     ///     a: String,
@@ -318,7 +309,6 @@ declare_clippy_lint! {
     ///         &self.b
     ///     }
     /// }
-
     /// ```
     /// Use instead:
     /// ```no_run
@@ -338,7 +328,6 @@ declare_clippy_lint! {
     suspicious,
     "getter method returning the wrong field"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Lints when `impl Trait` is being used in a function's parameters.
@@ -366,7 +355,6 @@ declare_clippy_lint! {
     restriction,
     "`impl Trait` is used in the function's parameters"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Lints when the name of function parameters from trait impl is
@@ -400,7 +388,6 @@ declare_clippy_lint! {
     restriction,
     "renamed function parameters in trait implementation"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns when a function signature uses `&Option<T>` instead of `Option<&T>`.
@@ -447,7 +434,6 @@ declare_clippy_lint! {
     pedantic,
     "function signature uses `&Option<T>` instead of `Option<&T>`"
 }
-
 pub struct Functions {
     too_many_arguments_threshold: u64,
     too_many_lines_threshold: u64,
@@ -458,7 +444,6 @@ pub struct Functions {
     trait_ids: DefIdSet,
     msrv: Msrv,
 }
-
 impl Functions {
     pub fn new(tcx: TyCtxt<'_>, conf: &'static Conf) -> Self {
         Self {
@@ -475,7 +460,6 @@ impl Functions {
         }
     }
 }
-
 impl_lint_pass!(Functions => [
     TOO_MANY_ARGUMENTS,
     TOO_MANY_LINES,
@@ -490,7 +474,6 @@ impl_lint_pass!(Functions => [
     RENAMED_FUNCTION_PARAMS,
     REF_OPTION,
 ]);
-
 impl<'tcx> LateLintPass<'tcx> for Functions {
     fn check_fn(
         &mut self,
@@ -518,19 +501,16 @@ impl<'tcx> LateLintPass<'tcx> for Functions {
             self.avoid_breaking_exported_api,
         );
     }
-
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::Item<'_>) {
         must_use::check_item(cx, item);
         result::check_item(cx, item, self.large_error_threshold, self.msrv);
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::ImplItem<'_>) {
         must_use::check_impl_item(cx, item);
         result::check_impl_item(cx, item, self.large_error_threshold, self.msrv);
         impl_trait_in_params::check_impl_item(cx, item);
         renamed_function_params::check_impl_item(cx, item, &self.trait_ids);
     }
-
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::TraitItem<'_>) {
         too_many_arguments::check_trait_item(cx, item, self.too_many_arguments_threshold);
         not_unsafe_ptr_arg_deref::check_trait_item(cx, item);

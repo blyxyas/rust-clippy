@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::WRONG_SELF_CONVENTION;
 use crate::methods::SelfKind;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::ty::is_copy;
@@ -5,9 +8,6 @@ use rustc_lint::LateContext;
 use rustc_middle::ty::Ty;
 use rustc_span::Span;
 use std::fmt;
-
-use super::WRONG_SELF_CONVENTION;
-
 #[rustfmt::skip]
 const CONVENTIONS: [(&[Convention], &[SelfKind]); 9] = [
     (&[Convention::Eq("new")], &[SelfKind::No]),
@@ -17,7 +17,6 @@ const CONVENTIONS: [(&[Convention], &[SelfKind]); 9] = [
     (&[Convention::StartsWith("is_")], &[SelfKind::RefMut, SelfKind::Ref, SelfKind::No]),
     (&[Convention::Eq("to_mut")], &[SelfKind::RefMut]),
     (&[Convention::StartsWith("to_"), Convention::EndsWith("_mut")], &[SelfKind::RefMut]),
-
     // Conversion using `to_` can use borrowed (non-Copy types) or owned (Copy types).
     // Source: https://rust-lang.github.io/api-guidelines/naming.html#ad-hoc-conversions-follow-as_-to_-into_-conventions-c-conv
     (&[Convention::StartsWith("to_"), Convention::NotEndsWith("_mut"), Convention::IsSelfTypeCopy(false),
@@ -25,7 +24,6 @@ const CONVENTIONS: [(&[Convention], &[SelfKind]); 9] = [
     (&[Convention::StartsWith("to_"), Convention::NotEndsWith("_mut"), Convention::IsSelfTypeCopy(true),
     Convention::IsTraitItem(false), Convention::ImplementsTrait(false)], &[SelfKind::Value]),
 ];
-
 enum Convention {
     Eq(&'static str),
     StartsWith(&'static str),
@@ -35,7 +33,6 @@ enum Convention {
     ImplementsTrait(bool),
     IsTraitItem(bool),
 }
-
 impl Convention {
     #[must_use]
     fn check<'tcx>(
@@ -57,7 +54,6 @@ impl Convention {
         }
     }
 }
-
 impl fmt::Display for Convention {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match *self {
@@ -79,7 +75,6 @@ impl fmt::Display for Convention {
         }
     }
 }
-
 #[allow(clippy::too_many_arguments)]
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
@@ -111,7 +106,6 @@ pub(super) fn check<'tcx>(
                         && conventions
                             .iter()
                             .any(|conv| matches!(conv, Convention::NotEndsWith(_)));
-
                     let s = conventions
                         .iter()
                         .filter_map(|conv| {
@@ -126,13 +120,11 @@ pub(super) fn check<'tcx>(
                         })
                         .collect::<Vec<_>>()
                         .join(" and ");
-
                     format!("methods with the following characteristics: ({s})")
                 } else {
                     format!("methods called {}", &conventions[0])
                 }
             };
-
             span_lint_and_help(
                 cx,
                 WRONG_SELF_CONVENTION,

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::consts::Constant::{F32, F64, Int};
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_sugg;
@@ -5,18 +7,16 @@ use clippy_utils::{
     eq_expr_value, get_parent_expr, higher, is_in_const_context, is_inherent_method_call, is_no_std_crate,
     numeric_literal, peel_blocks, sugg,
 };
+use rustc_ast::ast;
 use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Expr, ExprKind, PathSegment, UnOp};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::source_map::Spanned;
-
-use rustc_ast::ast;
 use std::f32::consts as f32_consts;
 use std::f64::consts as f64_consts;
 use sugg::Sugg;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for floating-point expressions that
@@ -46,7 +46,6 @@ declare_clippy_lint! {
     nursery,
     "usage of imprecise floating point operations"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for floating-point expressions that
@@ -103,12 +102,10 @@ declare_clippy_lint! {
     nursery,
     "usage of sub-optimal floating point operations"
 }
-
 declare_lint_pass!(FloatingPointArithmetic => [
     IMPRECISE_FLOPS,
     SUBOPTIMAL_FLOPS
 ]);
-
 // Returns the specialized log method for a given base if base is constant
 // and is one of 2, 10 and e
 fn get_specialized_log_method(cx: &LateContext<'_>, base: &Expr<'_>) -> Option<&'static str> {
@@ -121,18 +118,14 @@ fn get_specialized_log_method(cx: &LateContext<'_>, base: &Expr<'_>) -> Option<&
             return Some("ln");
         }
     }
-
     None
 }
-
 // Adds type suffixes and parenthesis to method receivers if necessary
 fn prepare_receiver_sugg<'a>(cx: &LateContext<'_>, mut expr: &'a Expr<'a>) -> Sugg<'a> {
     let mut suggestion = Sugg::hir(cx, expr, "..");
-
     if let ExprKind::Unary(UnOp::Neg, inner_expr) = &expr.kind {
         expr = inner_expr;
     }
-
     if let ty::Float(float_ty) = cx.typeck_results().expr_ty(expr).kind()
         // if the expression is a float literal and it is unsuffixed then
         // add a suffix so the suggestion is valid and unambiguous
@@ -147,16 +140,13 @@ fn prepare_receiver_sugg<'a>(cx: &LateContext<'_>, mut expr: &'a Expr<'a>) -> Su
             float_ty.name_str()
         )
         .into();
-
         suggestion = match suggestion {
             Sugg::MaybeParen(_) => Sugg::MaybeParen(op),
             _ => Sugg::NonParen(op),
         };
     }
-
     suggestion.maybe_par()
 }
-
 fn check_log_base(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, args: &[Expr<'_>]) {
     if let Some(method) = get_specialized_log_method(cx, &args[0]) {
         span_lint_and_sugg(
@@ -170,7 +160,6 @@ fn check_log_base(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, ar
         );
     }
 }
-
 // TODO: Lint expressions of the form `(x + y).ln()` where y > 1 and
 // suggest usage of `(x + (y - 1)).ln_1p()` instead
 fn check_ln1p(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>) {
@@ -188,7 +177,6 @@ fn check_ln1p(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>) {
             (_, Some(value)) if F32(1.0) == value || F64(1.0) == value => lhs,
             _ => return,
         };
-
         span_lint_and_sugg(
             cx,
             IMPRECISE_FLOPS,
@@ -200,7 +188,6 @@ fn check_ln1p(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>) {
         );
     }
 }
-
 // Returns an integer if the float constant is a whole number and it can be
 // converted to an integer without loss of precision. For now we only check
 // ranges [-16777215, 16777216) for type f32 as whole number floats outside
@@ -225,7 +212,6 @@ fn get_integer_from_float_constant(value: &Constant<'_>) -> Option<i32> {
         _ => None,
     }
 }
-
 fn check_powf(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, args: &[Expr<'_>]) {
     // Check receiver
     if let Some(value) = ConstEvalCtxt::new(cx).eval(receiver) {
@@ -247,7 +233,6 @@ fn check_powf(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, args: 
             );
         }
     }
-
     // Check argument
     if let Some(value) = ConstEvalCtxt::new(cx).eval(&args[0]) {
         let (lint, help, suggestion) = if F32(1.0 / 2.0) == value || F64(1.0 / 2.0) == value {
@@ -275,7 +260,6 @@ fn check_powf(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, args: 
         } else {
             return;
         };
-
         span_lint_and_sugg(
             cx,
             lint,
@@ -287,7 +271,6 @@ fn check_powf(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, args: 
         );
     }
 }
-
 fn check_powi(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, args: &[Expr<'_>]) {
     if let Some(value) = ConstEvalCtxt::new(cx).eval(&args[0]) {
         if value == Int(2) {
@@ -300,7 +283,6 @@ fn check_powi(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, args: 
                         }
                     }
                 }
-
                 if let ExprKind::Binary(
                     Spanned {
                         node: op @ (BinOpKind::Add | BinOpKind::Sub),
@@ -311,7 +293,6 @@ fn check_powi(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, args: 
                 ) = parent.kind
                 {
                     let other_addend = if lhs.hir_id == expr.hir_id { rhs } else { lhs };
-
                     // Negate expr if original code has subtraction and expr is on the right side
                     let maybe_neg_sugg = |expr, hir_id| {
                         let sugg = Sugg::hir(cx, expr, "..");
@@ -321,7 +302,6 @@ fn check_powi(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, args: 
                             sugg
                         }
                     };
-
                     span_lint_and_sugg(
                         cx,
                         SUBOPTIMAL_FLOPS,
@@ -341,7 +321,6 @@ fn check_powi(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, args: 
         }
     }
 }
-
 fn detect_hypot(cx: &LateContext<'_>, receiver: &Expr<'_>) -> Option<String> {
     if let ExprKind::Binary(
         Spanned {
@@ -375,7 +354,6 @@ fn detect_hypot(cx: &LateContext<'_>, receiver: &Expr<'_>) -> Option<String> {
                 Sugg::hir(cx, rmul_lhs, "..")
             ));
         }
-
         // check if expression of the form x.powi(2) + y.powi(2)
         if let ExprKind::MethodCall(
             PathSegment {
@@ -408,10 +386,8 @@ fn detect_hypot(cx: &LateContext<'_>, receiver: &Expr<'_>) -> Option<String> {
             ));
         }
     }
-
     None
 }
-
 fn check_hypot(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>) {
     if let Some(message) = detect_hypot(cx, receiver) {
         span_lint_and_sugg(
@@ -425,7 +401,6 @@ fn check_hypot(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>) {
         );
     }
 }
-
 // TODO: Lint expressions of the form `x.exp() - y` where y > 1
 // and suggest usage of `x.exp_m1() - (y - 1)` instead
 fn check_expm1(cx: &LateContext<'_>, expr: &Expr<'_>) {
@@ -454,7 +429,6 @@ fn check_expm1(cx: &LateContext<'_>, expr: &Expr<'_>) {
         );
     }
 }
-
 fn is_float_mul_expr<'a>(cx: &LateContext<'_>, expr: &'a Expr<'a>) -> Option<(&'a Expr<'a>, &'a Expr<'a>)> {
     if let ExprKind::Binary(
         Spanned {
@@ -468,10 +442,8 @@ fn is_float_mul_expr<'a>(cx: &LateContext<'_>, expr: &'a Expr<'a>) -> Option<(&'
     {
         return Some((lhs, rhs));
     }
-
     None
 }
-
 // TODO: Fix rust-lang/rust-clippy#4735
 fn check_mul_add(cx: &LateContext<'_>, expr: &Expr<'_>) {
     if let ExprKind::Binary(
@@ -490,12 +462,10 @@ fn check_mul_add(cx: &LateContext<'_>, expr: &Expr<'_>) {
                 }
             }
         }
-
         let maybe_neg_sugg = |expr| {
             let sugg = Sugg::hir(cx, expr, "..");
             if let BinOpKind::Sub = op { -sugg } else { sugg }
         };
-
         let (recv, arg1, arg2) = if let Some((inner_lhs, inner_rhs)) = is_float_mul_expr(cx, lhs)
             && cx.typeck_results().expr_ty(rhs).is_floating_point()
         {
@@ -507,7 +477,6 @@ fn check_mul_add(cx: &LateContext<'_>, expr: &Expr<'_>) {
         } else {
             return;
         };
-
         span_lint_and_sugg(
             cx,
             SUBOPTIMAL_FLOPS,
@@ -519,7 +488,6 @@ fn check_mul_add(cx: &LateContext<'_>, expr: &Expr<'_>) {
         );
     }
 }
-
 /// Returns true iff expr is an expression which tests whether or not
 /// test is positive or an expression which tests whether or not test
 /// is nonnegative.
@@ -535,7 +503,6 @@ fn is_testing_positive(cx: &LateContext<'_>, expr: &Expr<'_>, test: &Expr<'_>) -
         false
     }
 }
-
 /// See [`is_testing_positive`]
 fn is_testing_negative(cx: &LateContext<'_>, expr: &Expr<'_>, test: &Expr<'_>) -> bool {
     if let ExprKind::Binary(Spanned { node: op, .. }, left, right) = expr.kind {
@@ -548,7 +515,6 @@ fn is_testing_negative(cx: &LateContext<'_>, expr: &Expr<'_>, test: &Expr<'_>) -
         false
     }
 }
-
 /// Returns true iff expr is some zero literal
 fn is_zero(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     match ConstEvalCtxt::new(cx).eval_simple(expr) {
@@ -558,7 +524,6 @@ fn is_zero(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         _ => false,
     }
 }
-
 /// If the two expressions are negations of each other, then it returns
 /// a tuple, in which the first element is true iff expr1 is the
 /// positive expressions, and the second element is the positive
@@ -578,7 +543,6 @@ fn are_negated<'a>(cx: &LateContext<'_>, expr1: &'a Expr<'a>, expr2: &'a Expr<'a
     }
     None
 }
-
 fn check_custom_abs(cx: &LateContext<'_>, expr: &Expr<'_>) {
     if let Some(higher::If {
         cond,
@@ -623,7 +587,6 @@ fn check_custom_abs(cx: &LateContext<'_>, expr: &Expr<'_>) {
         );
     }
 }
-
 fn are_same_base_logs(cx: &LateContext<'_>, expr_a: &Expr<'_>, expr_b: &Expr<'_>) -> bool {
     if let ExprKind::MethodCall(
         PathSegment {
@@ -647,10 +610,8 @@ fn are_same_base_logs(cx: &LateContext<'_>, expr_a: &Expr<'_>, expr_b: &Expr<'_>
             && (["ln", "log2", "log10"].contains(&method_name_a.as_str())
                 || method_name_a.as_str() == "log" && args_a.len() == 1 && eq_expr_value(cx, &args_a[0], &args_b[0]));
     }
-
     false
 }
-
 fn check_log_division(cx: &LateContext<'_>, expr: &Expr<'_>) {
     // check if expression of the form x.logN() / y.logN()
     if let ExprKind::Binary(
@@ -679,7 +640,6 @@ fn check_log_division(cx: &LateContext<'_>, expr: &Expr<'_>) {
         );
     }
 }
-
 fn check_radians(cx: &LateContext<'_>, expr: &Expr<'_>) {
     if let ExprKind::Binary(
         Spanned {
@@ -749,17 +709,14 @@ fn check_radians(cx: &LateContext<'_>, expr: &Expr<'_>) {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for FloatingPointArithmetic {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         // All of these operations are currently not const and are in std.
         if is_in_const_context(cx) {
             return;
         }
-
         if let ExprKind::MethodCall(path, receiver, args, _) = &expr.kind {
             let recv_ty = cx.typeck_results().expr_ty(receiver);
-
             if recv_ty.is_floating_point() && !is_no_std_crate(cx) && is_inherent_method_call(cx, expr) {
                 match path.ident.name.as_str() {
                     "ln" => check_ln1p(cx, expr, receiver),

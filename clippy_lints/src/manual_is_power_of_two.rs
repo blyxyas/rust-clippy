@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::SpanlessEq;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
@@ -8,7 +10,6 @@ use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::Uint;
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for expressions like `x.count_ones() == 1` or `x & (x - 1) == 0`, with x and unsigned integer, which may be manual
@@ -32,13 +33,10 @@ declare_clippy_lint! {
     pedantic,
     "manually reimplementing `is_power_of_two`"
 }
-
 declare_lint_pass!(ManualIsPowerOfTwo => [MANUAL_IS_POWER_OF_TWO]);
-
 impl LateLintPass<'_> for ManualIsPowerOfTwo {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         let mut applicability = Applicability::MachineApplicable;
-
         if let ExprKind::Binary(bin_op, left, right) = expr.kind
             && bin_op.node == BinOpKind::Eq
         {
@@ -50,7 +48,6 @@ impl LateLintPass<'_> for ManualIsPowerOfTwo {
             {
                 build_sugg(cx, expr, receiver, &mut applicability);
             }
-
             // 1 == a.count_ones()
             if let ExprKind::MethodCall(method_name, receiver, [], _) = right.kind
                 && method_name.ident.as_str() == "count_ones"
@@ -59,7 +56,6 @@ impl LateLintPass<'_> for ManualIsPowerOfTwo {
             {
                 build_sugg(cx, expr, receiver, &mut applicability);
             }
-
             // a & (a - 1) == 0
             if let ExprKind::Binary(op1, left1, right1) = left.kind
                 && op1.node == BinOpKind::BitAnd
@@ -72,7 +68,6 @@ impl LateLintPass<'_> for ManualIsPowerOfTwo {
             {
                 build_sugg(cx, expr, left1, &mut applicability);
             }
-
             // (a - 1) & a == 0;
             if let ExprKind::Binary(op1, left1, right1) = left.kind
                 && op1.node == BinOpKind::BitAnd
@@ -85,7 +80,6 @@ impl LateLintPass<'_> for ManualIsPowerOfTwo {
             {
                 build_sugg(cx, expr, right1, &mut applicability);
             }
-
             // 0 == a & (a - 1);
             if let ExprKind::Binary(op1, left1, right1) = right.kind
                 && op1.node == BinOpKind::BitAnd
@@ -98,7 +92,6 @@ impl LateLintPass<'_> for ManualIsPowerOfTwo {
             {
                 build_sugg(cx, expr, left1, &mut applicability);
             }
-
             // 0 == (a - 1) & a
             if let ExprKind::Binary(op1, left1, right1) = right.kind
                 && op1.node == BinOpKind::BitAnd
@@ -114,10 +107,8 @@ impl LateLintPass<'_> for ManualIsPowerOfTwo {
         }
     }
 }
-
 fn build_sugg(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, applicability: &mut Applicability) {
     let snippet = snippet_with_applicability(cx, receiver.span, "..", applicability);
-
     span_lint_and_sugg(
         cx,
         MANUAL_IS_POWER_OF_TWO,
@@ -128,7 +119,6 @@ fn build_sugg(cx: &LateContext<'_>, expr: &Expr<'_>, receiver: &Expr<'_>, applic
         *applicability,
     );
 }
-
 fn check_lit(expr: &Expr<'_>, expected_num: u128) -> bool {
     if let ExprKind::Lit(lit) = expr.kind
         && let LitKind::Int(Pu128(num), _) = lit.node
@@ -138,7 +128,6 @@ fn check_lit(expr: &Expr<'_>, expected_num: u128) -> bool {
     }
     false
 }
-
 fn check_eq_expr(cx: &LateContext<'_>, lhs: &Expr<'_>, rhs: &Expr<'_>) -> bool {
     SpanlessEq::new(cx).eq_expr(lhs, rhs)
 }

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_hir_and_then};
 use clippy_utils::eq_expr_value;
@@ -14,7 +16,6 @@ use rustc_lint::{LateContext, LateLintPass, Level};
 use rustc_session::impl_lint_pass;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for boolean expressions that can be written more
@@ -44,7 +45,6 @@ declare_clippy_lint! {
     complexity,
     "boolean expressions that can be written more concisely"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for boolean expressions that contain terminals that
@@ -71,26 +71,21 @@ declare_clippy_lint! {
     correctness,
     "boolean expressions that contain terminals which can be eliminated"
 }
-
 // For each pairs, both orders are considered.
 const METHODS_WITH_NEGATION: [(Option<RustcVersion>, &str, &str); 3] = [
     (None, "is_some", "is_none"),
     (None, "is_err", "is_ok"),
     (Some(msrvs::IS_NONE_OR), "is_some_and", "is_none_or"),
 ];
-
 pub struct NonminimalBool {
     msrv: Msrv,
 }
-
 impl NonminimalBool {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(NonminimalBool => [NONMINIMAL_BOOL, OVERLY_COMPLEX_BOOL_EXPR]);
-
 impl<'tcx> LateLintPass<'tcx> for NonminimalBool {
     fn check_fn(
         &mut self,
@@ -103,7 +98,6 @@ impl<'tcx> LateLintPass<'tcx> for NonminimalBool {
     ) {
         NonminimalBoolVisitor { cx, msrv: self.msrv }.visit_body(body);
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         match expr.kind {
             // This check the case where an element in a boolean comparison is inverted, like:
@@ -119,7 +113,6 @@ impl<'tcx> LateLintPass<'tcx> for NonminimalBool {
         }
     }
 }
-
 fn inverted_bin_op_eq_str(op: BinOpKind) -> Option<&'static str> {
     match op {
         BinOpKind::Eq => Some("!="),
@@ -127,7 +120,6 @@ fn inverted_bin_op_eq_str(op: BinOpKind) -> Option<&'static str> {
         _ => None,
     }
 }
-
 fn bin_op_eq_str(op: BinOpKind) -> Option<&'static str> {
     match op {
         BinOpKind::Eq => Some("=="),
@@ -135,7 +127,6 @@ fn bin_op_eq_str(op: BinOpKind) -> Option<&'static str> {
         _ => None,
     }
 }
-
 fn check_inverted_bool_in_condition(
     cx: &LateContext<'_>,
     expr_span: Span,
@@ -149,7 +140,6 @@ fn check_inverted_bool_in_condition(
     {
         return;
     }
-
     let suggestion = match (left.kind, right.kind) {
         (ExprKind::Unary(UnOp::Not, left_sub), ExprKind::Unary(UnOp::Not, right_sub)) => {
             let Some(left) = left_sub.span.get_source_text(cx) else {
@@ -193,7 +183,6 @@ fn check_inverted_bool_in_condition(
         Applicability::MachineApplicable,
     );
 }
-
 fn check_simplify_not(cx: &LateContext<'_>, msrv: Msrv, expr: &Expr<'_>) {
     if let ExprKind::Unary(UnOp::Not, inner) = &expr.kind
         && !expr.span.from_expansion()
@@ -227,18 +216,15 @@ fn check_simplify_not(cx: &LateContext<'_>, msrv: Msrv, expr: &Expr<'_>) {
         );
     }
 }
-
 struct NonminimalBoolVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     msrv: Msrv,
 }
-
 use quine_mc_cluskey::Bool;
 struct Hir2Qmm<'a, 'tcx, 'v> {
     terminals: Vec<&'v Expr<'v>>,
     cx: &'a LateContext<'tcx>,
 }
-
 impl<'v> Hir2Qmm<'_, '_, 'v> {
     fn extract(&mut self, op: BinOpKind, a: &[&'v Expr<'_>], mut v: Vec<Bool>) -> Result<Vec<Bool>, String> {
         for a in a {
@@ -252,7 +238,6 @@ impl<'v> Hir2Qmm<'_, '_, 'v> {
         }
         Ok(v)
     }
-
     fn run(&mut self, e: &'v Expr<'_>) -> Result<Bool, String> {
         fn negate(bin_op_kind: BinOpKind) -> Option<BinOpKind> {
             match bin_op_kind {
@@ -265,7 +250,6 @@ impl<'v> Hir2Qmm<'_, '_, 'v> {
                 _ => None,
             }
         }
-
         // prevent folding of `cfg!` macros and the like
         if !e.span.from_expansion() {
             match &e.kind {
@@ -287,17 +271,14 @@ impl<'v> Hir2Qmm<'_, '_, 'v> {
                 _ => (),
             }
         }
-
         if self.cx.typeck_results().expr_ty(e).is_never() {
             return Err("contains never type".to_owned());
         }
-
         for (n, expr) in self.terminals.iter().enumerate() {
             if eq_expr_value(self.cx, e, expr) {
                 #[expect(clippy::cast_possible_truncation)]
                 return Ok(Bool::Term(n as u8));
             }
-
             if let ExprKind::Binary(e_binop, e_lhs, e_rhs) = &e.kind
                 && implements_ord(self.cx, e_lhs)
                 && let ExprKind::Binary(expr_binop, expr_lhs, expr_rhs) = &expr.kind
@@ -319,14 +300,12 @@ impl<'v> Hir2Qmm<'_, '_, 'v> {
         }
     }
 }
-
 struct SuggestContext<'a, 'tcx, 'v> {
     terminals: &'v [&'v Expr<'v>],
     cx: &'a LateContext<'tcx>,
     msrv: Msrv,
     output: String,
 }
-
 impl SuggestContext<'_, '_, '_> {
     fn recurse(&mut self, suggestion: &Bool) -> Option<()> {
         use quine_mc_cluskey::Bool::{And, False, Not, Or, Term, True};
@@ -393,14 +372,12 @@ impl SuggestContext<'_, '_, '_> {
         Some(())
     }
 }
-
 fn simplify_not(cx: &LateContext<'_>, curr_msrv: Msrv, expr: &Expr<'_>) -> Option<String> {
     match &expr.kind {
         ExprKind::Binary(binop, lhs, rhs) => {
             if !implements_ord(cx, lhs) {
                 return None;
             }
-
             match binop.node {
                 BinOpKind::Eq => Some(" != "),
                 BinOpKind::Ne => Some(" == "),
@@ -413,7 +390,6 @@ fn simplify_not(cx: &LateContext<'_>, curr_msrv: Msrv, expr: &Expr<'_>) -> Optio
             .and_then(|op| {
                 let lhs_snippet = lhs.span.get_source_text(cx)?;
                 let rhs_snippet = rhs.span.get_source_text(cx)?;
-
                 if !(lhs_snippet.starts_with('(') && lhs_snippet.ends_with(')')) {
                     if let (ExprKind::Cast(..), BinOpKind::Ge) = (&lhs.kind, binop.node) {
                         // e.g. `(a as u64) < b`. Without the parens the `<` is
@@ -421,7 +397,6 @@ fn simplify_not(cx: &LateContext<'_>, curr_msrv: Msrv, expr: &Expr<'_>) -> Optio
                         return Some(format!("({lhs_snippet}){op}{rhs_snippet}"));
                     }
                 }
-
                 Some(format!("{lhs_snippet}{op}{rhs_snippet}"))
             })
         },
@@ -466,7 +441,6 @@ fn simplify_not(cx: &LateContext<'_>, curr_msrv: Msrv, expr: &Expr<'_>) -> Optio
         _ => None,
     }
 }
-
 fn suggest(cx: &LateContext<'_>, msrv: Msrv, suggestion: &Bool, terminals: &[&Expr<'_>]) -> String {
     let mut suggest_context = SuggestContext {
         terminals,
@@ -477,7 +451,6 @@ fn suggest(cx: &LateContext<'_>, msrv: Msrv, suggestion: &Bool, terminals: &[&Ex
     suggest_context.recurse(suggestion);
     suggest_context.output
 }
-
 fn simple_negate(b: Bool) -> Bool {
     use quine_mc_cluskey::Bool::{And, False, Not, Or, Term, True};
     match b {
@@ -499,14 +472,12 @@ fn simple_negate(b: Bool) -> Bool {
         Not(inner) => *inner,
     }
 }
-
 #[derive(Default)]
 struct Stats {
     terminals: [usize; 32],
     negations: usize,
     ops: usize,
 }
-
 fn terminal_stats(b: &Bool) -> Stats {
     fn recurse(b: &Bool, stats: &mut Stats) {
         match b {
@@ -532,7 +503,6 @@ fn terminal_stats(b: &Bool) -> Stats {
     recurse(b, &mut stats);
     stats
 }
-
 impl<'tcx> NonminimalBoolVisitor<'_, 'tcx> {
     fn bool_expr(&self, e: &'tcx Expr<'_>) {
         let mut h2q = Hir2Qmm {
@@ -639,7 +609,6 @@ impl<'tcx> NonminimalBoolVisitor<'_, 'tcx> {
         }
     }
 }
-
 impl<'tcx> Visitor<'tcx> for NonminimalBoolVisitor<'_, 'tcx> {
     fn visit_expr(&mut self, e: &'tcx Expr<'_>) {
         if !e.span.from_expansion() {
@@ -663,7 +632,6 @@ impl<'tcx> Visitor<'tcx> for NonminimalBoolVisitor<'_, 'tcx> {
         walk_expr(self, e);
     }
 }
-
 fn implements_ord(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     let ty = cx.typeck_results().expr_ty(expr);
     cx.tcx

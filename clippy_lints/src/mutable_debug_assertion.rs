@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::macros::{find_assert_eq_args, root_macro_call_first_node};
 use rustc_hir::intravisit::{Visitor, walk_expr};
@@ -7,7 +9,6 @@ use rustc_middle::hir::nested_filter;
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for function/method calls with a mutable
@@ -34,9 +35,7 @@ declare_clippy_lint! {
     nursery,
     "mutable arguments in `debug_assert{,_ne,_eq}!`"
 }
-
 declare_lint_pass!(DebugAssertWithMutCall => [DEBUG_ASSERT_WITH_MUT_CALL]);
-
 impl<'tcx> LateLintPass<'tcx> for DebugAssertWithMutCall {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         let Some(macro_call) = root_macro_call_first_node(cx, e) else {
@@ -66,13 +65,11 @@ impl<'tcx> LateLintPass<'tcx> for DebugAssertWithMutCall {
         }
     }
 }
-
 struct MutArgVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     expr_span: Option<Span>,
     found: bool,
 }
-
 impl<'a, 'tcx> MutArgVisitor<'a, 'tcx> {
     fn new(cx: &'a LateContext<'tcx>) -> Self {
         Self {
@@ -81,15 +78,12 @@ impl<'a, 'tcx> MutArgVisitor<'a, 'tcx> {
             found: false,
         }
     }
-
     fn expr_span(&self) -> Option<Span> {
         if self.found { self.expr_span } else { None }
     }
 }
-
 impl<'tcx> Visitor<'tcx> for MutArgVisitor<'_, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         match expr.kind {
             ExprKind::AddrOf(BorrowKind::Ref, Mutability::Mut, _) => {
@@ -114,7 +108,6 @@ impl<'tcx> Visitor<'tcx> for MutArgVisitor<'_, 'tcx> {
         }
         walk_expr(self, expr);
     }
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }

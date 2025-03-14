@@ -1,9 +1,10 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use rustc_hir::{Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for direct implementations of `ToString`.
@@ -42,9 +43,7 @@ declare_clippy_lint! {
     style,
     "check for direct implementations of `ToString`"
 }
-
 declare_lint_pass!(ToStringTraitImpl => [TO_STRING_TRAIT_IMPL]);
-
 impl<'tcx> LateLintPass<'tcx> for ToStringTraitImpl {
     fn check_item(&mut self, cx: &LateContext<'tcx>, it: &'tcx Item<'tcx>) {
         if let ItemKind::Impl(Impl {

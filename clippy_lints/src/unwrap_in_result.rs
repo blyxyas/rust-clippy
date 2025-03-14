@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::visitors::for_each_expr;
@@ -8,7 +10,6 @@ use rustc_hir::ImplItemKind;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions of type `Result` that contain `expect()` or `unwrap()`
@@ -56,9 +57,7 @@ declare_clippy_lint! {
     restriction,
     "functions of type `Result<..>` or `Option`<...> that contain `expect()` or `unwrap()`"
 }
-
 declare_lint_pass!(UnwrapInResult=> [UNWRAP_IN_RESULT]);
-
 impl<'tcx> LateLintPass<'tcx> for UnwrapInResult {
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, impl_item: &'tcx hir::ImplItem<'_>) {
         if let ImplItemKind::Fn(ref _signature, _) = impl_item.kind
@@ -71,7 +70,6 @@ impl<'tcx> LateLintPass<'tcx> for UnwrapInResult {
         }
     }
 }
-
 fn lint_impl_body<'tcx>(cx: &LateContext<'tcx>, impl_span: Span, impl_item: &'tcx hir::ImplItem<'_>) {
     if let ImplItemKind::Fn(_, body_id) = impl_item.kind {
         let body = cx.tcx.hir_body(body_id);
@@ -87,7 +85,6 @@ fn lint_impl_body<'tcx>(cx: &LateContext<'tcx>, impl_span: Span, impl_item: &'tc
                     result.push(e.span);
                 }
             }
-
             // check for `unwrap`
             if let Some(arglists) = method_chain_args(e, &["unwrap"]) {
                 let receiver_ty = typeck.expr_ty(arglists[0].0).peel_refs();
@@ -97,10 +94,8 @@ fn lint_impl_body<'tcx>(cx: &LateContext<'tcx>, impl_span: Span, impl_item: &'tc
                     result.push(e.span);
                 }
             }
-
             ControlFlow::Continue(())
         });
-
         // if we've found one, lint
         if !result.is_empty() {
             span_lint_and_then(

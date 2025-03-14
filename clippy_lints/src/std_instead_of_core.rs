@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_from_proc_macro;
@@ -11,7 +13,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::kw;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Finds items imported through `std` when available through `core`.
@@ -34,7 +35,6 @@ declare_clippy_lint! {
     restriction,
     "type is imported from std when available in core"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Finds items imported through `std` when available through `alloc`.
@@ -58,7 +58,6 @@ declare_clippy_lint! {
     restriction,
     "type is imported from std when available in alloc"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Finds items imported through `alloc` when available through `core`.
@@ -86,7 +85,6 @@ declare_clippy_lint! {
     restriction,
     "type is imported from alloc when available in core"
 }
-
 pub struct StdReexports {
     // Paths which can be either a module or a macro (e.g. `std::env`) will cause this check to happen
     // twice. First for the mod, second for the macro. This is used to avoid the lint reporting for the macro
@@ -94,7 +92,6 @@ pub struct StdReexports {
     prev_span: Span,
     msrv: Msrv,
 }
-
 impl StdReexports {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -103,9 +100,7 @@ impl StdReexports {
         }
     }
 }
-
 impl_lint_pass!(StdReexports => [STD_INSTEAD_OF_CORE, STD_INSTEAD_OF_ALLOC, ALLOC_INSTEAD_OF_CORE]);
-
 impl<'tcx> LateLintPass<'tcx> for StdReexports {
     fn check_path(&mut self, cx: &LateContext<'tcx>, path: &Path<'tcx>, _: HirId) {
         if let Res::Def(_, def_id) = path.res
@@ -154,7 +149,6 @@ impl<'tcx> LateLintPass<'tcx> for StdReexports {
         }
     }
 }
-
 /// Returns the first named segment of a [`Path`].
 ///
 /// If this is a global path (such as `::std::fmt::Debug`), then the segment after [`kw::PathRoot`]
@@ -167,7 +161,6 @@ fn get_first_segment<'tcx>(path: &Path<'tcx>) -> Option<&'tcx PathSegment<'tcx>>
         _ => None,
     }
 }
-
 /// Checks if all ancestors of `def_id` meet `msrv` to avoid linting [unstable moves](https://github.com/rust-lang/rust/pull/95956)
 /// or now stable moves that were once unstable.
 ///
@@ -185,12 +178,10 @@ fn is_stable(cx: &LateContext<'_>, mut def_id: DefId, msrv: Msrv) -> bool {
                 StableSince::Current => msrv.current(cx).is_none(),
                 StableSince::Err => false,
             };
-
             if !stable {
                 return false;
             }
         }
-
         match cx.tcx.opt_parent(def_id) {
             Some(parent) => def_id = parent,
             None => return true,

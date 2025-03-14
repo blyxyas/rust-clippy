@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use rustc_ast::ast::{BindingMode, ByRef, Lifetime, Mutability, Param, PatKind, Path, TyKind};
@@ -6,7 +8,6 @@ use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::symbol::kw;
-
 declare_clippy_lint! {
     /// ### What it does
     /// The lint checks for `self` in fn parameters that
@@ -57,14 +58,11 @@ declare_clippy_lint! {
     complexity,
     "type of `self` parameter is already by default `Self`"
 }
-
 declare_lint_pass!(NeedlessArbitrarySelfType => [NEEDLESS_ARBITRARY_SELF_TYPE]);
-
 enum Mode {
     Ref(Option<Lifetime>),
     Value,
 }
-
 fn check_param_inner(cx: &EarlyContext<'_>, path: &Path, span: Span, binding_mode: &Mode, mutbl: Mutability) {
     if let [segment] = &path.segments[..]
         && segment.ident.name == kw::SelfUpper
@@ -98,7 +96,6 @@ fn check_param_inner(cx: &EarlyContext<'_>, path: &Path, span: Span, binding_mod
             (Mode::Value, Mutability::Mut) => "mut self".to_string(),
             (Mode::Value, Mutability::Not) => "self".to_string(),
         };
-
         span_lint_and_sugg(
             cx,
             NEEDLESS_ARBITRARY_SELF_TYPE,
@@ -110,14 +107,12 @@ fn check_param_inner(cx: &EarlyContext<'_>, path: &Path, span: Span, binding_mod
         );
     }
 }
-
 impl EarlyLintPass for NeedlessArbitrarySelfType {
     fn check_param(&mut self, cx: &EarlyContext<'_>, p: &Param) {
         // Bail out if the parameter it's not a receiver or was not written by the user
         if !p.is_self() || p.span.from_expansion() {
             return;
         }
-
         match &p.ty.kind {
             TyKind::Path(None, path) => {
                 if let PatKind::Ident(BindingMode(ByRef::No, mutbl), _, _) = p.pat.kind {

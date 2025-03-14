@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_config::types::PubUnderscoreFieldsBehaviour;
 use clippy_utils::attrs::is_doc_hidden;
@@ -6,7 +8,6 @@ use clippy_utils::is_path_lang_item;
 use rustc_hir::{FieldDef, Item, ItemKind, LangItem};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks whether any field of the struct is prefixed with an `_` (underscore) and also marked
@@ -41,12 +42,10 @@ declare_clippy_lint! {
     pedantic,
     "struct field prefixed with underscore and marked public"
 }
-
 pub struct PubUnderscoreFields {
     behavior: PubUnderscoreFieldsBehaviour,
 }
 impl_lint_pass!(PubUnderscoreFields => [PUB_UNDERSCORE_FIELDS]);
-
 impl PubUnderscoreFields {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -54,14 +53,12 @@ impl PubUnderscoreFields {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for PubUnderscoreFields {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         // This lint only pertains to structs.
         let ItemKind::Struct(variant_data, _) = &item.kind else {
             return;
         };
-
         let is_visible = |field: &FieldDef<'_>| match self.behavior {
             PubUnderscoreFieldsBehaviour::PubliclyExported => cx.effective_visibilities.is_reachable(field.def_id),
             PubUnderscoreFieldsBehaviour::AllPubFields => {
@@ -69,7 +66,6 @@ impl<'tcx> LateLintPass<'tcx> for PubUnderscoreFields {
                 !field.vis_span.is_empty()
             },
         };
-
         for field in variant_data.fields() {
             // Only pertains to fields that start with an underscore, and are public.
             if field.ident.as_str().starts_with('_') && is_visible(field)

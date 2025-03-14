@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_config::types::DisallowedPath;
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Denies the configured types in clippy.toml.
@@ -52,12 +53,10 @@ declare_clippy_lint! {
     style,
     "use of disallowed types"
 }
-
 pub struct DisallowedTypes {
     def_ids: DefIdMap<(&'static str, &'static DisallowedPath)>,
     prim_tys: FxHashMap<PrimTy, (&'static str, &'static DisallowedPath)>,
 }
-
 impl DisallowedTypes {
     pub fn new(tcx: TyCtxt<'_>, conf: &'static Conf) -> Self {
         let mut def_ids = DefIdMap::default();
@@ -78,7 +77,6 @@ impl DisallowedTypes {
         }
         Self { def_ids, prim_tys }
     }
-
     fn check_res_emit(&self, cx: &LateContext<'_>, res: &Res, span: Span) {
         let (path, disallowed_path) = match res {
             Res::Def(_, did) if let Some(&x) = self.def_ids.get(did) => x,
@@ -94,9 +92,7 @@ impl DisallowedTypes {
         );
     }
 }
-
 impl_lint_pass!(DisallowedTypes => [DISALLOWED_TYPES]);
-
 impl<'tcx> LateLintPass<'tcx> for DisallowedTypes {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if let ItemKind::Use(path, UseKind::Single) = &item.kind {
@@ -105,13 +101,11 @@ impl<'tcx> LateLintPass<'tcx> for DisallowedTypes {
             }
         }
     }
-
     fn check_ty(&mut self, cx: &LateContext<'tcx>, ty: &'tcx Ty<'tcx, AmbigArg>) {
         if let TyKind::Path(path) = &ty.kind {
             self.check_res_emit(cx, &cx.qpath_res(path, ty.hir_id), ty.span);
         }
     }
-
     fn check_poly_trait_ref(&mut self, cx: &LateContext<'tcx>, poly: &'tcx PolyTraitRef<'tcx>) {
         self.check_res_emit(cx, &poly.trait_ref.path.res, poly.trait_ref.path.span);
     }

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 mod bind_instead_of_map;
 mod bytecount;
 mod bytes_count_to_len;
@@ -142,7 +144,6 @@ mod verbose_file_reads;
 mod waker_clone_wake;
 mod wrong_self_convention;
 mod zst_offset;
-
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint, span_lint_and_help};
@@ -159,7 +160,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::ty::{self, TraitRef, Ty};
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `cloned()` on an `Iterator` or `Option` where
@@ -182,7 +182,6 @@ declare_clippy_lint! {
     pedantic,
     "used `cloned` where `copied` could be used instead"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for consecutive calls to `str::replace` (2 or more)
@@ -208,7 +207,6 @@ declare_clippy_lint! {
     perf,
     "collapse consecutive calls to str::replace (2 or more) into a single call"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.cloned().<func>()` where call to `.cloned()` can be postponed.
@@ -239,7 +237,6 @@ declare_clippy_lint! {
     perf,
     "using `cloned()` early with `Iterator::iter()` can lead to some performance inefficiencies"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `Iterator::flat_map()` where `filter_map()` could be
@@ -266,7 +263,6 @@ declare_clippy_lint! {
     pedantic,
     "used `flat_map` where `filter_map` could be used instead"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `.unwrap()` or `.unwrap_err()` calls on `Result`s and `.unwrap()` call on `Option`s.
@@ -316,7 +312,6 @@ declare_clippy_lint! {
     restriction,
     "using `.unwrap()` on `Result` or `Option`, which should at least get a better message using `expect()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `.unwrap()` related calls on `Result`s and `Option`s that are constructed.
@@ -342,7 +337,6 @@ declare_clippy_lint! {
     complexity,
     "using `unwrap()` related calls on `Result` and `Option` constructors"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `.expect()` or `.expect_err()` calls on `Result`s and `.expect()` call on `Option`s.
@@ -379,7 +373,6 @@ declare_clippy_lint! {
     restriction,
     "using `.expect()` on `Result` or `Option`, which might be better handled"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for methods that should live in a trait
@@ -409,7 +402,6 @@ declare_clippy_lint! {
     style,
     "defining a method that should be implementing a std trait"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for methods with certain name prefixes or suffixes, and which
@@ -469,7 +461,6 @@ declare_clippy_lint! {
     style,
     "defining a method named with an established prefix (like \"into_\") that takes `self` with the wrong convention"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `ok().expect(..)`.
@@ -497,7 +488,6 @@ declare_clippy_lint! {
     style,
     "using `ok().expect()`, which gives worse error messages than calling `expect` directly on the Result"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `.err().expect()` calls on the `Result` type.
@@ -520,7 +510,6 @@ declare_clippy_lint! {
     style,
     r#"using `.err().expect("")` when `.expect_err("")` can be used"#
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usages of the following functions with an argument that constructs a default value
@@ -558,7 +547,6 @@ declare_clippy_lint! {
     style,
     "using `.unwrap_or`, etc. with an argument that constructs a default value"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `option.map(_).unwrap_or(_)` or `option.map(_).unwrap_or_else(_)` or
@@ -595,7 +583,6 @@ declare_clippy_lint! {
     pedantic,
     "using `.map(f).unwrap_or(a)` or `.map(f).unwrap_or_else(func)`, which are more succinctly expressed as `map_or(a, f)` or `map_or_else(a, f)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.map_or(None, _)`.
@@ -623,7 +610,6 @@ declare_clippy_lint! {
     style,
     "using `Option.map_or(None, f)`, which is more succinctly expressed as `and_then(f)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.map_or(None, Some)`.
@@ -648,7 +634,6 @@ declare_clippy_lint! {
     style,
     "using `Result.map_or(None, Some)`, which is more succinctly expressed as `ok()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.and_then(|x| Some(y))`, `_.and_then(|x| Ok(y))`
@@ -680,7 +665,6 @@ declare_clippy_lint! {
     complexity,
     "using `Option.and_then(|x| Some(y))`, which is more succinctly expressed as `map(|x| y)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.filter(_).next()`.
@@ -705,7 +689,6 @@ declare_clippy_lint! {
     complexity,
     "using `filter(p).next()`, which is more succinctly expressed as `.find(p)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.skip_while(condition).next()`.
@@ -730,7 +713,6 @@ declare_clippy_lint! {
     complexity,
     "using `skip_while(p).next()`, which is more succinctly expressed as `.find(!p)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.map(_).flatten(_)` on `Iterator` and `Option`
@@ -760,7 +742,6 @@ declare_clippy_lint! {
     complexity,
     "using combinations of `flatten` and `map` which can usually be written as a single method call"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.filter(_).map(_)` that can be written more simply
@@ -786,7 +767,6 @@ declare_clippy_lint! {
     complexity,
     "using `_.filter(_).map(_)` in a way that can be written more simply as `filter_map(_)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.find(_).map(_)` that can be written more simply
@@ -812,7 +792,6 @@ declare_clippy_lint! {
     complexity,
     "using `_.find(_).map(_)` in a way that can be written more simply as `find_map(_)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.filter_map(_).next()`.
@@ -835,7 +814,6 @@ declare_clippy_lint! {
     pedantic,
     "using combination of `filter_map` and `next` which can usually be written as a single method call"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `flat_map(|x| x)`.
@@ -858,7 +836,6 @@ declare_clippy_lint! {
     complexity,
     "call to `flat_map` where `flatten` is sufficient"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for an iterator or string search (such as `find()`,
@@ -889,7 +866,6 @@ declare_clippy_lint! {
     complexity,
     "using an iterator or string search followed by `is_some()` or `is_none()`, which is more succinctly expressed as a call to `any()` or `contains()` (with negation in case of `is_none()`)"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.chars().next()` on a `str` to check
@@ -915,7 +891,6 @@ declare_clippy_lint! {
     style,
     "using `.chars().next()` to check if a string starts with a char"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `.or(foo(..))`, `.unwrap_or(foo(..))`,
@@ -950,7 +925,6 @@ declare_clippy_lint! {
     nursery,
     "using any `*or` method with a function call, which suggests `*or_else`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `.or(…).unwrap()` calls to Options and Results.
@@ -986,7 +960,6 @@ declare_clippy_lint! {
     complexity,
     "checks for `.or(…).unwrap()` calls to Options and Results."
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `.expect(&format!(...))`, `.expect(foo(..))`,
@@ -1024,7 +997,6 @@ declare_clippy_lint! {
     perf,
     "using any `expect` method with a function call"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.clone()` on a `Copy` type.
@@ -1042,7 +1014,6 @@ declare_clippy_lint! {
     complexity,
     "using `clone` on a `Copy` type"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.clone()` on a ref-counted pointer,
@@ -1073,7 +1044,6 @@ declare_clippy_lint! {
     restriction,
     "using `clone` on a ref-counted pointer"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.to_string()` on an `&&T` where
@@ -1097,7 +1067,6 @@ declare_clippy_lint! {
     pedantic,
     "using `to_string` on `&&T` where `T: ToString`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `new` not returning a type that contains `Self`.
@@ -1159,7 +1128,6 @@ declare_clippy_lint! {
     style,
     "not returning type containing `Self` in a `new` method"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calling `.step_by(0)` on iterators which panics.
@@ -1179,7 +1147,6 @@ declare_clippy_lint! {
     correctness,
     "using `Iterator::step_by(0)`, which will panic at runtime"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for iterators of `Option`s using `.filter(Option::is_some).map(Option::unwrap)` that may
@@ -1202,7 +1169,6 @@ declare_clippy_lint! {
     complexity,
     "filtering `Option` for `Some` then force-unwrapping, which can be one type-safe operation"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the use of `iter.nth(0)`.
@@ -1232,7 +1198,6 @@ declare_clippy_lint! {
     style,
     "replace `iter.nth(0)` with `iter.next()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.iter().nth()`/`.iter_mut().nth()` on standard library types that have
@@ -1258,7 +1223,6 @@ declare_clippy_lint! {
     style,
     "using `.iter().nth()` on a standard library type with O(1) element access"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.skip(x).next()` on iterators.
@@ -1283,7 +1247,6 @@ declare_clippy_lint! {
     style,
     "using `.skip(x).next()` on an iterator"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.drain(..)` on `Vec` and `VecDeque` for iteration.
@@ -1308,7 +1271,6 @@ declare_clippy_lint! {
     nursery,
     "replace `.drain(..)` with `.into_iter()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `x.get(x.len() - 1)` instead of
@@ -1341,7 +1303,6 @@ declare_clippy_lint! {
     complexity,
     "Using `x.get(x.len() - 1)` when `x.last()` is correct and simpler"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.get().unwrap()` (or
@@ -1378,7 +1339,6 @@ declare_clippy_lint! {
     restriction,
     "using `.get().unwrap()` or `.get_mut().unwrap()` when using `[]` would work instead"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for occurrences where one vector gets extended instead of append
@@ -1406,7 +1366,6 @@ declare_clippy_lint! {
     perf,
     "using vec.append(&mut vec) to move the full range of a vector to another"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the use of `.extend(s.chars())` where s is a
@@ -1436,7 +1395,6 @@ declare_clippy_lint! {
     style,
     "using `x.extend(s.chars())` where s is a `&str` or `String`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the use of `.cloned().collect()` on slice to
@@ -1460,7 +1418,6 @@ declare_clippy_lint! {
     style,
     "using `.cloned().collect()` on slice to create a `Vec`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.chars().last()` or
@@ -1486,7 +1443,6 @@ declare_clippy_lint! {
     style,
     "using `.chars().last()` or `.chars().next_back()` to check if a string ends with a char"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.as_ref()` or `.as_mut()` where the
@@ -1512,7 +1468,6 @@ declare_clippy_lint! {
     complexity,
     "using `as_ref` where the types before and after the call are the same"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `fold` when a more succinct alternative exists.
@@ -1536,7 +1491,6 @@ declare_clippy_lint! {
     style,
     "using `fold` when a more succinct alternative exists"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `filter_map` calls that could be replaced by `filter` or `map`.
@@ -1566,7 +1520,6 @@ declare_clippy_lint! {
     complexity,
     "using `filter_map` when a more succinct alternative exists"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `find_map` calls that could be replaced by `find` or `map`. More
@@ -1596,7 +1549,6 @@ declare_clippy_lint! {
     complexity,
     "using `find_map` when a more succinct alternative exists"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `into_iter` calls on references which should be replaced by `iter`
@@ -1623,7 +1575,6 @@ declare_clippy_lint! {
     style,
     "using `.into_iter()` on a reference"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `map` followed by a `count`.
@@ -1643,7 +1594,6 @@ declare_clippy_lint! {
     suspicious,
     "suspicious usage of map"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `MaybeUninit::uninit().assume_init()`.
@@ -1678,7 +1628,6 @@ declare_clippy_lint! {
     correctness,
     "`MaybeUninit::uninit().assume_init()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `.checked_add/sub(x).unwrap_or(MAX/MIN)`.
@@ -1707,7 +1656,6 @@ declare_clippy_lint! {
     style,
     "`.checked_add/sub(x).unwrap_or(MAX/MIN)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `offset(_)`, `wrapping_`{`add`, `sub`}, etc. on raw pointers to
@@ -1725,7 +1673,6 @@ declare_clippy_lint! {
     correctness,
     "Check for offset calculations on raw pointers to zero-sized types"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `FileType::is_file()`.
@@ -1767,7 +1714,6 @@ declare_clippy_lint! {
     restriction,
     "`FileType::is_file` is not recommended to test for readable file type"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.as_ref().map(Deref::deref)` or its aliases (such as String::as_str).
@@ -1793,7 +1739,6 @@ declare_clippy_lint! {
     complexity,
     "using `as_ref().map(Deref::deref)`, which is more succinctly expressed as `as_deref()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `iter().next()` on a Slice or an Array
@@ -1820,7 +1765,6 @@ declare_clippy_lint! {
     style,
     "using `.iter().next()` on a sliced array, which can be shortened to just `.get()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns when using `push_str`/`insert_str` with a single-character string literal
@@ -1847,7 +1791,6 @@ declare_clippy_lint! {
     style,
     "`push_str()` or `insert_str()` used with a single-character string literal as parameter"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// As the counterpart to `or_fun_call`, this lint looks for unnecessary
@@ -1886,7 +1829,6 @@ declare_clippy_lint! {
     style,
     "using unnecessary lazy evaluation, which can be replaced with simpler eager evaluation"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_.map(_).collect::<Result<(), _>()`.
@@ -1907,7 +1849,6 @@ declare_clippy_lint! {
     style,
     "using `.map(_).collect::<Result<(),_>()`, which can be replaced with `try_for_each`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `from_iter()` function calls on types that implement the `FromIterator`
@@ -1948,7 +1889,6 @@ declare_clippy_lint! {
     pedantic,
     "use `.collect()` instead of `::from_iter()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `inspect().for_each()`.
@@ -1978,7 +1918,6 @@ declare_clippy_lint! {
     complexity,
     "using `.inspect().for_each()`, which can be replaced with `.for_each()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `filter_map(|x| x)`.
@@ -2001,7 +1940,6 @@ declare_clippy_lint! {
     complexity,
     "call to `filter_map` where `flatten` is sufficient"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for instances of `map(f)` where `f` is the identity function.
@@ -2024,7 +1962,6 @@ declare_clippy_lint! {
     complexity,
     "using iterator.map(|x| x)"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the use of `.bytes().nth()`.
@@ -2047,7 +1984,6 @@ declare_clippy_lint! {
     style,
     "replace `.bytes().nth()` with `.as_bytes().get()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the usage of `_.to_owned()`, `vec.to_vec()`, or similar when calling `_.clone()` would be clearer.
@@ -2073,7 +2009,6 @@ declare_clippy_lint! {
     pedantic,
     "implicitly cloning a value by invoking a function on its dereferenced type"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the use of `.iter().count()`.
@@ -2102,7 +2037,6 @@ declare_clippy_lint! {
     complexity,
     "replace `.iter().count()` with `.len()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the usage of `_.to_owned()`, on a `Cow<'_, _>`.
@@ -2150,7 +2084,6 @@ declare_clippy_lint! {
     suspicious,
     "calls to `to_owned` on a `Cow<'_, _>` might not do what they are expected"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to [`splitn`]
@@ -2181,7 +2114,6 @@ declare_clippy_lint! {
     correctness,
     "checks for `.splitn(0, ..)` and `.splitn(1, ..)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for manual implementations of `str::repeat`
@@ -2203,7 +2135,6 @@ declare_clippy_lint! {
     perf,
     "manual implementation of `str::repeat`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `str::splitn(2, _)`
@@ -2239,7 +2170,6 @@ declare_clippy_lint! {
     complexity,
     "replace `.splitn(2, pat)` with `.split_once(pat)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `str::splitn` (or `str::rsplitn`) where using `str::split` would be the same.
@@ -2262,7 +2192,6 @@ declare_clippy_lint! {
     complexity,
     "usages of `str::splitn` that can be replaced with `str::split`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnecessary calls to [`ToOwned::to_owned`](https://doc.rust-lang.org/std/borrow/trait.ToOwned.html#tymethod.to_owned)
@@ -2293,7 +2222,6 @@ declare_clippy_lint! {
     perf,
     "unnecessary calls to `to_owned`-like functions"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.collect::<Vec<String>>().join("")` on iterators.
@@ -2325,7 +2253,6 @@ declare_clippy_lint! {
     pedantic,
     "using `.collect::<Vec<String>>().join(\"\")` on an iterator"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for no-op uses of `Option::{as_deref, as_deref_mut}`,
@@ -2350,7 +2277,6 @@ declare_clippy_lint! {
     complexity,
     "no-op use of `deref` or `deref_mut` method to `Option`."
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Finds usages of [`char::is_digit`](https://doc.rust-lang.org/stable/std/primitive.char.html#method.is_digit) that
@@ -2377,7 +2303,6 @@ declare_clippy_lint! {
     style,
     "use of `char::is_digit(..)` with literal radix of 10 or 16"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calling `take` function after `as_ref`.
@@ -2401,7 +2326,6 @@ declare_clippy_lint! {
     complexity,
     "using `.as_ref().take()` on a temporary value"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `replace` statements which have no effect.
@@ -2419,7 +2343,6 @@ declare_clippy_lint! {
     suspicious,
     "replace with no effect"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnecessary method chains that can be simplified into `if .. else ..`.
@@ -2448,7 +2371,6 @@ declare_clippy_lint! {
     "use of `.then_some(..).unwrap_or(..)` can be written \
     more clearly with `if .. else ..`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -2479,7 +2401,6 @@ declare_clippy_lint! {
     nursery,
     "Iterator for array of length 1"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -2511,7 +2432,6 @@ declare_clippy_lint! {
     nursery,
     "Iterator for empty array"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for naive byte counts
@@ -2542,7 +2462,6 @@ declare_clippy_lint! {
     pedantic,
     "use of naive `<slice>.filter(|&x| x == y).count()` to count byte values"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// It checks for `str::bytes().count()` and suggests replacing it with
@@ -2567,7 +2486,6 @@ declare_clippy_lint! {
     complexity,
     "Using `bytes().count()` when `len()` performs the same functionality"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `ends_with` with possible file extensions
@@ -2595,7 +2513,6 @@ declare_clippy_lint! {
     pedantic,
     "Checks for calls to ends_with with case-sensitive file extensions"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `x.get(0)` instead of
@@ -2621,7 +2538,6 @@ declare_clippy_lint! {
     style,
     "Using `x.get(0)` when `x.first()` or `x.front()` is simpler"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -2647,7 +2563,6 @@ declare_clippy_lint! {
     style,
     "finds patterns that can be encoded more concisely with `Option::ok_or`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `map(|x| x.clone())` or
@@ -2676,7 +2591,6 @@ declare_clippy_lint! {
     style,
     "using `iterator.map(|x| x.clone())`, or dereferencing closures for `Copy` types"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for instances of `map_err(|_| Some::Enum)`
@@ -2777,7 +2691,6 @@ declare_clippy_lint! {
     restriction,
     "`map_err` should not ignore the original error"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `&mut Mutex::lock` calls
@@ -2813,7 +2726,6 @@ declare_clippy_lint! {
     style,
     "`&mut Mutex::lock` does unnecessary locking"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for duplicate open options as well as combinations
@@ -2834,7 +2746,6 @@ declare_clippy_lint! {
     correctness,
     "nonsensical combination of options for opening a file"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the suspicious use of `OpenOptions::create()`
@@ -2872,7 +2783,6 @@ declare_clippy_lint! {
     suspicious,
     "suspicious combination of options for opening a file"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///* Checks for [push](https://doc.rust-lang.org/std/path/struct.PathBuf.html#method.push)
@@ -2904,7 +2814,6 @@ declare_clippy_lint! {
     nursery,
     "calling `push` with file system root on `PathBuf` can overwrite it"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for zipping a collection with the range of
@@ -2929,7 +2838,6 @@ declare_clippy_lint! {
     complexity,
     "zipping iterator with a range when `enumerate()` would do"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.repeat(1)` and suggest the following method for each types.
@@ -2961,7 +2869,6 @@ declare_clippy_lint! {
     complexity,
     "using `.repeat(1)` instead of `String.clone()`, `str.to_string()` or `slice.to_vec()` "
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// When sorting primitive values (integers, bools, chars, as well
@@ -2999,7 +2906,6 @@ declare_clippy_lint! {
     pedantic,
     "use of sort() when sort_unstable() is equivalent"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for calls to `.type_id()` on a `Box<dyn _>`.
@@ -3039,7 +2945,6 @@ declare_clippy_lint! {
     suspicious,
     "calling `.type_id()` on a boxed trait object"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Detects `().hash(_)`.
@@ -3078,7 +2983,6 @@ declare_clippy_lint! {
     correctness,
     "hashing a unit value, which does nothing"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `Vec::sort_by` passing in a closure
@@ -3112,7 +3016,6 @@ declare_clippy_lint! {
     complexity,
     "Use of `Vec::sort_by` when `Vec::sort_by_key` or `Vec::sort` would be clearer"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Finds occurrences of `Vec::resize(0, an_int)`
@@ -3134,7 +3037,6 @@ declare_clippy_lint! {
     correctness,
     "emptying a vector with `resize(0, an_int)` instead of `clear()` is probably an argument inversion mistake"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of File::read_to_end and File::read_to_string.
@@ -3161,7 +3063,6 @@ declare_clippy_lint! {
     restriction,
     "use of `File::read_to_end` or `File::read_to_string`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -3192,7 +3093,6 @@ declare_clippy_lint! {
     complexity,
     "iterating on map using `iter` when `keys` or `values` would do"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -3235,7 +3135,6 @@ declare_clippy_lint! {
     complexity,
     "use dedicated method for seek from current position"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -3266,7 +3165,6 @@ declare_clippy_lint! {
     complexity,
     "jumping to the start of stream using `seek` method"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions collecting an iterator when collect
@@ -3291,7 +3189,6 @@ declare_clippy_lint! {
     nursery,
     "collecting an iterator when collect is not needed"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -3317,7 +3214,6 @@ declare_clippy_lint! {
     suspicious,
     "single command line argument that looks like it should be multiple arguments"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.drain(..)` for the sole purpose of clearing a container.
@@ -3342,7 +3238,6 @@ declare_clippy_lint! {
     nursery,
     "calling `drain` in order to `clear` a container"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `.rev().next()` on a `DoubleEndedIterator`
@@ -3365,7 +3260,6 @@ declare_clippy_lint! {
     style,
     "manual reverse iteration of `DoubleEndedIterator`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `.drain()` that clear the collection, immediately followed by a call to `.collect()`.
@@ -3401,7 +3295,6 @@ declare_clippy_lint! {
     perf,
     "calling `.drain(..).collect()` to move all elements into a new collection"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `Iterator::fold` with a type that implements `Try`.
@@ -3430,7 +3323,6 @@ declare_clippy_lint! {
     perf,
     "checks for usage of `Iterator::fold` with a type that implements `Try`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for calls to [`Stdin::read_line`] to read a line from the standard input
@@ -3461,7 +3353,6 @@ declare_clippy_lint! {
     correctness,
     "calling `Stdin::read_line`, then trying to parse it without first trimming"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `<string_lit>.chars().any(|i| i == c)`.
@@ -3489,7 +3380,6 @@ declare_clippy_lint! {
     restriction,
     "checks for `<string_lit>.chars().any(|i| i == c)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.map(|_| format!(..)).collect::<String>()`.
@@ -3524,7 +3414,6 @@ declare_clippy_lint! {
     pedantic,
     "`format!`ing every element in a collection, then collecting the strings into a new `String`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.skip(0)` on iterators.
@@ -3545,7 +3434,6 @@ declare_clippy_lint! {
     correctness,
     "disallows `.skip(0)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `bool::then` in `Iterator::filter_map`.
@@ -3576,7 +3464,6 @@ declare_clippy_lint! {
     style,
     "checks for usage of `bool::then` in `Iterator::filter_map`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for calls to `RwLock::write` where the lock is only used for reading.
@@ -3607,7 +3494,6 @@ declare_clippy_lint! {
     perf,
     "acquiring a write lock when a read lock would work"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for iterator combinator calls such as `.take(x)` or `.skip(x)`
@@ -3631,7 +3517,6 @@ declare_clippy_lint! {
     suspicious,
     "calls to `.take()` or `.skip()` that are out of bounds"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for calls to `Path::ends_with` calls where the argument looks like a file extension.
@@ -3670,7 +3555,6 @@ declare_clippy_lint! {
     suspicious,
     "attempting to compare file extensions using `Path::ends_with`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `as_str()` on a `String` chained with a method available on the `String` itself.
@@ -3696,7 +3580,6 @@ declare_clippy_lint! {
     complexity,
     "`as_str` used to call a method on `str` that is also available on `String`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `waker.clone().wake()`
@@ -3718,7 +3601,6 @@ declare_clippy_lint! {
     perf,
     "cloning a `Waker` only to wake it"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `TryInto::try_into` and `TryFrom::try_from` when their infallible counterparts
@@ -3745,7 +3627,6 @@ declare_clippy_lint! {
     style,
     "calling the `try_from` and `try_into` trait methods when `From`/`Into` is implemented"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `Path::join` that start with a path separator (`\\` or `/`).
@@ -3785,7 +3666,6 @@ declare_clippy_lint! {
     suspicious,
     "calls to `Path::join` which will overwrite the original path"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for iterators of `Result`s using `.filter(Result::is_ok).map(Result::unwrap)` that may
@@ -3808,7 +3688,6 @@ declare_clippy_lint! {
     complexity,
     "filtering `Result` for `Ok` then force-unwrapping, which can be one type-safe operation"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.filter(Option::is_some)` that may be replaced with a `.flatten()` call.
@@ -3832,7 +3711,6 @@ declare_clippy_lint! {
     pedantic,
     "filtering an iterator over `Option`s for `Some` can be achieved with `flatten`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.filter(Result::is_ok)` that may be replaced with a `.flatten()` call.
@@ -3856,7 +3734,6 @@ declare_clippy_lint! {
     pedantic,
     "filtering an iterator over `Result`s for `Ok` can be achieved with `flatten`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `option.map(f).unwrap_or_default()` and `result.map(f).unwrap_or_default()` where f is a function or closure that returns the `bool` type.
@@ -3883,7 +3760,6 @@ declare_clippy_lint! {
     pedantic,
     "using `.map(f).unwrap_or_default()`, which is more succinctly expressed as `is_some_and(f)` or `is_ok_and(f)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -3912,7 +3788,6 @@ declare_clippy_lint! {
     pedantic,
     "splitting a trimmed string at hard-coded newlines"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.as_ref().cloned()` and `.as_mut().cloned()` on `Option`s
@@ -3937,7 +3812,6 @@ declare_clippy_lint! {
     pedantic,
     "cloning an `Option` via `as_ref().cloned()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnecessary calls to `min()` or `max()` in the following cases
@@ -3962,7 +3836,6 @@ declare_clippy_lint! {
     complexity,
     "using 'min()/max()' when there is no need for it"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.map_or_else()` "map closure" for `Result` type.
@@ -3987,7 +3860,6 @@ declare_clippy_lint! {
     suspicious,
     "making no use of the \"map closure\" when calling `.map_or_else(|err| handle_error(err), |n| n)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the manual creation of C strings (a string with a `NUL` byte at the end), either
@@ -4021,7 +3893,6 @@ declare_clippy_lint! {
     complexity,
     r#"creating a `CStr` through functions when `c""` literals can be used"#
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks the usage of `.get().is_some()` or `.get().is_none()` on std map types.
@@ -4050,7 +3921,6 @@ declare_clippy_lint! {
     suspicious,
     "calling `.get().is_some()` or `.get().is_none()` instead of `.contains()` or `.contains_key()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// It identifies calls to `.is_empty()` on constant values.
@@ -4076,7 +3946,6 @@ declare_clippy_lint! {
     suspicious,
     "is_empty() called on strings known at compile time"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Converts some constructs mapping an Enum value for equality comparison.
@@ -4111,7 +3980,6 @@ declare_clippy_lint! {
     style,
     "reduce unnecessary calls to `.map_or(bool, …)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if an iterator is used to check if a string is ascii.
@@ -4132,7 +4000,6 @@ declare_clippy_lint! {
     suspicious,
     "is_ascii() called on a char iterator"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for uses of `map` which return the original item.
@@ -4153,7 +4020,6 @@ declare_clippy_lint! {
     complexity,
     "use of `map` returning the original item"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks the usage of `.first().is_some()` or `.first().is_none()` to check if a slice is
@@ -4181,7 +4047,6 @@ declare_clippy_lint! {
     complexity,
     "calling `.first().is_some()` or `.first().is_none()` instead of `.is_empty()`"
 }
-
 declare_clippy_lint! {
    /// ### What it does
    /// It detects useless calls to `str::as_bytes()` before calling `len()` or `is_empty()`.
@@ -4206,7 +4071,6 @@ declare_clippy_lint! {
    complexity,
    "detect useless calls to `as_bytes()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `.map(…)`, followed by `.all(identity)` or `.any(identity)`.
@@ -4231,7 +4095,6 @@ declare_clippy_lint! {
     complexity,
     "combine `.map(_)` followed by `.all(identity)`/`.any(identity)` into a single call"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -4265,7 +4128,6 @@ declare_clippy_lint! {
     restriction,
     "map of a trivial closure (not dependent on parameter) over a range"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -4291,7 +4153,6 @@ declare_clippy_lint! {
     perf,
     "using `Iterator::last` on a `DoubleEndedIterator`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -4318,7 +4179,6 @@ declare_clippy_lint! {
     complexity,
     "using `NonZero::new_unchecked()` in a `const` context"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -4341,7 +4201,6 @@ declare_clippy_lint! {
     style,
     "detect `repeat().take()` that can be replaced with `repeat_n()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for string slices immediately followed by `as_bytes`.
@@ -4369,7 +4228,6 @@ declare_clippy_lint! {
      perf,
      "slicing a string and immediately calling as_bytes is less efficient and can lead to panics"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -4409,7 +4267,6 @@ declare_clippy_lint! {
     restriction,
     "using `Option::and_then` or `Result::and_then` to chain a computation that returns an `Option` or a `Result`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `Read::bytes` on types which don't implement `BufRead`.
@@ -4436,7 +4293,6 @@ declare_clippy_lint! {
     perf,
     "calling .bytes() is very inefficient when data is not in memory"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `iter().any()` on slices when it can be replaced with `contains()` and suggests doing so.
@@ -4461,7 +4317,6 @@ declare_clippy_lint! {
     perf,
     "unnecessary `iter().any()` on slices that can be replaced with `contains()`"
 }
-
 declare_clippy_lint! {
     /// This lint warns on calling `io::Error::new(..)` with a kind of
     /// `io::ErrorKind::Other`.
@@ -4483,7 +4338,6 @@ declare_clippy_lint! {
     style,
     "calling `std::io::Error::new(std::io::ErrorKind::Other, _)`"
 }
-
 #[expect(clippy::struct_excessive_bools)]
 pub struct Methods {
     avoid_breaking_exported_api: bool,
@@ -4495,12 +4349,10 @@ pub struct Methods {
     allowed_dotfiles: FxHashSet<&'static str>,
     format_args: FormatArgsStorage,
 }
-
 impl Methods {
     pub fn new(conf: &'static Conf, format_args: FormatArgsStorage) -> Self {
         let mut allowed_dotfiles: FxHashSet<_> = conf.allowed_dotfiles.iter().map(|s| &**s).collect();
         allowed_dotfiles.extend(DEFAULT_ALLOWED_DOTFILES);
-
         Self {
             avoid_breaking_exported_api: conf.avoid_breaking_exported_api,
             msrv: conf.msrv,
@@ -4513,7 +4365,6 @@ impl Methods {
         }
     }
 }
-
 impl_lint_pass!(Methods => [
     UNWRAP_USED,
     EXPECT_USED,
@@ -4662,7 +4513,6 @@ impl_lint_pass!(Methods => [
     MANUAL_CONTAINS,
     IO_OTHER_ERROR,
 ]);
-
 /// Extracts a method call name, args, and `Span` of the method name.
 pub fn method_call<'tcx>(
     recv: &'tcx Expr<'tcx>,
@@ -4675,15 +4525,12 @@ pub fn method_call<'tcx>(
     }
     None
 }
-
 impl<'tcx> LateLintPass<'tcx> for Methods {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if expr.span.from_expansion() {
             return;
         }
-
         self.check_methods(cx, expr);
-
         match expr.kind {
             ExprKind::Call(func, args) => {
                 from_iter_instead_of_collect::check(cx, expr, args, func);
@@ -4723,7 +4570,6 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
             _ => (),
         }
     }
-
     #[allow(clippy::too_many_lines)]
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, impl_item: &'tcx hir::ImplItem<'_>) {
         if impl_item.span.in_external_macro(cx.sess().source_map()) {
@@ -4733,7 +4579,6 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
         let parent = cx.tcx.hir_get_parent_item(impl_item.hir_id()).def_id;
         let item = cx.tcx.hir().expect_item(parent);
         let self_ty = cx.tcx.type_of(item.owner_id).instantiate_identity();
-
         let implements_trait = matches!(item.kind, hir::ItemKind::Impl(hir::Impl { of_trait: Some(_), .. }));
         if let hir::ImplItemKind::Fn(ref sig, id) = impl_item.kind {
             let method_sig = cx.tcx.fn_sig(impl_item.owner_id).instantiate_identity();
@@ -4771,7 +4616,6 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
                     }
                 }
             }
-
             if sig.decl.implicit_self.has_implicit_self()
                 && !(self.avoid_breaking_exported_api
                     && cx.effective_visibilities.is_exported(impl_item.owner_id.def_id))
@@ -4789,19 +4633,15 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
                 );
             }
         }
-
         // if this impl block implements a trait, lint in trait definition instead
         if implements_trait {
             return;
         }
-
         if let hir::ImplItemKind::Fn(_, _) = impl_item.kind {
             let ret_ty = return_ty(cx, impl_item.owner_id);
-
             if contains_ty_adt_constructor_opaque(cx, ret_ty, self_ty) {
                 return;
             }
-
             if name == "new" && ret_ty != self_ty {
                 span_lint(
                     cx,
@@ -4812,12 +4652,10 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
             }
         }
     }
-
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx TraitItem<'_>) {
         if item.span.in_external_macro(cx.tcx.sess.source_map()) {
             return;
         }
-
         if let TraitItemKind::Fn(ref sig, _) = item.kind
             && sig.decl.implicit_self.has_implicit_self()
             && let Some(first_arg_hir_ty) = sig.decl.inputs.first()
@@ -4840,7 +4678,6 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
                 true,
             );
         }
-
         if item.ident.name == sym::new
             && let TraitItemKind::Fn(_, _) = item.kind
             && let ret_ty = return_ty(cx, item.owner_id)
@@ -4856,7 +4693,6 @@ impl<'tcx> LateLintPass<'tcx> for Methods {
         }
     }
 }
-
 impl Methods {
     #[allow(clippy::too_many_lines)]
     fn check_methods<'tcx>(&self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
@@ -5282,7 +5118,6 @@ impl Methods {
                 },
                 (name @ ("replace" | "replacen"), [arg1, arg2] | [arg1, arg2, _]) => {
                     no_effect_replace::check(cx, expr, arg1, arg2);
-
                     // Check for repeated `str::replace` calls to perform `collapsible_str_replace` lint
                     if self.msrv.meets(cx, msrvs::PATTERN_TRAIT_CHAR_ARRAY)
                         && name == "replace"
@@ -5305,7 +5140,6 @@ impl Methods {
                 ("skip", [arg]) => {
                     iter_skip_zero::check(cx, expr, arg);
                     iter_out_of_bounds::check_skip(cx, expr, recv, arg);
-
                     if let Some(("cloned", recv2, [], _span2, _)) = method_call(recv) {
                         iter_overeager_cloned::check(
                             cx,
@@ -5467,7 +5301,6 @@ impl Methods {
         }
     }
 }
-
 fn check_is_some_is_none(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, call_span: Span, is_some: bool) {
     match method_call(recv) {
         Some((name @ ("find" | "position" | "rposition"), f_recv, [arg], span, _)) => {
@@ -5482,7 +5315,6 @@ fn check_is_some_is_none(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>,
         _ => {},
     }
 }
-
 /// Used for `lint_binary_expr_with_method_call`.
 #[derive(Copy, Clone)]
 struct BinaryExprInfo<'a> {
@@ -5491,7 +5323,6 @@ struct BinaryExprInfo<'a> {
     other: &'a Expr<'a>,
     eq: bool,
 }
-
 /// Checks for the `CHARS_NEXT_CMP` and `CHARS_LAST_CMP` lints.
 fn lint_binary_expr_with_method_call(cx: &LateContext<'_>, info: &mut BinaryExprInfo<'_>) {
     macro_rules! lint_with_both_lhs_and_rhs {
@@ -5504,20 +5335,17 @@ fn lint_binary_expr_with_method_call(cx: &LateContext<'_>, info: &mut BinaryExpr
             }
         };
     }
-
     lint_with_both_lhs_and_rhs!(chars_next_cmp::check, cx, info);
     lint_with_both_lhs_and_rhs!(chars_last_cmp::check, cx, info);
     lint_with_both_lhs_and_rhs!(chars_next_cmp_with_unwrap::check, cx, info);
     lint_with_both_lhs_and_rhs!(chars_last_cmp_with_unwrap::check, cx, info);
 }
-
 const FN_HEADER: hir::FnHeader = hir::FnHeader {
     safety: hir::HeaderSafety::Normal(hir::Safety::Safe),
     constness: hir::Constness::NotConst,
     asyncness: hir::IsAsync::NotAsync,
     abi: ExternAbi::Rust,
 };
-
 struct ShouldImplTraitCase {
     trait_name: &'static str,
     method_name: &'static str,
@@ -5550,7 +5378,6 @@ impl ShouldImplTraitCase {
             lint_explicit_lifetime,
         }
     }
-
     fn lifetime_param_cond(&self, impl_item: &hir::ImplItem<'_>) -> bool {
         self.lint_explicit_lifetime
             || !impl_item.generics.params.iter().any(|p| {
@@ -5563,7 +5390,6 @@ impl ShouldImplTraitCase {
             })
     }
 }
-
 #[rustfmt::skip]
 const TRAIT_METHODS: [ShouldImplTraitCase; 30] = [
     ShouldImplTraitCase::new("std::ops::Add", "add",  2,  FN_HEADER,  SelfKind::Value,  OutType::Any, true),
@@ -5597,7 +5423,6 @@ const TRAIT_METHODS: [ShouldImplTraitCase; 30] = [
     ShouldImplTraitCase::new("std::ops::Shr", "shr",  2,  FN_HEADER,  SelfKind::Value,  OutType::Any, true),
     ShouldImplTraitCase::new("std::ops::Sub", "sub",  2,  FN_HEADER,  SelfKind::Value,  OutType::Any, true),
 ];
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum SelfKind {
     Value,
@@ -5605,7 +5430,6 @@ enum SelfKind {
     RefMut,
     No, // When we want the first argument type to be different than `Self`
 }
-
 impl SelfKind {
     fn matches<'a>(self, cx: &LateContext<'a>, parent_ty: Ty<'a>, ty: Ty<'a>) -> bool {
         fn matches_value<'a>(cx: &LateContext<'a>, parent_ty: Ty<'a>, ty: Ty<'a>) -> bool {
@@ -5623,29 +5447,24 @@ impl SelfKind {
                 false
             }
         }
-
         fn matches_ref<'a>(cx: &LateContext<'a>, mutability: hir::Mutability, parent_ty: Ty<'a>, ty: Ty<'a>) -> bool {
             if let ty::Ref(_, t, m) = *ty.kind() {
                 return m == mutability && t == parent_ty;
             }
-
             let trait_sym = match mutability {
                 hir::Mutability::Not => sym::AsRef,
                 hir::Mutability::Mut => sym::AsMut,
             };
-
             let Some(trait_def_id) = cx.tcx.get_diagnostic_item(trait_sym) else {
                 return false;
             };
             implements_trait(cx, ty, trait_def_id, &[parent_ty.into()])
         }
-
         fn matches_none<'a>(cx: &LateContext<'a>, parent_ty: Ty<'a>, ty: Ty<'a>) -> bool {
             !matches_value(cx, parent_ty, ty)
                 && !matches_ref(cx, hir::Mutability::Not, parent_ty, ty)
                 && !matches_ref(cx, hir::Mutability::Mut, parent_ty, ty)
         }
-
         match self {
             Self::Value => matches_value(cx, parent_ty, ty),
             Self::Ref => matches_ref(cx, hir::Mutability::Not, parent_ty, ty) || ty == parent_ty && is_copy(cx, ty),
@@ -5653,7 +5472,6 @@ impl SelfKind {
             Self::No => matches_none(cx, parent_ty, ty),
         }
     }
-
     #[must_use]
     fn description(self) -> &'static str {
         match self {
@@ -5664,7 +5482,6 @@ impl SelfKind {
         }
     }
 }
-
 #[derive(Clone, Copy)]
 enum OutType {
     Unit,
@@ -5672,7 +5489,6 @@ enum OutType {
     Any,
     Ref,
 }
-
 impl OutType {
     fn matches(self, ty: &hir::FnRetTy<'_>) -> bool {
         let is_unit = |ty: &hir::Ty<'_>| matches!(ty.kind, hir::TyKind::Tup(&[]));
@@ -5686,7 +5502,6 @@ impl OutType {
         }
     }
 }
-
 fn fn_header_equals(expected: hir::FnHeader, actual: hir::FnHeader) -> bool {
     expected.constness == actual.constness && expected.safety == actual.safety && expected.asyncness == actual.asyncness
 }

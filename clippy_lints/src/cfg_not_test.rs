@@ -1,8 +1,9 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_ast::MetaItemInner;
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `cfg` that excludes code from `test` builds. (i.e., `#[cfg(not(test))]`)
@@ -27,9 +28,7 @@ declare_clippy_lint! {
     restriction,
     "enforce against excluding code from test builds"
 }
-
 declare_lint_pass!(CfgNotTest => [CFG_NOT_TEST]);
-
 impl EarlyLintPass for CfgNotTest {
     fn check_attribute(&mut self, cx: &EarlyContext<'_>, attr: &rustc_ast::Attribute) {
         if attr.has_name(rustc_span::sym::cfg) && contains_not_test(attr.meta_item_list().as_deref(), false) {
@@ -46,7 +45,6 @@ impl EarlyLintPass for CfgNotTest {
         }
     }
 }
-
 fn contains_not_test(list: Option<&[MetaItemInner]>, not: bool) -> bool {
     list.is_some_and(|list| {
         list.iter().any(|item| {

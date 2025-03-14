@@ -1,16 +1,15 @@
-use std::cmp::Ordering;
+use crate::HVec;
 
 use super::UNNECESSARY_MIN_OR_MAX;
 use clippy_utils::consts::{ConstEvalCtxt, Constant, ConstantSource, FullInt};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
-
 use rustc_errors::Applicability;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::{Span, sym};
-
+use std::cmp::Ordering;
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -29,7 +28,6 @@ pub(super) fn check<'tcx>(
             let Some(ord) = Constant::partial_cmp(cx.tcx, typeck_results.expr_ty(recv), &left, &right) else {
                 return;
             };
-
             lint(cx, expr, name, recv.span, arg.span, ord);
         } else if let Some(extrema) = detect_extrema(cx, recv) {
             let ord = match extrema {
@@ -46,16 +44,13 @@ pub(super) fn check<'tcx>(
         }
     }
 }
-
 fn lint(cx: &LateContext<'_>, expr: &Expr<'_>, name: &str, lhs: Span, rhs: Span, order: Ordering) {
     let cmp_str = if order.is_ge() { "smaller" } else { "greater" };
-
     let suggested_value = if (name == "min" && order.is_ge()) || (name == "max" && order.is_le()) {
         snippet(cx, rhs, "..")
     } else {
         snippet(cx, lhs, "..")
     };
-
     span_lint_and_sugg(
         cx,
         UNNECESSARY_MIN_OR_MAX,
@@ -71,7 +66,6 @@ fn lint(cx: &LateContext<'_>, expr: &Expr<'_>, name: &str, lhs: Span, rhs: Span,
         Applicability::MachineApplicable,
     );
 }
-
 #[derive(Debug)]
 enum Extrema {
     Minimum,
@@ -79,9 +73,7 @@ enum Extrema {
 }
 fn detect_extrema<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) -> Option<Extrema> {
     let ty = cx.typeck_results().expr_ty(expr);
-
     let cv = ConstEvalCtxt::new(cx).eval(expr)?;
-
     match (cv.int_value(cx.tcx, ty)?, ty.kind()) {
         (FullInt::S(i), &ty::Int(ity)) if i == i128::MIN >> (128 - ity.bit_width()?) => Some(Extrema::Minimum),
         (FullInt::S(i), &ty::Int(ity)) if i == i128::MAX >> (128 - ity.bit_width()?) => Some(Extrema::Maximum),

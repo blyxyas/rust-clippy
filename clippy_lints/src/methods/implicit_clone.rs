@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::IMPLICIT_CLONE;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::ty::implements_trait;
@@ -6,9 +9,6 @@ use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::IMPLICIT_CLONE;
-
 pub fn check(cx: &LateContext<'_>, method_name: &str, expr: &hir::Expr<'_>, recv: &hir::Expr<'_>) {
     if let Some(method_def_id) = cx.typeck_results().type_dependent_def_id(expr.hir_id)
         && is_clone_like(cx, method_name, method_def_id)
@@ -38,7 +38,6 @@ pub fn check(cx: &LateContext<'_>, method_name: &str, expr: &hir::Expr<'_>, recv
         );
     }
 }
-
 /// Returns true if the named method can be used to clone the receiver.
 /// Note that `to_string` is not flagged by `implicit_clone`. So other lints that call
 /// `is_clone_like` and that do flag `to_string` must handle it separately. See, e.g.,

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::path_to_local_id;
 use clippy_utils::source::snippet;
@@ -7,7 +9,6 @@ use rustc_hir as hir;
 use rustc_hir::{BindingMode, Mutability};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for variable declarations immediately followed by a
@@ -53,9 +54,7 @@ declare_clippy_lint! {
     nursery,
     "unidiomatic `let mut` declaration followed by initialization in `if`"
 }
-
 declare_lint_pass!(LetIfSeq => [USELESS_LET_IF_SEQ]);
-
 impl<'tcx> LateLintPass<'tcx> for LetIfSeq {
     fn check_block(&mut self, cx: &LateContext<'tcx>, block: &'tcx hir::Block<'_>) {
         for [stmt, next] in block.stmts.array_windows::<2>() {
@@ -76,7 +75,6 @@ impl<'tcx> LateLintPass<'tcx> for LetIfSeq {
                 && !is_local_used(cx, value, canonical_id)
             {
                 let span = stmt.span.to(if_.span);
-
                 let has_interior_mutability = !cx
                     .typeck_results()
                     .node_type(canonical_id)
@@ -84,7 +82,6 @@ impl<'tcx> LateLintPass<'tcx> for LetIfSeq {
                 if has_interior_mutability {
                     return;
                 }
-
                 let (default_multi_stmts, default) = if let Some(else_) = else_ {
                     if let hir::ExprKind::Block(else_, _) = else_.kind {
                         if let Some(default) = check_assign(cx, canonical_id, else_) {
@@ -102,15 +99,12 @@ impl<'tcx> LateLintPass<'tcx> for LetIfSeq {
                 } else {
                     continue;
                 };
-
                 let mutability = match mode {
                     BindingMode(_, Mutability::Mut) => "<mut> ",
                     _ => "",
                 };
-
                 // FIXME: this should not suggest `mut` if we can detect that the variable is not
                 // use mutably after the `if`
-
                 let sug = format!(
                     "let {mutability}{name} = if {cond} {{{then} {value} }} else {{{else} {default} }};",
                     name=ident.name,
@@ -142,7 +136,6 @@ impl<'tcx> LateLintPass<'tcx> for LetIfSeq {
         }
     }
 }
-
 fn check_assign<'tcx>(
     cx: &LateContext<'tcx>,
     decl: hir::HirId,

@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::UNNECESSARY_LAZY_EVALUATIONS;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -7,9 +10,6 @@ use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::UNNECESSARY_LAZY_EVALUATIONS;
-
 /// lint use of `<fn>_else(simple closure)` for `Option`s and `Result`s that can be
 /// replaced with `<fn>(return value of simple closure)`
 pub(super) fn check<'tcx>(
@@ -22,16 +22,13 @@ pub(super) fn check<'tcx>(
     let is_option = is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(recv), sym::Option);
     let is_result = is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(recv), sym::Result);
     let is_bool = cx.typeck_results().expr_ty(recv).is_bool();
-
     if is_option || is_result || is_bool {
         if let hir::ExprKind::Closure(&hir::Closure { body, fn_decl, .. }) = arg.kind {
             let body = cx.tcx.hir_body(body);
             let body_expr = &body.value;
-
             if usage::BindingUsageFinder::are_params_used(cx, body) || is_from_proc_macro(cx, expr) {
                 return false;
             }
-
             if eager_or_lazy::switch_to_eager_eval(cx, body_expr) {
                 let msg = if is_option {
                     "unnecessary closure used to substitute value for `Option::None`"
@@ -58,7 +55,6 @@ pub(super) fn check<'tcx>(
                     // replacing the lambda may break type inference
                     Applicability::MaybeIncorrect
                 };
-
                 // This is a duplicate of what's happening in clippy_lints::methods::method_call,
                 // which isn't ideal, We want to get the method call span,
                 // but prefer to avoid changing the signature of the function itself.

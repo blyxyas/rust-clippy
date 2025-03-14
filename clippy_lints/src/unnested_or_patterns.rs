@@ -1,5 +1,5 @@
 #![allow(clippy::wildcard_imports, clippy::enum_glob_use)]
-
+use crate::HVec;
 use clippy_config::Conf;
 use clippy_utils::ast_utils::{eq_field_pat, eq_id, eq_maybe_qself, eq_pat, eq_path};
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -17,7 +17,6 @@ use rustc_span::DUMMY_SP;
 use std::cell::Cell;
 use std::mem;
 use thin_vec::{ThinVec, thin_vec};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnested or-patterns, e.g., `Some(0) | Some(2)` and
@@ -46,11 +45,9 @@ declare_clippy_lint! {
     pedantic,
     "unnested or-patterns, e.g., `Foo(Bar) | Foo(Baz) instead of `Foo(Bar | Baz)`"
 }
-
 pub struct UnnestedOrPatterns {
     msrv: MsrvStack,
 }
-
 impl UnnestedOrPatterns {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -58,16 +55,13 @@ impl UnnestedOrPatterns {
         }
     }
 }
-
 impl_lint_pass!(UnnestedOrPatterns => [UNNESTED_OR_PATTERNS]);
-
 impl EarlyLintPass for UnnestedOrPatterns {
     fn check_arm(&mut self, cx: &EarlyContext<'_>, a: &ast::Arm) {
         if self.msrv.meets(msrvs::OR_PATTERNS) {
             lint_unnested_or_patterns(cx, &a.pat);
         }
     }
-
     fn check_expr(&mut self, cx: &EarlyContext<'_>, e: &ast::Expr) {
         if self.msrv.meets(msrvs::OR_PATTERNS) {
             if let ast::ExprKind::Let(pat, _, _, _) = &e.kind {
@@ -75,38 +69,30 @@ impl EarlyLintPass for UnnestedOrPatterns {
             }
         }
     }
-
     fn check_param(&mut self, cx: &EarlyContext<'_>, p: &ast::Param) {
         if self.msrv.meets(msrvs::OR_PATTERNS) {
             lint_unnested_or_patterns(cx, &p.pat);
         }
     }
-
     fn check_local(&mut self, cx: &EarlyContext<'_>, l: &ast::Local) {
         if self.msrv.meets(msrvs::OR_PATTERNS) {
             lint_unnested_or_patterns(cx, &l.pat);
         }
     }
-
     extract_msrv_attr!();
 }
-
 fn lint_unnested_or_patterns(cx: &EarlyContext<'_>, pat: &Pat) {
     if let Ident(.., None) | Expr(_) | Wild | Path(..) | Range(..) | Rest | MacCall(_) = pat.kind {
         // This is a leaf pattern, so cloning is unprofitable.
         return;
     }
-
     let mut pat = P(pat.clone());
-
     // Nix all the paren patterns everywhere so that they aren't in our way.
     remove_all_parens(&mut pat);
-
     // Transform all unnested or-patterns into nested ones, and if there were none, quit.
     if !unnest_or_patterns(&mut pat) {
         return;
     }
-
     span_lint_and_then(cx, UNNESTED_OR_PATTERNS, pat.span, "unnested or-patterns", |db| {
         insert_necessary_parens(&mut pat);
         db.span_suggestion_verbose(
@@ -117,7 +103,6 @@ fn lint_unnested_or_patterns(cx: &EarlyContext<'_>, pat: &Pat) {
         );
     });
 }
-
 /// Remove all `(p)` patterns in `pat`.
 fn remove_all_parens(pat: &mut P<Pat>) {
     struct Visitor;
@@ -133,7 +118,6 @@ fn remove_all_parens(pat: &mut P<Pat>) {
     }
     Visitor.visit_pat(pat);
 }
-
 /// Insert parens where necessary according to Rust's precedence rules for patterns.
 fn insert_necessary_parens(pat: &mut P<Pat>) {
     struct Visitor;
@@ -152,7 +136,6 @@ fn insert_necessary_parens(pat: &mut P<Pat>) {
     }
     Visitor.visit_pat(pat);
 }
-
 /// Unnest or-patterns `p0 | ... | p1` in the pattern `pat`.
 /// For example, this would transform `Some(0) | FOO | Some(2)` into `Some(0 | 2) | FOO`.
 fn unnest_or_patterns(pat: &mut P<Pat>) -> bool {
@@ -163,10 +146,8 @@ fn unnest_or_patterns(pat: &mut P<Pat>) -> bool {
         fn visit_pat(&mut self, p: &mut P<Pat>) {
             // This is a bottom up transformation, so recurse first.
             walk_pat(self, p);
-
             // Don't have an or-pattern? Just quit early on.
             let Or(alternatives) = &mut p.kind else { return };
-
             // Collapse or-patterns directly nested in or-patterns.
             let mut idx = 0;
             let mut this_level_changed = false;
@@ -180,7 +161,6 @@ fn unnest_or_patterns(pat: &mut P<Pat>) -> bool {
                 this_level_changed = true;
                 alternatives.splice(idx..=idx, inner);
             }
-
             // Focus on `p_n` and then try to transform all `p_i` where `i > n`.
             let mut focus_idx = 0;
             while focus_idx < alternatives.len() {
@@ -188,19 +168,16 @@ fn unnest_or_patterns(pat: &mut P<Pat>) -> bool {
                 focus_idx += 1;
             }
             self.changed |= this_level_changed;
-
             // Deal with `Some(Some(0)) | Some(Some(1))`.
             if this_level_changed {
                 walk_pat(self, p);
             }
         }
     }
-
     let mut visitor = Visitor { changed: false };
     visitor.visit_pat(pat);
     visitor.changed
 }
-
 /// Match `$scrutinee` against `$pat` and extract `$then` from it.
 /// Panics if there is no match.
 macro_rules! always_pat {
@@ -211,7 +188,6 @@ macro_rules! always_pat {
         }
     };
 }
-
 /// Focus on `focus_idx` in `alternatives`,
 /// attempting to extend it with elements of the same constructor `C`
 /// in `alternatives[focus_idx + 1..]`.
@@ -221,7 +197,6 @@ fn transform_with_focus_on_idx(alternatives: &mut ThinVec<P<Pat>>, focus_idx: us
     // We'll focus on `alternatives[focus_idx]`,
     // so we're draining from `alternatives[focus_idx + 1..]`.
     let start = focus_idx + 1;
-
     // We're trying to find whatever kind (~"constructor") we found in `alternatives[start..]`.
     let changed = match &mut focus_kind {
         // These pattern forms are "leafs" and do not have sub-patterns.
@@ -285,11 +260,9 @@ fn transform_with_focus_on_idx(alternatives: &mut ThinVec<P<Pat>>, focus_idx: us
             extend_with_struct_pat(qself1.as_ref(), path1, fps1, *rest1, start, alternatives)
         },
     };
-
     alternatives[focus_idx].kind = focus_kind;
     changed
 }
-
 /// Here we focusing on a record pattern `S { fp_0, ..., fp_n }`.
 /// In particular, for a record pattern, the order in which the field patterns is irrelevant.
 /// So when we fixate on some `ident_k: pat_k`, we try to find `ident_k` in the other pattern
@@ -331,7 +304,6 @@ fn extend_with_struct_pat(
         extend_with_tail_or(&mut fps1[idx].pat, tail_or)
     })
 }
-
 /// Like `extend_with_matching` but for products with > 1 factor, e.g., `C(p_0, ..., p_n)`.
 /// Here, the idea is that we fixate on some `p_k` in `C`,
 /// allowing it to vary between two `targets` and `ps2` (returned by `extract`),
@@ -354,7 +326,6 @@ fn extend_with_matching_product(
         extend_with_tail_or(&mut targets[idx], tail_or)
     })
 }
-
 /// Extract the pattern from the given one and replace it with `Wild`.
 /// This is meant for temporarily swapping out the pattern for manipulation.
 fn take_pat(from: &mut Pat) -> Pat {
@@ -366,7 +337,6 @@ fn take_pat(from: &mut Pat) -> Pat {
     };
     mem::replace(from, dummy)
 }
-
 /// Extend `target` as an or-pattern with the alternatives
 /// in `tail_or` if there are any and return if there were.
 fn extend_with_tail_or(target: &mut Pat, tail_or: ThinVec<P<Pat>>) -> bool {
@@ -382,7 +352,6 @@ fn extend_with_tail_or(target: &mut Pat, tail_or: ThinVec<P<Pat>>) -> bool {
             },
         }
     }
-
     let changed = !tail_or.is_empty();
     if changed {
         // Extend the target.
@@ -390,7 +359,6 @@ fn extend_with_tail_or(target: &mut Pat, tail_or: ThinVec<P<Pat>>) -> bool {
     }
     changed
 }
-
 // Extract all inner patterns in `alternatives` matching our `predicate`.
 // Only elements beginning with `start` are considered for extraction.
 fn drain_matching(
@@ -401,7 +369,6 @@ fn drain_matching(
 ) -> ThinVec<P<Pat>> {
     let mut tail_or = ThinVec::new();
     let mut idx = 0;
-
     // If `ThinVec` had the `drain_filter` method, this loop could be rewritten
     // like so:
     //
@@ -423,10 +390,8 @@ fn drain_matching(
             i += 1;
         }
     }
-
     tail_or
 }
-
 fn extend_with_matching(
     target: &mut Pat,
     start: usize,
@@ -436,7 +401,6 @@ fn extend_with_matching(
 ) -> bool {
     extend_with_tail_or(target, drain_matching(start, alternatives, predicate, extract))
 }
-
 /// Are the patterns in `ps1` and `ps2` equal save for `ps1[idx]` compared to `ps2[idx]`?
 fn eq_pre_post(ps1: &[P<Pat>], ps2: &[P<Pat>], idx: usize) -> bool {
     ps1.len() == ps2.len()

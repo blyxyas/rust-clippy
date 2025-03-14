@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_in_test;
@@ -11,7 +13,6 @@ use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::kw;
 use rustc_span::{BytePos, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `use Enum::*`.
@@ -44,7 +45,6 @@ declare_clippy_lint! {
     pedantic,
     "use items that import all variants of an enum"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for wildcard imports `use _::*`.
@@ -97,12 +97,10 @@ declare_clippy_lint! {
     pedantic,
     "lint `use _::*` statements"
 }
-
 pub struct WildcardImports {
     warn_on_all: bool,
     allowed_segments: FxHashSet<String>,
 }
-
 impl WildcardImports {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -111,15 +109,12 @@ impl WildcardImports {
         }
     }
 }
-
 impl_lint_pass!(WildcardImports => [ENUM_GLOB_USE, WILDCARD_IMPORTS]);
-
 impl LateLintPass<'_> for WildcardImports {
     fn check_item(&mut self, cx: &LateContext<'_>, item: &Item<'_>) {
         if cx.sess().is_test_crate() {
             return;
         }
-
         let module = cx.tcx.parent_module_from_def_id(item.owner_id.def_id);
         if cx.tcx.visibility(item.owner_id.def_id) != ty::Visibility::Restricted(module.to_def_id()) {
             return;
@@ -149,7 +144,6 @@ impl LateLintPass<'_> for WildcardImports {
                 }
                 (span, false)
             };
-
             let mut imports = used_imports.items().map(ToString::to_string).into_sorted_stable_ord();
             let imports_string = if imports.len() == 1 {
                 imports.pop().unwrap()
@@ -158,25 +152,21 @@ impl LateLintPass<'_> for WildcardImports {
             } else {
                 format!("{{{}}}", imports.join(", "))
             };
-
             let sugg = if braced_glob {
                 imports_string
             } else {
                 format!("{import_source_snippet}::{imports_string}")
             };
-
             // Glob imports always have a single resolution.
             let (lint, message) = if let Res::Def(DefKind::Enum, _) = use_path.res[0] {
                 (ENUM_GLOB_USE, "usage of wildcard import for enum variants")
             } else {
                 (WILDCARD_IMPORTS, "usage of wildcard import")
             };
-
             span_lint_and_sugg(cx, lint, span, message, "try", sugg, applicability);
         }
     }
 }
-
 impl WildcardImports {
     fn check_exceptions(&self, cx: &LateContext<'_>, item: &Item<'_>, segments: &[PathSegment<'_>]) -> bool {
         item.span.from_expansion()
@@ -185,7 +175,6 @@ impl WildcardImports {
             || (is_super_only_import(segments) && is_in_test(cx.tcx, item.hir_id()))
     }
 }
-
 // Allow "...prelude::..::*" imports.
 // Many crates have a prelude, and it is imported as a glob by design.
 fn is_prelude_import(segments: &[PathSegment<'_>]) -> bool {
@@ -193,12 +182,10 @@ fn is_prelude_import(segments: &[PathSegment<'_>]) -> bool {
         .iter()
         .any(|ps| ps.ident.as_str().contains(sym::prelude.as_str()))
 }
-
 // Allow "super::*" imports in tests.
 fn is_super_only_import(segments: &[PathSegment<'_>]) -> bool {
     segments.len() == 1 && segments[0].ident.name == kw::Super
 }
-
 // Allow skipping imports containing user configured segments,
 // i.e. "...::utils::...::*" if user put `allowed-wildcard-imports = ["utils"]` in `Clippy.toml`
 fn is_allowed_via_config(segments: &[PathSegment<'_>], allowed_segments: &FxHashSet<String>) -> bool {

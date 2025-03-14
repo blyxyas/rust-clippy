@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::GET_FIRST;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -8,9 +11,6 @@ use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_span::source_map::Spanned;
 use rustc_span::sym;
-
-use super::GET_FIRST;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx hir::Expr<'_>,

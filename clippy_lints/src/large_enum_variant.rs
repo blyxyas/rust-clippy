@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet_with_applicability;
@@ -8,7 +10,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, Ty};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for large size differences between variants on
@@ -56,11 +57,9 @@ declare_clippy_lint! {
     perf,
     "large size difference between variants on an enum"
 }
-
 pub struct LargeEnumVariant {
     maximum_size_difference_allowed: u64,
 }
-
 impl LargeEnumVariant {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -68,9 +67,7 @@ impl LargeEnumVariant {
         }
     }
 }
-
 impl_lint_pass!(LargeEnumVariant => [LARGE_ENUM_VARIANT]);
-
 impl<'tcx> LateLintPass<'tcx> for LargeEnumVariant {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &Item<'tcx>) {
         if let ItemKind::Enum(ref def, _) = item.kind
@@ -80,7 +77,6 @@ impl<'tcx> LateLintPass<'tcx> for LargeEnumVariant {
             && !item.span.in_external_macro(cx.tcx.sess.source_map())
         {
             let variants_size = AdtVariantInfo::new(cx, *adt, subst);
-
             let mut difference = variants_size[0].size - variants_size[1].size;
             if difference > self.maximum_size_difference_allowed {
                 let help_text = "consider boxing the large fields to reduce the total size of the enum";
@@ -109,7 +105,6 @@ impl<'tcx> LateLintPass<'tcx> for LargeEnumVariant {
                                 )
                             },
                         );
-
                         let fields = def.variants[variants_size[0].ind].data.fields();
                         let mut applicability = Applicability::MaybeIncorrect;
                         if is_copy(cx, ty) || maybe_copy(cx, ty) {
@@ -143,7 +138,6 @@ impl<'tcx> LateLintPass<'tcx> for LargeEnumVariant {
                                     }
                                 })
                                 .collect();
-
                             if !sugg.is_empty() {
                                 diag.multipart_suggestion(help_text, sugg, Applicability::MaybeIncorrect);
                                 return;
@@ -156,7 +150,6 @@ impl<'tcx> LateLintPass<'tcx> for LargeEnumVariant {
         }
     }
 }
-
 fn maybe_copy<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> bool {
     if let ty::Adt(_def, args) = ty.kind()
         && args.types().next().is_some()

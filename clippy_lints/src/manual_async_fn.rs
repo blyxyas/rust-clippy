@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::{SpanRangeExt, position_before_rarrow, snippet_block};
 use rustc_errors::Applicability;
@@ -12,7 +14,6 @@ use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// It checks for manual implementations of `async` functions.
@@ -35,9 +36,7 @@ declare_clippy_lint! {
     style,
     "manual implementations of `async` functions can be simplified using the dedicated syntax"
 }
-
 declare_lint_pass!(ManualAsyncFn => [MANUAL_ASYNC_FN]);
-
 impl<'tcx> LateLintPass<'tcx> for ManualAsyncFn {
     fn check_fn(
         &mut self,
@@ -65,7 +64,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualAsyncFn {
             && !span.from_expansion()
         {
             let header_span = span.with_hi(ret_ty.span.hi());
-
             span_lint_and_then(
                 cx,
                 MANUAL_ASYNC_FN,
@@ -82,9 +80,7 @@ impl<'tcx> LateLintPass<'tcx> for ManualAsyncFn {
                         } else {
                             format!("{} async {}", vis_snip, &header_snip[vis_snip.len() + 1..ret_pos])
                         };
-
                         let body_snip = snippet_block(cx, closure_body.value.span, "..", Some(block.span)).to_string();
-
                         diag.multipart_suggestion(
                             "make the function `async` and return the output of the future directly",
                             vec![
@@ -99,7 +95,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualAsyncFn {
         }
     }
 }
-
 fn future_trait_ref<'tcx>(cx: &LateContext<'tcx>, opaque: &'tcx OpaqueTy<'tcx>) -> Option<&'tcx TraitRef<'tcx>> {
     if let Some(trait_ref) = opaque.bounds.iter().find_map(|bound| {
         if let GenericBound::Trait(poly) = bound {
@@ -111,10 +106,8 @@ fn future_trait_ref<'tcx>(cx: &LateContext<'tcx>, opaque: &'tcx OpaqueTy<'tcx>) 
     {
         return Some(trait_ref);
     }
-
     None
 }
-
 fn future_output_ty<'tcx>(trait_ref: &'tcx TraitRef<'tcx>) -> Option<&'tcx Ty<'tcx>> {
     if let Some(segment) = trait_ref.path.segments.last()
         && let Some(args) = segment.args
@@ -124,14 +117,11 @@ fn future_output_ty<'tcx>(trait_ref: &'tcx TraitRef<'tcx>) -> Option<&'tcx Ty<'t
     {
         return Some(output);
     }
-
     None
 }
-
 fn captures_all_lifetimes(cx: &LateContext<'_>, fn_def_id: LocalDefId, opaque_def_id: LocalDefId) -> bool {
     let early_input_params = ty::GenericArgs::identity_for_item(cx.tcx, fn_def_id);
     let late_input_params = cx.tcx.late_bound_vars(cx.tcx.local_def_id_to_hir_id(fn_def_id));
-
     let num_early_lifetimes = early_input_params
         .iter()
         .filter(|param| param.as_region().is_some())
@@ -140,12 +130,10 @@ fn captures_all_lifetimes(cx: &LateContext<'_>, fn_def_id: LocalDefId, opaque_de
         .iter()
         .filter(|param_kind| matches!(param_kind, ty::BoundVariableKind::Region(_)))
         .count();
-
     // There is no lifetime, so they are all captured.
     if num_early_lifetimes == 0 && num_late_lifetimes == 0 {
         return true;
     }
-
     // By construction, each captured lifetime only appears once in `opaque_captured_lifetimes`.
     let num_captured_lifetimes = cx
         .tcx
@@ -160,7 +148,6 @@ fn captures_all_lifetimes(cx: &LateContext<'_>, fn_def_id: LocalDefId, opaque_de
         .count();
     num_captured_lifetimes == num_early_lifetimes + num_late_lifetimes
 }
-
 fn desugared_async_block<'tcx>(cx: &LateContext<'tcx>, block: &'tcx Block<'tcx>) -> Option<&'tcx Body<'tcx>> {
     if let Some(&Expr {
         kind: ExprKind::Closure(&Closure { kind, body, .. }),
@@ -171,10 +158,8 @@ fn desugared_async_block<'tcx>(cx: &LateContext<'tcx>, block: &'tcx Block<'tcx>)
     {
         return Some(cx.tcx.hir_body(body));
     }
-
     None
 }
-
 fn suggested_ret(cx: &LateContext<'_>, output: &Ty<'_>) -> Option<(&'static str, String)> {
     if let TyKind::Tup([]) = output.kind {
         let sugg = "remove the return type";

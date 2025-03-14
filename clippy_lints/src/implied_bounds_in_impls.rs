@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet;
 use rustc_errors::{Applicability, SuggestionStyle};
@@ -11,7 +13,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, ClauseKind, Generics, Ty, TyCtxt};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for bounds in `impl Trait` in return position that are implied by other bounds.
@@ -48,7 +49,6 @@ declare_clippy_lint! {
     "specifying bounds that are implied by other bounds in `impl Trait` type"
 }
 declare_lint_pass!(ImpliedBoundsInImpls => [IMPLIED_BOUNDS_IN_IMPLS]);
-
 fn emit_lint(
     cx: &LateContext<'_>,
     poly_trait: &rustc_hir::PolyTraitRef<'_>,
@@ -60,7 +60,6 @@ fn emit_lint(
     bound: &ImplTraitBound<'_>,
 ) {
     let implied_by = snippet(cx, bound.span, "..");
-
     span_lint_and_then(
         cx,
         IMPLIED_BOUNDS_IN_IMPLS,
@@ -70,7 +69,6 @@ fn emit_lint(
             // If we suggest removing a bound, we may also need to extend the span
             // to include the `+` token that is ahead or behind,
             // so we don't end up with something like `impl + B` or `impl A + `
-
             let implied_span_extended = if let Some(next_bound) = bounds.get(index + 1) {
                 poly_trait.span.to(next_bound.span().shrink_to_lo())
             } else if index > 0
@@ -80,9 +78,7 @@ fn emit_lint(
             } else {
                 poly_trait.span
             };
-
             let mut sugg = vec![(implied_span_extended, String::new())];
-
             // We also might need to include associated item constraints that were specified in the implied
             // bound, but omitted in the implied-by bound:
             // `fn f() -> impl Deref<Target = u8> + DerefMut`
@@ -91,7 +87,6 @@ fn emit_lint(
                 .iter()
                 .filter(|constraint| !bound.constraints.iter().any(|c| c.ident == constraint.ident))
                 .collect();
-
             if !omitted_constraints.is_empty() {
                 // `<>` needs to be added if there aren't yet any generic arguments or constraints
                 let needs_angle_brackets = bound.args.is_empty() && bound.constraints.is_empty();
@@ -101,7 +96,6 @@ fn emit_lint(
                     ([], [.., constraint]) => constraint.span.shrink_to_hi(),
                     ([], []) => bound.span.shrink_to_hi(),
                 };
-
                 let mut constraints_sugg = if needs_angle_brackets {
                     "<".to_owned()
                 } else {
@@ -112,7 +106,6 @@ fn emit_lint(
                     // `impl A<B, C Assoc=i32>`
                     ", ".to_owned()
                 };
-
                 for (index, constraint) in omitted_constraints.into_iter().enumerate() {
                     if index > 0 {
                         constraints_sugg += ", ";
@@ -124,7 +117,6 @@ fn emit_lint(
                 }
                 sugg.push((insert_span, constraints_sugg));
             }
-
             diag.multipart_suggestion_with_style(
                 "try removing this bound",
                 sugg,
@@ -134,7 +126,6 @@ fn emit_lint(
         },
     );
 }
-
 /// Tries to "resolve" a type.
 /// The index passed to this function must start with `Self=0`, i.e. it must be a valid
 /// type parameter index.
@@ -153,7 +144,6 @@ fn try_resolve_type<'tcx>(
         None => Some(tcx.type_of(generics.own_params[index].def_id).skip_binder()),
     }
 }
-
 /// This function tries to, for all generic type parameters in a supertrait predicate `trait ...<U>:
 /// GenericTrait<U>`, check if the substituted type in the implied-by bound matches with what's
 /// substituted in the implied bound.
@@ -186,7 +176,6 @@ fn is_same_generics<'tcx>(
     // Get the generics of the two traits to be able to get default generic parameter.
     let implied_by_generics = tcx.generics_of(implied_by_def_id);
     let implied_generics = tcx.generics_of(implied_def_id);
-
     trait_predicate_args
         .iter()
         .enumerate()
@@ -211,7 +200,6 @@ fn is_same_generics<'tcx>(
             }
         })
 }
-
 struct ImplTraitBound<'tcx> {
     /// The span of the bound in the `impl Trait` type
     span: Span,
@@ -225,7 +213,6 @@ struct ImplTraitBound<'tcx> {
     /// The associated item constraints of this bound
     constraints: &'tcx [AssocItemConstraint<'tcx>],
 }
-
 /// Given an `impl Trait` type, gets all the supertraits from each bound ("implied bounds").
 ///
 /// For `impl Deref + DerefMut + Eq` this returns `[Deref, PartialEq]`.
@@ -257,7 +244,6 @@ fn collect_supertrait_bounds<'tcx>(cx: &LateContext<'tcx>, bounds: GenericBounds
         })
         .collect()
 }
-
 /// Given a bound in an `impl Trait` type, looks for a trait in the set of supertraits (previously
 /// collected in [`collect_supertrait_bounds`]) that matches (same trait and generic arguments).
 fn find_bound_in_supertraits<'a, 'tcx>(
@@ -285,7 +271,6 @@ fn find_bound_in_supertraits<'a, 'tcx>(
         })
     })
 }
-
 fn check<'tcx>(cx: &LateContext<'tcx>, bounds: GenericBounds<'tcx>) {
     if bounds.len() == 1 {
         // Very often there is only a single bound, e.g. `impl Deref<..>`, in which case
@@ -293,9 +278,7 @@ fn check<'tcx>(cx: &LateContext<'tcx>, bounds: GenericBounds<'tcx>) {
         // no duplicate bounds
         return;
     }
-
     let supertraits = collect_supertrait_bounds(cx, bounds);
-
     // Lint all bounds in the `impl Trait` type that we've previously also seen in the set of
     // supertraits of each of the bounds.
     // This involves some extra logic when generic arguments are present, since
@@ -322,7 +305,6 @@ fn check<'tcx>(cx: &LateContext<'tcx>, bounds: GenericBounds<'tcx>) {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for ImpliedBoundsInImpls {
     fn check_generics(&mut self, cx: &LateContext<'tcx>, generics: &rustc_hir::Generics<'tcx>) {
         for predicate in generics.predicates {
@@ -336,7 +318,6 @@ impl<'tcx> LateLintPass<'tcx> for ImpliedBoundsInImpls {
             }
         }
     }
-
     fn check_ty(&mut self, cx: &LateContext<'tcx>, ty: &rustc_hir::Ty<'tcx, AmbigArg>) {
         if let TyKind::OpaqueDef(opaque_ty, ..) = ty.kind {
             check(cx, opaque_ty.bounds);

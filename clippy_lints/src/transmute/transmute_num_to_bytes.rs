@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::TRANSMUTE_NUM_TO_BYTES;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
@@ -6,7 +8,6 @@ use rustc_errors::Applicability;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty, UintTy};
-
 /// Checks for `transmute_int_to_float` lint.
 /// Returns `true` if it's triggered, otherwise returns `false`.
 pub(super) fn check<'tcx>(
@@ -27,7 +28,6 @@ pub(super) fn check<'tcx>(
             {
                 return false;
             }
-
             span_lint_and_then(
                 cx,
                 TRANSMUTE_NUM_TO_BYTES,

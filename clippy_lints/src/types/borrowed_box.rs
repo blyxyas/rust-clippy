@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::BORROWED_BOX;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
 use rustc_errors::Applicability;
@@ -6,9 +9,6 @@ use rustc_hir::{
 };
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::BORROWED_BOX;
-
 pub(super) fn check(cx: &LateContext<'_>, hir_ty: &hir::Ty<'_>, lt: &Lifetime, mut_ty: &MutTy<'_>) -> bool {
     match mut_ty.ty.kind {
         TyKind::Path(ref qpath) => {
@@ -29,19 +29,16 @@ pub(super) fn check(cx: &LateContext<'_>, hir_ty: &hir::Ty<'_>, lt: &Lifetime, m
                     // Ignore `Box<Any>` types; see issue #1884 for details.
                     return false;
                 }
-
                 let ltopt = if lt.is_anonymous() {
                     String::new()
                 } else {
                     format!("{} ", lt.ident.as_str())
                 };
-
                 if mut_ty.mutbl == Mutability::Mut {
                     // Ignore `&mut Box<T>` types; see issue #2907 for
                     // details.
                     return false;
                 }
-
                 // When trait objects or opaque types have lifetime or auto-trait bounds,
                 // we need to add parentheses to avoid a syntax error due to its ambiguity.
                 // Originally reported as the issue #3128.
@@ -77,7 +74,6 @@ pub(super) fn check(cx: &LateContext<'_>, hir_ty: &hir::Ty<'_>, lt: &Lifetime, m
         _ => false,
     }
 }
-
 // Returns true if given type is `Any` trait.
 fn is_any_trait(cx: &LateContext<'_>, t: &hir::Ty<'_>) -> bool {
     if let TyKind::TraitObject(traits, ..) = t.kind {
@@ -90,10 +86,8 @@ fn is_any_trait(cx: &LateContext<'_>, t: &hir::Ty<'_>) -> bool {
             false
         });
     }
-
     false
 }
-
 fn get_bounds_if_impl_trait<'tcx>(cx: &LateContext<'tcx>, qpath: &QPath<'_>, id: HirId) -> Option<GenericBounds<'tcx>> {
     if let Some(did) = cx.qpath_res(qpath, id).opt_def_id()
         && let Some(Node::GenericParam(generic_param)) = cx.tcx.hir_get_if_local(did)

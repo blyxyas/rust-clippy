@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use crate::manual_let_else::MANUAL_LET_ELSE;
 use crate::question_mark_used::QUESTION_MARK_USED;
 use clippy_config::Conf;
@@ -23,7 +25,6 @@ use rustc_middle::ty::{self, Ty};
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
 use rustc_span::symbol::Symbol;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for expressions that could be replaced by the question mark operator.
@@ -48,7 +49,6 @@ declare_clippy_lint! {
     style,
     "checks for expressions that could be replaced by the question mark operator"
 }
-
 pub struct QuestionMark {
     pub(crate) msrv: Msrv,
     pub(crate) matches_behaviour: MatchLintBehaviour,
@@ -62,9 +62,7 @@ pub struct QuestionMark {
     /// with the `Err(x.into())` expansion being ambiguous.
     inferred_ret_closure_stack: u16,
 }
-
 impl_lint_pass!(QuestionMark => [QUESTION_MARK, MANUAL_LET_ELSE]);
-
 impl QuestionMark {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -75,7 +73,6 @@ impl QuestionMark {
         }
     }
 }
-
 enum IfBlockType<'hir> {
     /// An `if x.is_xxx() { a } else { b } ` expression.
     ///
@@ -94,7 +91,6 @@ enum IfBlockType<'hir> {
         Option<&'hir Expr<'hir>>,
     ),
 }
-
 fn find_let_else_ret_expression<'hir>(block: &'hir Block<'hir>) -> Option<&'hir Expr<'hir>> {
     if let Block {
         stmts: [],
@@ -112,7 +108,6 @@ fn find_let_else_ret_expression<'hir>(block: &'hir Block<'hir>) -> Option<&'hir 
         None
     }
 }
-
 fn check_let_some_else_return_none(cx: &LateContext<'_>, stmt: &Stmt<'_>) {
     /// Make sure the init expr implements try trait so a valid suggestion could be given.
     ///
@@ -131,7 +126,6 @@ fn check_let_some_else_return_none(cx: &LateContext<'_>, stmt: &Stmt<'_>) {
             .try_trait()
             .is_some_and(|did| implements_trait(cx, init_ty, did, &[]))
     }
-
     if let StmtKind::Let(LetStmt {
         pat,
         init: Some(init_expr),
@@ -158,7 +152,6 @@ fn check_let_some_else_return_none(cx: &LateContext<'_>, stmt: &Stmt<'_>) {
         );
     }
 }
-
 fn is_early_return(smbl: Symbol, cx: &LateContext<'_>, if_block: &IfBlockType<'_>) -> bool {
     match *if_block {
         IfBlockType::IfIs(caller, caller_ty, call_sym, if_then) => {
@@ -195,7 +188,6 @@ fn is_early_return(smbl: Symbol, cx: &LateContext<'_>, if_block: &IfBlockType<'_
         },
     }
 }
-
 fn expr_return_none_or_err(
     smbl: Symbol,
     cx: &LateContext<'_>,
@@ -225,7 +217,6 @@ fn expr_return_none_or_err(
         _ => false,
     }
 }
-
 /// Checks if the given expression on the given context matches the following structure:
 ///
 /// ```ignore
@@ -262,7 +253,6 @@ fn check_is_none_or_err_and_early_return<'tcx>(cx: &LateContext<'tcx>, expr: &Ex
         } else {
             format!("{receiver_str}{}?;", if by_ref { ".as_ref()" } else { "" })
         };
-
         span_lint_and_sugg(
             cx,
             QUESTION_MARK,
@@ -274,26 +264,22 @@ fn check_is_none_or_err_and_early_return<'tcx>(cx: &LateContext<'tcx>, expr: &Ex
         );
     }
 }
-
 #[derive(Clone, Copy, Debug)]
 enum TryMode {
     Result,
     Option,
 }
-
 fn find_try_mode<'tcx>(cx: &LateContext<'tcx>, scrutinee: &Expr<'tcx>) -> Option<TryMode> {
     let scrutinee_ty = cx.typeck_results().expr_ty_adjusted(scrutinee);
     let ty::Adt(scrutinee_adt_def, _) = scrutinee_ty.kind() else {
         return None;
     };
-
     match cx.tcx.get_diagnostic_name(scrutinee_adt_def.did())? {
         sym::Result => Some(TryMode::Result),
         sym::Option => Some(TryMode::Option),
         _ => None,
     }
 }
-
 // Check that `pat` is `{ctor_lang_item}(val)`, returning `val`.
 fn extract_ctor_call<'a, 'tcx>(
     cx: &LateContext<'tcx>,
@@ -308,7 +294,6 @@ fn extract_ctor_call<'a, 'tcx>(
         None
     }
 }
-
 // Extracts the local ID of a plain `val` pattern.
 fn extract_binding_pat(pat: &Pat<'_>) -> Option<HirId> {
     if let PatKind::Binding(BindingMode::NONE, binding, _, None) = pat.kind {
@@ -317,13 +302,11 @@ fn extract_binding_pat(pat: &Pat<'_>) -> Option<HirId> {
         None
     }
 }
-
 fn check_arm_is_some_or_ok<'tcx>(cx: &LateContext<'tcx>, mode: TryMode, arm: &Arm<'tcx>) -> bool {
     let happy_ctor = match mode {
         TryMode::Result => ResultOk,
         TryMode::Option => OptionSome,
     };
-
     // Check for `Ok(val)` or `Some(val)`
     if arm.guard.is_none()
         && let Some(val_binding) = extract_ctor_call(cx, happy_ctor, arm.pat)
@@ -337,12 +320,10 @@ fn check_arm_is_some_or_ok<'tcx>(cx: &LateContext<'tcx>, mode: TryMode, arm: &Ar
         false
     }
 }
-
 fn check_arm_is_none_or_err<'tcx>(cx: &LateContext<'tcx>, mode: TryMode, arm: &Arm<'tcx>) -> bool {
     if arm.guard.is_some() {
         return false;
     }
-
     let arm_body = peel_blocks(arm.body);
     match mode {
         TryMode::Result => {
@@ -376,12 +357,10 @@ fn check_arm_is_none_or_err<'tcx>(cx: &LateContext<'tcx>, mode: TryMode, arm: &A
         },
     }
 }
-
 fn check_arms_are_try<'tcx>(cx: &LateContext<'tcx>, mode: TryMode, arm1: &Arm<'tcx>, arm2: &Arm<'tcx>) -> bool {
     (check_arm_is_some_or_ok(cx, mode, arm1) && check_arm_is_none_or_err(cx, mode, arm2))
         || (check_arm_is_some_or_ok(cx, mode, arm2) && check_arm_is_none_or_err(cx, mode, arm1))
 }
-
 fn check_if_try_match<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
     if let ExprKind::Match(scrutinee, [arm1, arm2], MatchSource::Normal | MatchSource::Postfix) = expr.kind
         && !expr.span.from_expansion()
@@ -391,7 +370,6 @@ fn check_if_try_match<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
     {
         let mut applicability = Applicability::MachineApplicable;
         let snippet = snippet_with_applicability(cx, scrutinee.span.source_callsite(), "..", &mut applicability);
-
         span_lint_and_sugg(
             cx,
             QUESTION_MARK,
@@ -403,7 +381,6 @@ fn check_if_try_match<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
         );
     }
 }
-
 fn check_if_let_some_or_err_and_early_return<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
     if let Some(higher::IfLet {
         let_pat,
@@ -455,13 +432,11 @@ fn check_if_let_some_or_err_and_early_return<'tcx>(cx: &LateContext<'tcx>, expr:
         );
     }
 }
-
 impl QuestionMark {
     fn inside_try_block(&self) -> bool {
         self.try_block_depth_stack.last() > Some(&0)
     }
 }
-
 fn is_try_block(cx: &LateContext<'_>, bl: &Block<'_>) -> bool {
     if let Some(expr) = bl.expr
         && let ExprKind::Call(callee, [_]) = expr.kind
@@ -471,53 +446,44 @@ fn is_try_block(cx: &LateContext<'_>, bl: &Block<'_>) -> bool {
         false
     }
 }
-
 fn is_inferred_ret_closure(expr: &Expr<'_>) -> bool {
     let ExprKind::Closure(closure) = expr.kind else {
         return false;
     };
-
     match closure.fn_decl.output {
         FnRetTy::Return(ret_ty) => ret_ty.is_suggestable_infer_ty(),
         FnRetTy::DefaultReturn(_) => true,
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for QuestionMark {
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'_>) {
         if !is_lint_allowed(cx, QUESTION_MARK_USED, stmt.hir_id) {
             return;
         }
-
         if !self.inside_try_block() && !is_in_const_context(cx) {
             check_let_some_else_return_none(cx, stmt);
         }
         self.check_manual_let_else(cx, stmt);
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if is_inferred_ret_closure(expr) {
             self.inferred_ret_closure_stack += 1;
             return;
         }
-
         if !self.inside_try_block() && !is_in_const_context(cx) && is_lint_allowed(cx, QUESTION_MARK_USED, expr.hir_id)
         {
             check_is_none_or_err_and_early_return(cx, expr);
             check_if_let_some_or_err_and_early_return(cx, expr);
-
             if self.inferred_ret_closure_stack == 0 {
                 check_if_try_match(cx, expr);
             }
         }
     }
-
     fn check_expr_post(&mut self, _: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if is_inferred_ret_closure(expr) {
             self.inferred_ret_closure_stack -= 1;
         }
     }
-
     fn check_block(&mut self, cx: &LateContext<'tcx>, block: &'tcx Block<'tcx>) {
         if is_try_block(cx, block) {
             *self
@@ -526,15 +492,12 @@ impl<'tcx> LateLintPass<'tcx> for QuestionMark {
                 .expect("blocks are always part of bodies and must have a depth") += 1;
         }
     }
-
     fn check_body(&mut self, _: &LateContext<'tcx>, _: &Body<'tcx>) {
         self.try_block_depth_stack.push(0);
     }
-
     fn check_body_post(&mut self, _: &LateContext<'tcx>, _: &Body<'tcx>) {
         self.try_block_depth_stack.pop();
     }
-
     fn check_block_post(&mut self, cx: &LateContext<'tcx>, block: &'tcx Block<'tcx>) {
         if is_try_block(cx, block) {
             *self

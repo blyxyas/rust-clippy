@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_then};
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::{def_path_def_ids, is_lint_allowed, match_any_def_paths, peel_hir_expr_refs};
@@ -14,9 +16,7 @@ use rustc_middle::ty::{self, Ty};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::symbol::Symbol;
-
 use std::str;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of def paths when a diagnostic item or a `LangItem` could be used.
@@ -38,34 +38,28 @@ declare_clippy_lint! {
     internal,
     "using a def path when a diagnostic item or a `LangItem` is available"
 }
-
 impl_lint_pass!(UnnecessaryDefPath => [UNNECESSARY_DEF_PATH]);
-
 #[derive(Default)]
 pub struct UnnecessaryDefPath {
     array_def_ids: FxIndexSet<(DefId, Span)>,
     linted_def_ids: FxHashSet<DefId>,
 }
-
 impl<'tcx> LateLintPass<'tcx> for UnnecessaryDefPath {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if is_lint_allowed(cx, UNNECESSARY_DEF_PATH, expr.hir_id) {
             return;
         }
-
         match expr.kind {
             ExprKind::Call(func, args) => self.check_call(cx, func, args, expr.span),
             ExprKind::Array(elements) => self.check_array(cx, elements, expr.span),
             _ => {},
         }
     }
-
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
         for &(def_id, span) in &self.array_def_ids {
             if self.linted_def_ids.contains(&def_id) {
                 continue;
             }
-
             let (msg, sugg) = if let Some(sym) = cx.tcx.get_diagnostic_name(def_id) {
                 ("diagnostic item", format!("sym::{sym}"))
             } else if let Some(sym) = get_lang_item_name(cx, def_id) {
@@ -73,7 +67,6 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessaryDefPath {
             } else {
                 continue;
             };
-
             span_lint_and_help(
                 cx,
                 UNNECESSARY_DEF_PATH,
@@ -85,7 +78,6 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessaryDefPath {
         }
     }
 }
-
 impl UnnecessaryDefPath {
     #[allow(clippy::too_many_lines)]
     fn check_call(&mut self, cx: &LateContext<'_>, func: &Expr<'_>, args: &[Expr<'_>], span: Span) {
@@ -99,7 +91,6 @@ impl UnnecessaryDefPath {
             &["clippy_utils", "ty", "match_type"],
             &["clippy_utils", "is_expr_path_def_path"],
         ];
-
         if let [cx_arg, def_arg, args @ ..] = args
             && let ExprKind::Path(path) = &func.kind
             && let Some(id) = cx.qpath_res(path, func.hir_id).opt_def_id()
@@ -127,7 +118,6 @@ impl UnnecessaryDefPath {
             } else {
                 return;
             };
-
             let has_ctor = match cx.tcx.def_kind(def_id) {
                 DefKind::Struct => {
                     let variant = cx.tcx.adt_def(def_id).non_enum_variant();
@@ -139,7 +129,6 @@ impl UnnecessaryDefPath {
                 },
                 _ => false,
             };
-
             let mut app = Applicability::MachineApplicable;
             let cx_snip = snippet_with_applicability(cx, cx_arg.span, "..", &mut app);
             let def_snip = snippet_with_applicability(cx, def_arg.span, "..", &mut app);
@@ -188,7 +177,6 @@ impl UnnecessaryDefPath {
                 ),
                 _ => return,
             };
-
             span_lint_and_then(cx, UNNECESSARY_DEF_PATH, span, msg, |diag| {
                 diag.span_suggestion(span, "try", sugg, app);
                 if with_note {
@@ -198,20 +186,16 @@ impl UnnecessaryDefPath {
                     );
                 }
             });
-
             self.linted_def_ids.insert(def_id);
         }
     }
-
     fn check_array(&mut self, cx: &LateContext<'_>, elements: &[Expr<'_>], span: Span) {
         let Some(path) = path_from_array(elements) else { return };
-
         for def_id in def_path_def_ids(cx.tcx, &path.iter().map(AsRef::as_ref).collect::<Vec<_>>()) {
             self.array_def_ids.insert((def_id, span));
         }
     }
 }
-
 fn path_to_matched_type(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<Vec<String>> {
     match peel_hir_expr_refs(expr).0.kind {
         ExprKind::Path(ref qpath) => match cx.qpath_res(qpath, expr.hir_id) {
@@ -240,7 +224,6 @@ fn path_to_matched_type(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<Vec<Str
         _ => None,
     }
 }
-
 fn read_mir_alloc_def_path<'tcx>(cx: &LateContext<'tcx>, alloc: &'tcx Allocation, ty: Ty<'_>) -> Option<Vec<String>> {
     let (alloc, ty) = if let ty::Ref(_, ty, Mutability::Not) = *ty.kind() {
         let &alloc = alloc.provenance().ptrs().values().next()?;
@@ -252,7 +235,6 @@ fn read_mir_alloc_def_path<'tcx>(cx: &LateContext<'tcx>, alloc: &'tcx Allocation
     } else {
         (alloc, ty)
     };
-
     if let ty::Array(ty, _) | ty::Slice(ty) = *ty.kind()
         && let ty::Ref(_, ty, Mutability::Not) = *ty.kind()
         && ty.is_str()
@@ -276,7 +258,6 @@ fn read_mir_alloc_def_path<'tcx>(cx: &LateContext<'tcx>, alloc: &'tcx Allocation
         None
     }
 }
-
 fn path_from_array(exprs: &[Expr<'_>]) -> Option<Vec<String>> {
     exprs
         .iter()
@@ -286,12 +267,10 @@ fn path_from_array(exprs: &[Expr<'_>]) -> Option<Vec<String>> {
                     return Some((*sym.as_str()).to_owned());
                 }
             }
-
             None
         })
         .collect()
 }
-
 fn get_lang_item_name(cx: &LateContext<'_>, def_id: DefId) -> Option<&'static str> {
     if let Some((lang_item, _)) = cx.tcx.lang_items().iter().find(|(_, id)| *id == def_id) {
         Some(lang_item.variant_name())

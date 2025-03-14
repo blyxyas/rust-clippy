@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::macros::matching_root_macro_call;
 use clippy_utils::sugg::Sugg;
@@ -11,7 +13,6 @@ use rustc_hir::{BindingMode, Block, Expr, ExprKind, HirId, PatKind, Stmt, StmtKi
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::symbol::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks slow zero-filled vector initialization
@@ -55,24 +56,19 @@ declare_clippy_lint! {
     perf,
     "slow vector initialization"
 }
-
 declare_lint_pass!(SlowVectorInit => [SLOW_VECTOR_INITIALIZATION]);
-
 /// `VecAllocation` contains data regarding a vector allocated with `with_capacity` and then
 /// assigned to a variable. For example, `let mut vec = Vec::with_capacity(0)` or
 /// `vec = Vec::with_capacity(0)`
 struct VecAllocation<'tcx> {
     /// `HirId` of the variable
     local_id: HirId,
-
     /// Reference to the expression which allocates the vector
     allocation_expr: &'tcx Expr<'tcx>,
-
     /// Reference to the expression used as argument on `with_capacity` call. This is used
     /// to only match slow zero-filling idioms of the same length than vector initialization.
     size_expr: InitializedSize<'tcx>,
 }
-
 /// Initializer for the creation of the vector.
 ///
 /// When `Vec::with_capacity(size)` is found, the `size` expression will be in
@@ -89,16 +85,13 @@ enum InitializedSize<'tcx> {
     Initialized(&'tcx Expr<'tcx>),
     Uninitialized,
 }
-
 /// Type of slow initialization
 enum InitializationType<'tcx> {
     /// Extend is a slow initialization with the form `vec.extend(repeat(0).take(..))`
     Extend(&'tcx Expr<'tcx>),
-
     /// Resize is a slow initialization with the form `vec.resize(.., 0)`
     Resize(&'tcx Expr<'tcx>),
 }
-
 impl<'tcx> LateLintPass<'tcx> for SlowVectorInit {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         // Matches initialization on reassignments. For example: `vec = Vec::with_capacity(100)`
@@ -111,11 +104,9 @@ impl<'tcx> LateLintPass<'tcx> for SlowVectorInit {
                 allocation_expr: right,
                 size_expr,
             };
-
             Self::search_initialization(cx, vi, expr.hir_id);
         }
     }
-
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'_>) {
         // Matches statements which initializes vectors. For example: `let mut vec = Vec::with_capacity(10)`
         // or `Vec::new()`
@@ -129,12 +120,10 @@ impl<'tcx> LateLintPass<'tcx> for SlowVectorInit {
                 allocation_expr: init,
                 size_expr,
             };
-
             Self::search_initialization(cx, vi, stmt.hir_id);
         }
     }
 }
-
 impl SlowVectorInit {
     /// Looks for `Vec::with_capacity(size)` or `Vec::new()` calls and returns the initialized size,
     /// if any. More specifically, it returns:
@@ -148,7 +137,6 @@ impl SlowVectorInit {
         if expr.span.from_expansion() && matching_root_macro_call(cx, expr.span, sym::vec_macro).is_none() {
             return None;
         }
-
         if let ExprKind::Call(func, [len_expr]) = expr.kind
             && is_path_diagnostic_item(cx, func, sym::vec_with_capacity)
         {
@@ -159,29 +147,23 @@ impl SlowVectorInit {
             None
         }
     }
-
     /// Search initialization for the given vector
     fn search_initialization<'tcx>(cx: &LateContext<'tcx>, vec_alloc: VecAllocation<'tcx>, parent_node: HirId) {
         let enclosing_body = get_enclosing_block(cx, parent_node);
-
         if enclosing_body.is_none() {
             return;
         }
-
         let mut v = VectorInitializationVisitor {
             cx,
             vec_alloc,
             slow_expression: None,
             initialization_found: false,
         };
-
         v.visit_block(enclosing_body.unwrap());
-
         if let Some(ref allocation_expr) = v.slow_expression {
             Self::lint_initialization(cx, allocation_expr, &v.vec_alloc);
         }
     }
-
     fn lint_initialization<'tcx>(
         cx: &LateContext<'tcx>,
         initialization: &InitializationType<'tcx>,
@@ -193,7 +175,6 @@ impl SlowVectorInit {
             },
         }
     }
-
     fn emit_lint(cx: &LateContext<'_>, slow_fill: &Expr<'_>, vec_alloc: &VecAllocation<'_>, msg: &'static str) {
         let len_expr = Sugg::hir(
             cx,
@@ -203,18 +184,15 @@ impl SlowVectorInit {
             },
             "len",
         );
-
         let span_to_replace = slow_fill
             .span
             .with_lo(vec_alloc.allocation_expr.span.source_callsite().lo());
-
         // If there is no comment in `span_to_replace`, Clippy can automatically fix the code.
         let app = if span_contains_comment(cx.tcx.sess.source_map(), span_to_replace) {
             Applicability::Unspecified
         } else {
             Applicability::MachineApplicable
         };
-
         span_lint_and_sugg(
             cx,
             SLOW_VECTOR_INITIALIZATION,
@@ -226,22 +204,17 @@ impl SlowVectorInit {
         );
     }
 }
-
 /// `VectorInitializationVisitor` searches for unsafe or slow vector initializations for the given
 /// vector.
 struct VectorInitializationVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
-
     /// Contains the information.
     vec_alloc: VecAllocation<'tcx>,
-
     /// Contains the slow initialization expression, if one was found.
     slow_expression: Option<InitializationType<'tcx>>,
-
     /// `true` if the initialization of the vector has been found on the visited block.
     initialization_found: bool,
 }
-
 impl<'tcx> VectorInitializationVisitor<'_, 'tcx> {
     /// Checks if the given expression is extending a vector with `repeat(0).take(..)`
     fn search_slow_extend_filling(&mut self, expr: &'tcx Expr<'_>) {
@@ -254,7 +227,6 @@ impl<'tcx> VectorInitializationVisitor<'_, 'tcx> {
             self.slow_expression = Some(InitializationType::Extend(expr));
         }
     }
-
     /// Checks if the given expression is resizing a vector with 0
     fn search_slow_resize_filling(&mut self, expr: &'tcx Expr<'tcx>) {
         if self.initialization_found
@@ -272,13 +244,11 @@ impl<'tcx> VectorInitializationVisitor<'_, 'tcx> {
                 self.vec_alloc.size_expr = InitializedSize::Initialized(len_arg);
                 true
             };
-
             if is_matching_resize {
                 self.slow_expression = Some(InitializationType::Resize(expr));
             }
         }
     }
-
     /// Returns `true` if give expression is `repeat(0).take(...)`
     fn is_repeat_take(&mut self, expr: &'tcx Expr<'tcx>) -> bool {
         if let ExprKind::MethodCall(take_path, recv, [len_arg], _) = expr.kind
@@ -291,14 +261,11 @@ impl<'tcx> VectorInitializationVisitor<'_, 'tcx> {
                 return SpanlessEq::new(self.cx).eq_expr(len_arg, size_expr)
                     || matches!(len_arg.kind, ExprKind::MethodCall(path, ..) if path.ident.as_str() == "capacity");
             }
-
             self.vec_alloc.size_expr = InitializedSize::Initialized(len_arg);
             return true;
         }
-
         false
     }
-
     /// Returns `true` if given expression is `repeat(0)`
     fn is_repeat_zero(&self, expr: &Expr<'_>) -> bool {
         if let ExprKind::Call(fn_expr, [repeat_arg]) = expr.kind
@@ -311,7 +278,6 @@ impl<'tcx> VectorInitializationVisitor<'_, 'tcx> {
         }
     }
 }
-
 impl<'tcx> Visitor<'tcx> for VectorInitializationVisitor<'_, 'tcx> {
     fn visit_stmt(&mut self, stmt: &'tcx Stmt<'_>) {
         if self.initialization_found {
@@ -322,31 +288,26 @@ impl<'tcx> Visitor<'tcx> for VectorInitializationVisitor<'_, 'tcx> {
                 },
                 _ => (),
             }
-
             self.initialization_found = false;
         } else {
             walk_stmt(self, stmt);
         }
     }
-
     fn visit_block(&mut self, block: &'tcx Block<'_>) {
         if self.initialization_found {
             if let Some(s) = block.stmts.first() {
                 self.visit_stmt(s);
             }
-
             self.initialization_found = false;
         } else {
             walk_block(self, block);
         }
     }
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         // Skip all the expressions previous to the vector initialization
         if self.vec_alloc.allocation_expr.hir_id == expr.hir_id {
             self.initialization_found = true;
         }
-
         walk_expr(self, expr);
     }
 }

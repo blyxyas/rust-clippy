@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_config::types::{DisallowedPath, create_disallowed_map};
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -7,7 +9,6 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Denies the configured methods and functions in clippy.toml
@@ -56,11 +57,9 @@ declare_clippy_lint! {
     style,
     "use of a disallowed method call"
 }
-
 pub struct DisallowedMethods {
     disallowed: DefIdMap<(&'static str, &'static DisallowedPath)>,
 }
-
 impl DisallowedMethods {
     pub fn new(tcx: TyCtxt<'_>, conf: &'static Conf) -> Self {
         Self {
@@ -68,9 +67,7 @@ impl DisallowedMethods {
         }
     }
 }
-
 impl_lint_pass!(DisallowedMethods => [DISALLOWED_METHODS]);
-
 impl<'tcx> LateLintPass<'tcx> for DisallowedMethods {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         let (id, span) = match &expr.kind {

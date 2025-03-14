@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::{FLOAT_CMP, FLOAT_CMP_CONST};
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::get_item_name;
@@ -6,9 +9,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Expr, ExprKind, UnOp};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
-
-use super::{FLOAT_CMP, FLOAT_CMP_CONST};
-
 pub(crate) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -28,12 +28,10 @@ pub(crate) fn check<'tcx>(
             Some(_) => return,
             None => true,
         };
-
         // Allow comparing the results of signum()
         if is_signum(cx, left) && is_signum(cx, right) {
             return;
         }
-
         if let Some(name) = get_item_name(cx, expr) {
             let name = name.as_str();
             if name == "eq" || name == "ne" || name == "is_nan" || name.starts_with("eq_") || name.ends_with("_eq") {
@@ -45,7 +43,6 @@ pub(crate) fn check<'tcx>(
         span_lint_and_then(cx, lint, expr.span, msg, |diag| {
             let lhs = Sugg::hir(cx, left, "..");
             let rhs = Sugg::hir(cx, right, "..");
-
             if !is_comparing_arrays {
                 diag.span_suggestion(
                     expr.span,
@@ -61,7 +58,6 @@ pub(crate) fn check<'tcx>(
         });
     }
 }
-
 fn get_lint_and_message(is_local: bool, is_comparing_arrays: bool) -> (&'static rustc_lint::Lint, &'static str) {
     if is_local {
         (
@@ -83,7 +79,6 @@ fn get_lint_and_message(is_local: bool, is_comparing_arrays: bool) -> (&'static 
         )
     }
 }
-
 fn is_allowed(val: &Constant<'_>) -> bool {
     match val {
         // FIXME(f16_f128): add when equality check is available on all platforms
@@ -97,14 +92,12 @@ fn is_allowed(val: &Constant<'_>) -> bool {
         _ => false,
     }
 }
-
 // Return true if `expr` is the result of `signum()` invoked on a float value.
 fn is_signum(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     // The negation of a signum is still a signum
     if let ExprKind::Unary(UnOp::Neg, child_expr) = expr.kind {
         return is_signum(cx, child_expr);
     }
-
     if let ExprKind::MethodCall(method_name, self_arg, [], _) = expr.kind
         && method_name.ident.name.as_str() == "signum"
     // Check that the receiver of the signum() is a float (expressions[0] is the receiver of
@@ -114,17 +107,13 @@ fn is_signum(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     }
     false
 }
-
 fn is_float(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     let value = &cx.typeck_results().expr_ty(expr).peel_refs().kind();
-
     if let ty::Array(arr_ty, _) = value {
         return matches!(arr_ty.kind(), ty::Float(_));
     }
-
     matches!(value, ty::Float(_))
 }
-
 fn is_array(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     matches!(&cx.typeck_results().expr_ty(expr).peel_refs().kind(), ty::Array(_, _))
 }

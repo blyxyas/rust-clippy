@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_lint_allowed;
 use clippy_utils::macros::span_is_local;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use unicode_normalization::UnicodeNormalization;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for invisible Unicode characters in the code.
@@ -26,7 +27,6 @@ declare_clippy_lint! {
     correctness,
     "using an invisible character in a string literal, which is confusing"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for non-ASCII characters in string and char literals.
@@ -52,7 +52,6 @@ declare_clippy_lint! {
     restriction,
     "using any literal non-ASCII chars in a string literal instead of using the `\\u` escape"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for string literals that contain Unicode in a form
@@ -71,9 +70,7 @@ declare_clippy_lint! {
     pedantic,
     "using a Unicode literal not in NFC normal form (see [Unicode tr15](http://www.unicode.org/reports/tr15/) for further information)"
 }
-
 declare_lint_pass!(Unicode => [INVISIBLE_CHARACTERS, NON_ASCII_LITERAL, UNICODE_NOT_NFC]);
-
 impl LateLintPass<'_> for Unicode {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &'_ Expr<'_>) {
         if let ExprKind::Lit(lit) = expr.kind {
@@ -83,7 +80,6 @@ impl LateLintPass<'_> for Unicode {
         }
     }
 }
-
 fn escape<T: Iterator<Item = char>>(s: T) -> String {
     let mut result = String::new();
     for c in s {
@@ -97,12 +93,10 @@ fn escape<T: Iterator<Item = char>>(s: T) -> String {
     }
     result
 }
-
 fn check_str(cx: &LateContext<'_>, span: Span, id: HirId) {
     if !span_is_local(span) {
         return;
     }
-
     let string = snippet(cx, span, "");
     if string.chars().any(|c| ['\u{200B}', '\u{ad}', '\u{2060}'].contains(&c)) {
         #[expect(clippy::collapsible_span_lint_calls, reason = "rust-clippy#7797")]
@@ -118,7 +112,6 @@ fn check_str(cx: &LateContext<'_>, span: Span, id: HirId) {
             );
         });
     }
-
     if string.chars().any(|c| c as u32 > 0x7F) {
         #[expect(clippy::collapsible_span_lint_calls, reason = "rust-clippy#7797")]
         span_lint_and_then(
@@ -140,7 +133,6 @@ fn check_str(cx: &LateContext<'_>, span: Span, id: HirId) {
             },
         );
     }
-
     if is_lint_allowed(cx, NON_ASCII_LITERAL, id) && string.chars().zip(string.nfc()).any(|(a, b)| a != b) {
         #[expect(clippy::collapsible_span_lint_calls, reason = "rust-clippy#7797")]
         span_lint_and_then(cx, UNICODE_NOT_NFC, span, "non-NFC Unicode sequence detected", |diag| {

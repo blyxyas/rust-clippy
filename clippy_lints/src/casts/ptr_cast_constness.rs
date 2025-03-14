@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::PTR_CAST_CONSTNESS;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::std_or_core;
@@ -7,9 +10,6 @@ use rustc_hir::{Expr, ExprKind, Mutability, QPath};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty, TypeVisitableExt};
 use rustc_span::sym;
-
-use super::PTR_CAST_CONSTNESS;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -51,14 +51,12 @@ pub(super) fn check<'tcx>(
             );
             return;
         }
-
         if msrv.meets(cx, msrvs::POINTER_CAST_CONSTNESS) {
             let sugg = Sugg::hir(cx, cast_expr, "_");
             let constness = match *to_mutbl {
                 Mutability::Not => "const",
                 Mutability::Mut => "mut",
             };
-
             span_lint_and_sugg(
                 cx,
                 PTR_CAST_CONSTNESS,
@@ -71,7 +69,6 @@ pub(super) fn check<'tcx>(
         }
     }
 }
-
 pub(super) fn check_null_ptr_cast_method(cx: &LateContext<'_>, expr: &Expr<'_>) {
     if let ExprKind::MethodCall(method, cast_expr, [], _) = expr.kind
         && let ExprKind::Call(func, []) = cast_expr.kind

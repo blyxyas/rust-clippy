@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::{snippet, snippet_with_applicability, snippet_with_context};
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -8,7 +10,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, Ty};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `option.map(f)` where f is a function
@@ -50,7 +51,6 @@ declare_clippy_lint! {
     complexity,
     "using `option.map(f)`, where `f` is a function or closure that returns `()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `result.map(f)` where f is a function
@@ -91,16 +91,12 @@ declare_clippy_lint! {
     complexity,
     "using `result.map(f)`, where `f` is a function or closure that returns `()`"
 }
-
 declare_lint_pass!(MapUnit => [OPTION_MAP_UNIT_FN, RESULT_MAP_UNIT_FN]);
-
 fn is_unit_type(ty: Ty<'_>) -> bool {
     ty.is_unit() || ty.is_never()
 }
-
 fn is_unit_function(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> bool {
     let ty = cx.typeck_results().expr_ty(expr);
-
     if let ty::FnDef(id, _) = *ty.kind() {
         if let Some(fn_type) = cx.tcx.fn_sig(id).instantiate_identity().no_bound_vars() {
             return is_unit_type(fn_type.output());
@@ -108,11 +104,9 @@ fn is_unit_function(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> bool {
     }
     false
 }
-
 fn is_unit_expression(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> bool {
     is_unit_type(cx.typeck_results().expr_ty(expr))
 }
-
 /// The expression inside a closure may or may not have surrounding braces and
 /// semicolons, which causes problems when generating a suggestion. Given an
 /// expression that evaluates to '()' or '!', recursively remove useless braces
@@ -121,7 +115,6 @@ fn reduce_unit_expression(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> Option<
     if !is_unit_expression(cx, expr) {
         return None;
     }
-
     match expr.kind {
         hir::ExprKind::Call(_, _) | hir::ExprKind::MethodCall(..) => {
             // Calls can't be reduced any more
@@ -157,7 +150,6 @@ fn reduce_unit_expression(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> Option<
         _ => None,
     }
 }
-
 fn unit_closure<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &hir::Expr<'_>,
@@ -173,7 +165,6 @@ fn unit_closure<'tcx>(
     }
     None
 }
-
 /// Builds a name for the let binding variable (`var_arg`)
 ///
 /// `x.field` => `x_field`
@@ -187,12 +178,10 @@ fn let_binding_name(cx: &LateContext<'_>, var_arg: &hir::Expr<'_>) -> String {
         _ => "a".to_string(),
     }
 }
-
 #[must_use]
 fn suggestion_msg(function_type: &str, map_type: &str) -> String {
     format!("called `map(f)` on an `{map_type}` value where `f` is a {function_type} that returns the unit type `()`")
 }
-
 fn lint_map_unit_fn(
     cx: &LateContext<'_>,
     stmt: &hir::Stmt<'_>,
@@ -200,7 +189,6 @@ fn lint_map_unit_fn(
     map_args: (&hir::Expr<'_>, &[hir::Expr<'_>]),
 ) {
     let var_arg = &map_args.0;
-
     let (map_type, variant, lint) = if is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(var_arg), sym::Option) {
         ("Option", "Some", OPTION_MAP_UNIT_FN)
     } else if is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(var_arg), sym::Result) {
@@ -209,7 +197,6 @@ fn lint_map_unit_fn(
         return;
     };
     let fn_arg = &map_args.1[0];
-
     if is_unit_function(cx, fn_arg) {
         let mut applicability = Applicability::MachineApplicable;
         let msg = suggestion_msg("function", map_type);
@@ -220,13 +207,11 @@ fn lint_map_unit_fn(
             snippet_with_applicability(cx, fn_arg.span, "_", &mut applicability),
             binding = let_binding_name(cx, var_arg)
         );
-
         span_lint_and_then(cx, lint, expr.span, msg, |diag| {
             diag.span_suggestion(stmt.span, "try", suggestion, applicability);
         });
     } else if let Some((binding, closure_expr)) = unit_closure(cx, fn_arg) {
         let msg = suggestion_msg("closure", map_type);
-
         span_lint_and_then(cx, lint, expr.span, msg, |diag| {
             if let Some(reduced_expr_span) = reduce_unit_expression(cx, closure_expr) {
                 let mut applicability = Applicability::MachineApplicable;
@@ -250,7 +235,6 @@ fn lint_map_unit_fn(
         });
     }
 }
-
 impl LateLintPass<'_> for MapUnit {
     fn check_stmt(&mut self, cx: &LateContext<'_>, stmt: &hir::Stmt<'_>) {
         if let hir::StmtKind::Semi(expr) = stmt.kind

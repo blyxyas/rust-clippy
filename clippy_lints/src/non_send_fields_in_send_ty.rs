@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_lint_allowed;
@@ -10,7 +12,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, GenericArgKind, Ty};
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint warns about a `Send` implementation for a type that
@@ -53,11 +54,9 @@ declare_clippy_lint! {
     nursery,
     "there is a field that is not safe to be sent to another thread in a `Send` struct"
 }
-
 pub struct NonSendFieldInSendTy {
     enable_raw_pointer_heuristic: bool,
 }
-
 impl NonSendFieldInSendTy {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -65,9 +64,7 @@ impl NonSendFieldInSendTy {
         }
     }
 }
-
 impl_lint_pass!(NonSendFieldInSendTy => [NON_SEND_FIELDS_IN_SEND_TY]);
-
 impl<'tcx> LateLintPass<'tcx> for NonSendFieldInSendTy {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         let ty_allowed_in_send = if self.enable_raw_pointer_heuristic {
@@ -75,7 +72,6 @@ impl<'tcx> LateLintPass<'tcx> for NonSendFieldInSendTy {
         } else {
             ty_allowed_without_raw_pointer_heuristic
         };
-
         // Checks if we are in `Send` impl item.
         // We start from `Send` impl instead of `check_field_def()` because
         // single `AdtDef` may have multiple `Send` impls due to generic
@@ -92,7 +88,6 @@ impl<'tcx> LateLintPass<'tcx> for NonSendFieldInSendTy {
             && let ty::Adt(adt_def, impl_trait_args) = self_ty.kind()
         {
             let mut non_send_fields = Vec::new();
-
             for variant in adt_def.variants() {
                 for field in &variant.fields {
                     if let Some(field_hir_id) = field
@@ -112,7 +107,6 @@ impl<'tcx> LateLintPass<'tcx> for NonSendFieldInSendTy {
                     }
                 }
             }
-
             if !non_send_fields.is_empty() {
                 span_lint_and_then(
                     cx,
@@ -131,7 +125,6 @@ impl<'tcx> LateLintPass<'tcx> for NonSendFieldInSendTy {
                                     field.def.ident.name
                                 ),
                             );
-
                             match field.generic_params.len() {
                                 0 => diag.help("use a thread-safe type that implements `Send`"),
                                 1 if is_ty_param(field.ty) => {
@@ -151,13 +144,11 @@ impl<'tcx> LateLintPass<'tcx> for NonSendFieldInSendTy {
         }
     }
 }
-
 struct NonSendField<'tcx> {
     def: &'tcx FieldDef<'tcx>,
     ty: Ty<'tcx>,
     generic_params: Vec<Ty<'tcx>>,
 }
-
 impl NonSendField<'_> {
     fn generic_params_string(&self) -> String {
         self.generic_params
@@ -167,7 +158,6 @@ impl NonSendField<'_> {
             .join(", ")
     }
 }
-
 /// Given a type, collect all of its generic parameters.
 /// Example: `MyStruct<P, Box<Q, R>>` => `vec![P, Q, R]`
 fn collect_generic_params(ty: Ty<'_>) -> Vec<Ty<'_>> {
@@ -179,26 +169,21 @@ fn collect_generic_params(ty: Ty<'_>) -> Vec<Ty<'_>> {
         .filter(|&inner_ty| is_ty_param(inner_ty))
         .collect()
 }
-
 /// Be more strict when the heuristic is disabled
 fn ty_allowed_without_raw_pointer_heuristic<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>, send_trait: DefId) -> bool {
     if implements_trait(cx, ty, send_trait, &[]) {
         return true;
     }
-
     if is_copy(cx, ty) && !contains_pointer_like(cx, ty) {
         return true;
     }
-
     false
 }
-
 /// Heuristic to allow cases like `Vec<*const u8>`
 fn ty_allowed_with_raw_pointer_heuristic<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>, send_trait: DefId) -> bool {
     if implements_trait(cx, ty, send_trait, &[]) || is_copy(cx, ty) {
         return true;
     }
-
     // The type is known to be `!Send` and `!Copy`
     match ty.kind() {
         ty::Tuple(fields) => fields
@@ -222,7 +207,6 @@ fn ty_allowed_with_raw_pointer_heuristic<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'t
         _ => false,
     }
 }
-
 /// Checks if the type contains any pointer-like types in args (including nested ones)
 fn contains_pointer_like<'tcx>(cx: &LateContext<'tcx>, target_ty: Ty<'tcx>) -> bool {
     for ty_node in target_ty.walk() {
@@ -240,10 +224,8 @@ fn contains_pointer_like<'tcx>(cx: &LateContext<'tcx>, target_ty: Ty<'tcx>) -> b
             }
         }
     }
-
     false
 }
-
 /// Returns `true` if the type is a type parameter such as `T`.
 fn is_ty_param(target_ty: Ty<'_>) -> bool {
     matches!(target_ty.kind(), ty::Param(_))

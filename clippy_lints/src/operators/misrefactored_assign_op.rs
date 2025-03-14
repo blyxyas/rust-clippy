@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::MISREFACTORED_ASSIGN_OP;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::{eq_expr_value, sugg};
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
-
-use super::MISREFACTORED_ASSIGN_OP;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx hir::Expr<'_>,
@@ -27,7 +27,6 @@ pub(super) fn check<'tcx>(
         }
     }
 }
-
 fn lint_misrefactored_assign_op(
     cx: &LateContext<'_>,
     expr: &hir::Expr<'_>,
@@ -67,7 +66,6 @@ fn lint_misrefactored_assign_op(
         },
     );
 }
-
 #[must_use]
 fn is_commutative(op: hir::BinOpKind) -> bool {
     use rustc_hir::BinOpKind::{

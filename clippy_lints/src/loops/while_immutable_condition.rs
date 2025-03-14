@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::WHILE_IMMUTABLE_CONDITION;
 use clippy_utils::consts::ConstEvalCtxt;
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -8,13 +10,11 @@ use rustc_hir::intravisit::{Visitor, walk_expr};
 use rustc_hir::{Expr, ExprKind, HirIdSet, QPath};
 use rustc_lint::LateContext;
 use std::ops::ControlFlow;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, cond: &'tcx Expr<'_>, expr: &'tcx Expr<'_>) {
     if ConstEvalCtxt::new(cx).eval(cond).is_some() {
         // A pure constant condition (e.g., `while false`) is not linted.
         return;
     }
-
     let mut var_visitor = VarCollectorVisitor {
         cx,
         ids: HirIdSet::default(),
@@ -33,10 +33,8 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, cond: &'tcx Expr<'_>, expr: &'
             return;
         };
     let mutable_static_in_cond = var_visitor.def_ids.items().any(|(_, v)| *v);
-
     let mut has_break_or_return_visitor = HasBreakOrReturnVisitor;
     let has_break_or_return = has_break_or_return_visitor.visit_expr(expr).is_break();
-
     if no_cond_variable_mutated && !mutable_static_in_cond {
         span_lint_and_then(
             cx,
@@ -45,7 +43,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, cond: &'tcx Expr<'_>, expr: &'
             "variables in the condition are not mutated in the loop body",
             |diag| {
                 diag.note("this may lead to an infinite or to a never running loop");
-
                 if has_break_or_return {
                     diag.note("this loop contains `return`s or `break`s");
                     diag.help("rewrite it as `if cond { loop { } }`");
@@ -54,9 +51,7 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, cond: &'tcx Expr<'_>, expr: &'
         );
     }
 }
-
 struct HasBreakOrReturnVisitor;
-
 impl<'tcx> Visitor<'tcx> for HasBreakOrReturnVisitor {
     type Result = ControlFlow<()>;
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) -> ControlFlow<()> {
@@ -66,11 +61,9 @@ impl<'tcx> Visitor<'tcx> for HasBreakOrReturnVisitor {
             },
             _ => {},
         }
-
         walk_expr(self, expr)
     }
 }
-
 /// Collects the set of variables in an expression
 /// Stops analysis if a function call is found
 /// Note: In some cases such as `self`, there are no mutable annotation,
@@ -80,7 +73,6 @@ struct VarCollectorVisitor<'a, 'tcx> {
     ids: HirIdSet,
     def_ids: DefIdMap<bool>,
 }
-
 impl<'tcx> VarCollectorVisitor<'_, 'tcx> {
     fn insert_def_id(&mut self, ex: &'tcx Expr<'_>) {
         if let ExprKind::Path(ref qpath) = ex.kind
@@ -99,7 +91,6 @@ impl<'tcx> VarCollectorVisitor<'_, 'tcx> {
         }
     }
 }
-
 impl<'tcx> Visitor<'tcx> for VarCollectorVisitor<'_, 'tcx> {
     type Result = ControlFlow<()>;
     fn visit_expr(&mut self, ex: &'tcx Expr<'_>) -> Self::Result {
@@ -110,7 +101,6 @@ impl<'tcx> Visitor<'tcx> for VarCollectorVisitor<'_, 'tcx> {
             },
             // If there is any function/method call… we just stop analysis
             ExprKind::Call(..) | ExprKind::MethodCall(..) => ControlFlow::Break(()),
-
             _ => walk_expr(self, ex),
         }
     }

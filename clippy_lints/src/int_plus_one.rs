@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::SpanRangeExt;
 use rustc_ast::ast::{BinOpKind, Expr, ExprKind, LitKind};
@@ -5,7 +7,6 @@ use rustc_ast::token;
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `x >= y + 1` or `x - 1 >= y` (and `<=`) in a block
@@ -31,9 +32,7 @@ declare_clippy_lint! {
     complexity,
     "instead of using `x >= y + 1`, use `x > y`"
 }
-
 declare_lint_pass!(IntPlusOne => [INT_PLUS_ONE]);
-
 // cases:
 // BinOpKind::Ge
 // x >= y + 1
@@ -42,13 +41,11 @@ declare_lint_pass!(IntPlusOne => [INT_PLUS_ONE]);
 // BinOpKind::Le
 // x + 1 <= y
 // x <= y - 1
-
 #[derive(Copy, Clone)]
 enum Side {
     Lhs,
     Rhs,
 }
-
 impl IntPlusOne {
     #[expect(clippy::cast_sign_loss)]
     fn check_lit(token_lit: token::Lit, target_value: i128) -> bool {
@@ -57,7 +54,6 @@ impl IntPlusOne {
         }
         false
     }
-
     fn check_binop(cx: &EarlyContext<'_>, binop: BinOpKind, lhs: &Expr, rhs: &Expr) -> Option<String> {
         match (binop, &lhs.kind, &rhs.kind) {
             // case where `x - 1 >= ...` or `-1 + x >= ...`
@@ -117,7 +113,6 @@ impl IntPlusOne {
             _ => None,
         }
     }
-
     fn generate_recommendation(
         cx: &EarlyContext<'_>,
         binop: BinOpKind,
@@ -141,7 +136,6 @@ impl IntPlusOne {
         }
         None
     }
-
     fn emit_warning(cx: &EarlyContext<'_>, block: &Expr, recommendation: String) {
         span_lint_and_sugg(
             cx,
@@ -154,7 +148,6 @@ impl IntPlusOne {
         );
     }
 }
-
 impl EarlyLintPass for IntPlusOne {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, item: &Expr) {
         if let ExprKind::Binary(ref kind, ref lhs, ref rhs) = item.kind {

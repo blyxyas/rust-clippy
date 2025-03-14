@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint_and_then, span_lint_hir_and_then};
@@ -21,7 +23,6 @@ use rustc_span::Span;
 use rustc_span::symbol::sym;
 use std::cmp::Ordering;
 use std::ops::Deref;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Identifies good opportunities for a clamp function from std or core, and suggests using it.
@@ -92,17 +93,14 @@ declare_clippy_lint! {
     "using a clamp pattern instead of the clamp function"
 }
 impl_lint_pass!(ManualClamp => [MANUAL_CLAMP]);
-
 pub struct ManualClamp {
     msrv: Msrv,
 }
-
 impl ManualClamp {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 #[derive(Debug)]
 struct ClampSuggestion<'tcx> {
     params: InputMinMax<'tcx>,
@@ -110,7 +108,6 @@ struct ClampSuggestion<'tcx> {
     make_assignment: Option<&'tcx Expr<'tcx>>,
     hir_with_ignore_attr: Option<HirId>,
 }
-
 impl<'tcx> ClampSuggestion<'tcx> {
     /// This function will return true if and only if you can demonstrate at compile time that min
     /// is less than max.
@@ -131,7 +128,6 @@ impl<'tcx> ClampSuggestion<'tcx> {
         }
     }
 }
-
 #[derive(Debug)]
 struct InputMinMax<'tcx> {
     input: &'tcx Expr<'tcx>,
@@ -139,7 +135,6 @@ struct InputMinMax<'tcx> {
     max: &'tcx Expr<'tcx>,
     is_float: bool,
 }
-
 impl<'tcx> LateLintPass<'tcx> for ManualClamp {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if !expr.span.from_expansion() && !is_in_const_context(cx) {
@@ -155,7 +150,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualClamp {
             }
         }
     }
-
     fn check_block(&mut self, cx: &LateContext<'tcx>, block: &'tcx Block<'tcx>) {
         if is_in_const_context(cx) || !self.msrv.meets(cx, msrvs::CLAMP) {
             return;
@@ -165,7 +159,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualClamp {
         }
     }
 }
-
 fn maybe_emit_suggestion<'tcx>(cx: &LateContext<'tcx>, suggestion: &ClampSuggestion<'tcx>) {
     if !suggestion.min_less_than_max(cx) {
         return;
@@ -208,13 +201,11 @@ fn maybe_emit_suggestion<'tcx>(cx: &LateContext<'tcx>, suggestion: &ClampSuggest
         span_lint_and_then(cx, MANUAL_CLAMP, *span, msg, lint_builder);
     }
 }
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum TypeClampability {
     Float,
     Ord,
 }
-
 impl TypeClampability {
     fn is_clampable<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<TypeClampability> {
         if ty.is_floating_point() {
@@ -229,12 +220,10 @@ impl TypeClampability {
             None
         }
     }
-
     fn is_float(self) -> bool {
         matches!(self, TypeClampability::Float)
     }
 }
-
 /// Targets patterns like
 ///
 /// ```no_run
@@ -283,7 +272,6 @@ fn is_if_elseif_else_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx
         None
     }
 }
-
 /// Targets patterns like
 ///
 /// ```no_run
@@ -319,7 +307,6 @@ fn is_max_min_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> O
         None
     }
 }
-
 /// Targets patterns like
 ///
 /// ```no_run
@@ -348,13 +335,11 @@ fn is_call_max_min_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>)
             _ => None,
         }
     }
-
     enum FunctionType<'tcx> {
         CmpMin,
         CmpMax,
         OrdOrFloat(&'tcx PathSegment<'tcx>),
     }
-
     fn check<'tcx>(
         cx: &LateContext<'tcx>,
         outer_fn: &'tcx Expr<'tcx>,
@@ -399,14 +384,12 @@ fn is_call_max_min_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>)
             None
         }
     }
-
     if let ExprKind::Call(outer_fn, [first, second]) = &expr.kind {
         check(cx, outer_fn, first, second, expr.span).or_else(|| check(cx, outer_fn, second, first, expr.span))
     } else {
         None
     }
 }
-
 /// Targets patterns like
 ///
 /// ```no_run
@@ -466,7 +449,6 @@ fn is_match_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> Opt
     }
     None
 }
-
 /// Targets patterns like
 ///
 /// ```no_run
@@ -525,7 +507,6 @@ fn is_two_if_pattern<'tcx>(cx: &LateContext<'tcx>, block: &'tcx Block<'tcx>) -> 
         })
         .collect()
 }
-
 /// Targets patterns like
 ///
 /// ```no_run
@@ -573,7 +554,6 @@ fn is_if_elseif_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) ->
         None
     }
 }
-
 /// `ExprKind::Binary` but more narrowly typed
 #[derive(Debug, Clone, Copy)]
 struct BinaryOp<'tcx> {
@@ -581,7 +561,6 @@ struct BinaryOp<'tcx> {
     left: &'tcx Expr<'tcx>,
     right: &'tcx Expr<'tcx>,
 }
-
 impl<'tcx> BinaryOp<'tcx> {
     fn new(e: &'tcx Expr<'tcx>) -> Option<BinaryOp<'tcx>> {
         match &e.kind {
@@ -593,7 +572,6 @@ impl<'tcx> BinaryOp<'tcx> {
             _ => None,
         }
     }
-
     fn flip(&self) -> Self {
         Self {
             op: match self.op {
@@ -608,7 +586,6 @@ impl<'tcx> BinaryOp<'tcx> {
         }
     }
 }
-
 /// The clamp meta pattern is a pattern shared between many (but not all) patterns.
 /// In summary, this pattern consists of two if statements that meet many criteria,
 ///
@@ -697,7 +674,6 @@ fn is_clamp_meta_pattern<'tcx>(
         (first_bin.flip(), *second_bin),
         (*first_bin, second_bin.flip()),
     ];
-
     cases.into_iter().find_map(|(first, second)| {
         check(cx, &first, &second, first_expr, second_expr, input_hir_ids, is_float).or_else(|| {
             check(
@@ -712,7 +688,6 @@ fn is_clamp_meta_pattern<'tcx>(
         })
     })
 }
-
 fn block_stmt_with_last<'tcx>(block: &'tcx Block<'tcx>) -> impl Iterator<Item = MaybeBorrowedStmtKind<'tcx>> {
     block
         .stmts
@@ -725,18 +700,15 @@ fn block_stmt_with_last<'tcx>(block: &'tcx Block<'tcx>) -> impl Iterator<Item = 
                 .map(|e| MaybeBorrowedStmtKind::Owned(StmtKind::Expr(e))),
         )
 }
-
 fn is_ord_op(op: BinOpKind) -> bool {
     matches!(op, BinOpKind::Ge | BinOpKind::Gt | BinOpKind::Le | BinOpKind::Lt)
 }
-
 /// Really similar to Cow, but doesn't have a `Clone` requirement.
 #[derive(Debug)]
 enum MaybeBorrowedStmtKind<'a> {
     Borrowed(&'a StmtKind<'a>),
     Owned(StmtKind<'a>),
 }
-
 impl Clone for MaybeBorrowedStmtKind<'_> {
     fn clone(&self) -> Self {
         match self {
@@ -746,10 +718,8 @@ impl Clone for MaybeBorrowedStmtKind<'_> {
         }
     }
 }
-
 impl<'a> Deref for MaybeBorrowedStmtKind<'a> {
     type Target = StmtKind<'a>;
-
     fn deref(&self) -> &Self::Target {
         match self {
             Self::Borrowed(t) => t,

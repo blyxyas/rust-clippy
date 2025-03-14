@@ -1,3 +1,7 @@
+use crate::HVec;
+
+use super::UNNECESSARY_RESULT_MAP_OR_ELSE;
+use super::utils::get_last_chain_binding_hir_id;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::peel_blocks;
 use clippy_utils::source::snippet;
@@ -7,10 +11,6 @@ use rustc_hir as hir;
 use rustc_hir::{Closure, Expr, ExprKind, HirId, QPath};
 use rustc_lint::LateContext;
 use rustc_span::symbol::sym;
-
-use super::UNNECESSARY_RESULT_MAP_OR_ELSE;
-use super::utils::get_last_chain_binding_hir_id;
-
 fn emit_lint(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, def_arg: &Expr<'_>) {
     let msg = "unused \"map closure\" when calling `Result::map_or_else` value";
     let self_snippet = snippet(cx, recv.span, "..");
@@ -25,7 +25,6 @@ fn emit_lint(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, def_arg: &E
         Applicability::MachineApplicable,
     );
 }
-
 fn handle_qpath(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -41,7 +40,6 @@ fn handle_qpath(
         emit_lint(cx, expr, recv, def_arg);
     }
 }
-
 /// lint use of `_.map_or_else(|err| err, |n| n)` for `Result`s.
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
@@ -57,7 +55,6 @@ pub(super) fn check<'tcx>(
         && let Some(first_param) = body.params.first()
     {
         let body_expr = peel_blocks(body.value);
-
         match body_expr.kind {
             ExprKind::Path(qpath) => {
                 handle_qpath(cx, expr, recv, def_arg, first_param.pat.hir_id, qpath);

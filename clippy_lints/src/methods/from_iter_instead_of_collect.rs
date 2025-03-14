@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::FROM_ITER_INSTEAD_OF_COLLECT;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::ty::implements_trait;
@@ -7,9 +10,6 @@ use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_middle::ty::Ty;
 use rustc_span::sym;
-
-use super::FROM_ITER_INSTEAD_OF_COLLECT;
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, args: &[hir::Expr<'_>], func: &hir::Expr<'_>) {
     if is_path_diagnostic_item(cx, func, sym::from_iter_fn)
         && let ty = cx.typeck_results().expr_ty(expr)
@@ -32,12 +32,10 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, args: &[hir::Exp
         );
     }
 }
-
 fn extract_turbofish(cx: &LateContext<'_>, expr: &hir::Expr<'_>, ty: Ty<'_>) -> String {
     fn strip_angle_brackets(s: &str) -> Option<&str> {
         s.strip_prefix('<')?.strip_suffix('>')
     }
-
     let call_site = expr.span.source_callsite();
     if let Some(snippet) = call_site.get_source_text(cx)
         && let snippet_split = snippet.split("::").collect::<Vec<_>>()

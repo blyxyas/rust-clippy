@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::MUT_RANGE_BOUND;
 use clippy_utils::diagnostics::span_lint_and_note;
 use clippy_utils::{get_enclosing_block, higher, path_to_local};
@@ -9,7 +11,6 @@ use rustc_middle::mir::FakeReadCause;
 use rustc_middle::ty;
 use rustc_span::Span;
 use std::ops::ControlFlow;
-
 pub(super) fn check(cx: &LateContext<'_>, arg: &Expr<'_>, body: &Expr<'_>) {
     if let Some(higher::Range {
         start: Some(start),
@@ -24,7 +25,6 @@ pub(super) fn check(cx: &LateContext<'_>, arg: &Expr<'_>, body: &Expr<'_>) {
         mut_warn_with_span(cx, span_high);
     }
 }
-
 fn mut_warn_with_span(cx: &LateContext<'_>, span: Option<Span>) {
     if let Some(sp) = span {
         span_lint_and_note(
@@ -37,7 +37,6 @@ fn mut_warn_with_span(cx: &LateContext<'_>, span: Option<Span>) {
         );
     }
 }
-
 fn check_for_mutability(cx: &LateContext<'_>, bound: &Expr<'_>) -> Option<HirId> {
     if let Some(hir_id) = path_to_local(bound)
         && let Node::Pat(pat) = cx.tcx.hir_node(hir_id)
@@ -47,7 +46,6 @@ fn check_for_mutability(cx: &LateContext<'_>, bound: &Expr<'_>) -> Option<HirId>
     }
     None
 }
-
 fn check_for_mutation(
     cx: &LateContext<'_>,
     body: &Expr<'_>,
@@ -64,10 +62,8 @@ fn check_for_mutation(
     ExprUseVisitor::for_clippy(cx, body.hir_id.owner.def_id, &mut delegate)
         .walk_expr(body)
         .into_ok();
-
     delegate.mutation_span()
 }
-
 struct MutatePairDelegate<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     hir_id_low: Option<HirId>,
@@ -75,10 +71,8 @@ struct MutatePairDelegate<'a, 'tcx> {
     span_low: Option<Span>,
     span_high: Option<Span>,
 }
-
 impl<'tcx> Delegate<'tcx> for MutatePairDelegate<'_, 'tcx> {
     fn consume(&mut self, _: &PlaceWithHirId<'tcx>, _: HirId) {}
-
     fn borrow(&mut self, cmt: &PlaceWithHirId<'tcx>, diag_expr_id: HirId, bk: ty::BorrowKind) {
         if bk == ty::BorrowKind::Mutable {
             if let PlaceBase::Local(id) = cmt.place.base {
@@ -91,7 +85,6 @@ impl<'tcx> Delegate<'tcx> for MutatePairDelegate<'_, 'tcx> {
             }
         }
     }
-
     fn mutate(&mut self, cmt: &PlaceWithHirId<'tcx>, diag_expr_id: HirId) {
         if let PlaceBase::Local(id) = cmt.place.base {
             if Some(id) == self.hir_id_low && !BreakAfterExprVisitor::is_found(self.cx, diag_expr_id) {
@@ -102,22 +95,18 @@ impl<'tcx> Delegate<'tcx> for MutatePairDelegate<'_, 'tcx> {
             }
         }
     }
-
     fn fake_read(&mut self, _: &PlaceWithHirId<'tcx>, _: FakeReadCause, _: HirId) {}
 }
-
 impl MutatePairDelegate<'_, '_> {
     fn mutation_span(&self) -> (Option<Span>, Option<Span>) {
         (self.span_low, self.span_high)
     }
 }
-
 struct BreakAfterExprVisitor {
     hir_id: HirId,
     past_expr: bool,
     break_after_expr: bool,
 }
-
 impl BreakAfterExprVisitor {
     pub fn is_found(cx: &LateContext<'_>, hir_id: HirId) -> bool {
         let mut visitor = BreakAfterExprVisitor {
@@ -125,14 +114,12 @@ impl BreakAfterExprVisitor {
             past_expr: false,
             break_after_expr: false,
         };
-
         get_enclosing_block(cx, hir_id).is_some_and(|block| {
             visitor.visit_block(block);
             visitor.break_after_expr
         })
     }
 }
-
 impl<'tcx> Visitor<'tcx> for BreakAfterExprVisitor {
     type Result = ControlFlow<()>;
     fn visit_expr(&mut self, expr: &'tcx Expr<'tcx>) -> ControlFlow<()> {
@@ -143,7 +130,6 @@ impl<'tcx> Visitor<'tcx> for BreakAfterExprVisitor {
             if matches!(&expr.kind, ExprKind::Break(..)) {
                 self.break_after_expr = true;
             }
-
             ControlFlow::Break(())
         } else {
             intravisit::walk_expr(self, expr)

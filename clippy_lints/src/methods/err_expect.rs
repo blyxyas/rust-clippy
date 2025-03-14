@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::ERR_EXPECT;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
@@ -7,7 +9,6 @@ use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_middle::ty::Ty;
 use rustc_span::{Span, sym};
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     _expr: &rustc_hir::Expr<'_>,
@@ -36,7 +37,6 @@ pub(super) fn check(
         );
     }
 }
-
 /// Given a `Result<T, E>` type, return its data (`T`).
 fn get_data_type<'a>(cx: &LateContext<'_>, ty: Ty<'a>) -> Option<Ty<'a>> {
     match ty.kind() {

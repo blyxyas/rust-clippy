@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::indent_of;
 use rustc_errors::Applicability;
@@ -5,7 +7,6 @@ use rustc_hir::{Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns on any exported `enum`s that are not tagged `#[non_exhaustive]`
@@ -35,7 +36,6 @@ declare_clippy_lint! {
     restriction,
     "detects exported enums that have not been marked #[non_exhaustive]"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns on any exported `struct`s that are not tagged `#[non_exhaustive]`
@@ -65,9 +65,7 @@ declare_clippy_lint! {
     restriction,
     "detects exported structs that have not been marked #[non_exhaustive]"
 }
-
 declare_lint_pass!(ExhaustiveItems => [EXHAUSTIVE_ENUMS, EXHAUSTIVE_STRUCTS]);
-
 impl LateLintPass<'_> for ExhaustiveItems {
     fn check_item(&mut self, cx: &LateContext<'_>, item: &Item<'_>) {
         let (lint, msg, fields) = match item.kind {

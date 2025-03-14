@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use hir::{Node, PatKind};
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `_` in patterns of type `()`.
@@ -34,7 +35,6 @@ declare_clippy_lint! {
     "suggest replacing `_` by `()` in patterns where appropriate"
 }
 declare_lint_pass!(IgnoredUnitPatterns => [IGNORED_UNIT_PATTERNS]);
-
 impl<'tcx> LateLintPass<'tcx> for IgnoredUnitPatterns {
     fn check_pat(&mut self, cx: &LateContext<'tcx>, pat: &'tcx hir::Pat<'tcx>) {
         if matches!(pat.kind, PatKind::Wild)

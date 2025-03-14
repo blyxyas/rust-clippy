@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_hir_and_then};
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context};
 use clippy_utils::sugg::has_enclosing_paren;
@@ -22,7 +24,6 @@ use rustc_middle::ty::{self, Ty, TyCtxt, TypeVisitableExt, TypeckResults};
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::sym;
 use rustc_span::{Span, Symbol};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for explicit `deref()` or `deref_mut()` method calls.
@@ -55,7 +56,6 @@ declare_clippy_lint! {
     pedantic,
     "Explicit use of deref or deref_mut method while not in a method chain."
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for address of operations (`&`) that are going to
@@ -89,7 +89,6 @@ declare_clippy_lint! {
     style,
     "taking a reference that is going to be automatically dereferenced"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `ref` bindings which create a reference to a reference.
@@ -117,7 +116,6 @@ declare_clippy_lint! {
     pedantic,
     "`ref` binding to a reference"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for dereferencing expressions which would be covered by auto-deref.
@@ -140,28 +138,23 @@ declare_clippy_lint! {
     complexity,
     "dereferencing when the compiler would automatically dereference"
 }
-
 impl_lint_pass!(Dereferencing<'_> => [
     EXPLICIT_DEREF_METHODS,
     NEEDLESS_BORROW,
     REF_BINDING_TO_REFERENCE,
     EXPLICIT_AUTO_DEREF,
 ]);
-
 #[derive(Default)]
 pub struct Dereferencing<'tcx> {
     state: Option<(State, StateData<'tcx>)>,
-
     // While parsing a `deref` method call in ufcs form, the path to the function is itself an
     // expression. This is to store the id of that expression so it can be skipped when
     // `check_expr` is called for it.
     skip_expr: Option<HirId>,
-
     /// The body the first local was found in. Used to emit lints when the traversal of the body has
     /// been finished. Note we can't lint at the end of every body as they can be nested within each
     /// other.
     current_body: Option<BodyId>,
-
     /// The list of locals currently being checked by the lint.
     /// If the value is `None`, then the binding has been seen as a ref pattern, but is not linted.
     /// This is needed for or patterns where one of the branches can be linted, but another can not
@@ -170,13 +163,11 @@ pub struct Dereferencing<'tcx> {
     /// e.g. `m!(x) | Foo::Bar(ref x)`
     ref_locals: FxIndexMap<HirId, Option<RefPat>>,
 }
-
 #[derive(Debug)]
 struct StateData<'tcx> {
     first_expr: &'tcx Expr<'tcx>,
     adjusted_ty: Ty<'tcx>,
 }
-
 #[derive(Debug)]
 struct DerefedBorrow {
     count: usize,
@@ -184,7 +175,6 @@ struct DerefedBorrow {
     stability: TyCoercionStability,
     for_field_access: Option<Symbol>,
 }
-
 #[derive(Debug)]
 enum State {
     // Any number of deref method calls.
@@ -210,14 +200,12 @@ enum State {
         mutability: Mutability,
     },
 }
-
 // A reference operation considered by this lint pass
 enum RefOp {
     Method { mutbl: Mutability, is_ufcs: bool },
     Deref,
     AddrOf(Mutability),
 }
-
 struct RefPat {
     /// Whether every usage of the binding is dereferenced.
     always_deref: bool,
@@ -230,7 +218,6 @@ struct RefPat {
     /// The [`HirId`] that the lint should be emitted at.
     hir_id: HirId,
 }
-
 impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
     #[expect(clippy::too_many_lines)]
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
@@ -238,11 +225,9 @@ impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
         if Some(expr.hir_id) == self.skip_expr.take() {
             return;
         }
-
         if let Some(local) = path_to_local(expr) {
             self.check_local_usage(cx, expr, local);
         }
-
         // Stop processing sub expressions when a macro call is seen
         if expr.span.from_expansion() {
             if let Some((state, data)) = self.state.take() {
@@ -250,7 +235,6 @@ impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
             }
             return;
         }
-
         let typeck = cx.typeck_results();
         let Some((kind, sub_expr)) = try_parse_ref_op(cx.tcx, typeck, expr) else {
             // The whole chain of reference operations has been seen
@@ -259,13 +243,11 @@ impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
             }
             return;
         };
-
         match (self.state.take(), kind) {
             (None, kind) => {
                 let expr_ty = typeck.expr_ty(expr);
                 let use_cx = expr_use_ctxt(cx, expr);
                 let adjusted_ty = use_cx.adjustments.last().map_or(expr_ty, |a| a.target);
-
                 match kind {
                     RefOp::Deref if use_cx.same_ctxt => {
                         let use_node = use_cx.use_node(cx);
@@ -336,7 +318,6 @@ impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
                                 None => break None,
                             }
                         };
-
                         let use_node = use_cx.use_node(cx);
                         let stability = use_node.defined_ty(cx).map_or(TyCoercionStability::None, |ty| {
                             TyCoercionStability::for_defined_ty(cx, ty, use_node.is_return())
@@ -392,11 +373,9 @@ impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
                             },
                             _ => false,
                         };
-
                         let deref_msg =
                             "this expression creates a reference which is immediately dereferenced by the compiler";
                         let borrow_msg = "this expression borrows a value the compiler would automatically borrow";
-
                         // Determine the required number of references before any can be removed. In all cases the
                         // reference made by the current expression will be removed. After that there are four cases to
                         // handle.
@@ -432,7 +411,6 @@ impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
                         } else {
                             (2, deref_msg)
                         };
-
                         if deref_count >= required_refs {
                             self.state = Some((
                                 State::DerefedBorrow(DerefedBorrow {
@@ -549,7 +527,6 @@ impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
                     ));
                 }
             },
-
             (Some((State::Borrow { mutability }, data)), RefOp::Deref) => {
                 if typeck.expr_ty(sub_expr).is_ref() {
                     self.state = Some((State::Reborrow { mutability }, data));
@@ -593,11 +570,9 @@ impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
                     data,
                 ));
             },
-
             (Some((state, data)), _) => report(cx, expr, state, data, typeck),
         }
     }
-
     fn check_pat(&mut self, cx: &LateContext<'tcx>, pat: &'tcx Pat<'_>) {
         if let PatKind::Binding(BindingMode::REF, id, name, _) = pat.kind {
             if let Some(opt_prev_pat) = self.ref_locals.get_mut(&id) {
@@ -618,7 +593,6 @@ impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
                 }
                 return;
             }
-
             if !pat.span.from_expansion()
                 && let ty::Ref(_, tam, _) = *cx.typeck_results().pat_ty(pat).kind()
                 // only lint immutable refs, because borrowed `&mut T` cannot be moved out
@@ -640,7 +614,6 @@ impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
             }
         }
     }
-
     fn check_body_post(&mut self, cx: &LateContext<'tcx>, body: &Body<'_>) {
         if Some(body.id()) == self.current_body {
             for pat in self.ref_locals.drain(..).filter_map(|(_, x)| x) {
@@ -666,7 +639,6 @@ impl<'tcx> LateLintPass<'tcx> for Dereferencing<'tcx> {
         }
     }
 }
-
 fn try_parse_ref_op<'tcx>(
     tcx: TyCtxt<'tcx>,
     typeck: &'tcx TypeckResults<'_>,
@@ -708,7 +680,6 @@ fn try_parse_ref_op<'tcx>(
         None
     }
 }
-
 // Checks if the adjustments contains a deref of `ManuallyDrop<_>`
 fn adjust_derefs_manually_drop<'tcx>(adjustments: &'tcx [Adjustment<'tcx>], mut ty: Ty<'tcx>) -> bool {
     adjustments.iter().any(|a| {
@@ -716,20 +687,17 @@ fn adjust_derefs_manually_drop<'tcx>(adjustments: &'tcx [Adjustment<'tcx>], mut 
         matches!(a.kind, Adjust::Deref(Some(ref op)) if op.mutbl == Mutability::Mut) && is_manually_drop(ty)
     })
 }
-
 // Checks whether the type for a deref call actually changed the type, not just the mutability of
 // the reference.
 fn deref_method_same_type<'tcx>(result_ty: Ty<'tcx>, arg_ty: Ty<'tcx>) -> bool {
     match (result_ty.kind(), arg_ty.kind()) {
         (ty::Ref(_, result_ty, _), ty::Ref(_, arg_ty, _)) => result_ty == arg_ty,
-
         // The result type for a deref method is always a reference
         // Not matching the previous pattern means the argument type is not a reference
         // This means that the type did change
         _ => false,
     }
 }
-
 fn in_postfix_position<'tcx>(cx: &LateContext<'tcx>, e: &'tcx Expr<'tcx>) -> bool {
     if let Some(parent) = get_parent_expr(cx, e)
         && parent.span.eq_ctxt(e.span)
@@ -747,7 +715,6 @@ fn in_postfix_position<'tcx>(cx: &LateContext<'tcx>, e: &'tcx Expr<'tcx>) -> boo
         false
     }
 }
-
 #[derive(Clone, Copy, Debug)]
 enum TyCoercionStability {
     Deref,
@@ -758,11 +725,9 @@ impl TyCoercionStability {
     fn is_deref_stable(self) -> bool {
         matches!(self, Self::Deref)
     }
-
     fn is_reborrow_stable(self) -> bool {
         matches!(self, Self::Deref | Self::Reborrow)
     }
-
     fn for_defined_ty<'tcx>(cx: &LateContext<'tcx>, ty: DefinedTy<'tcx>, for_return: bool) -> Self {
         match ty {
             DefinedTy::Hir(ty) => Self::for_hir_ty(ty),
@@ -774,7 +739,6 @@ impl TyCoercionStability {
             ),
         }
     }
-
     // Checks the stability of type coercions when assigned to a binding with the given explicit type.
     //
     // e.g.
@@ -789,7 +753,6 @@ impl TyCoercionStability {
             return Self::None;
         };
         let mut ty = ty;
-
         loop {
             break match ty.ty.kind {
                 TyKind::Ref(_, ref ref_ty) => {
@@ -836,12 +799,10 @@ impl TyCoercionStability {
             };
         }
     }
-
     fn for_mir_ty<'tcx>(tcx: TyCtxt<'tcx>, def_site_def_id: Option<DefId>, ty: Ty<'tcx>, for_return: bool) -> Self {
         let ty::Ref(_, mut ty, _) = *ty.kind() else {
             return Self::None;
         };
-
         if let Some(def_id) = def_site_def_id {
             let typing_env = ty::TypingEnv::non_body_analysis(tcx, def_id);
             ty = tcx.try_normalize_erasing_regions(typing_env, ty).unwrap_or(ty);
@@ -895,7 +856,6 @@ impl TyCoercionStability {
         }
     }
 }
-
 // Checks whether a type is inferred at some point.
 // e.g. `_`, `Box<_>`, `[_]`
 fn ty_contains_infer(ty: &hir::Ty<'_>) -> bool {
@@ -907,7 +867,6 @@ fn ty_contains_infer(ty: &hir::Ty<'_>) -> bool {
             }
             self.visit_id(inf_id);
         }
-
         fn visit_ty(&mut self, ty: &hir::Ty<'_, AmbigArg>) {
             if self.0 || matches!(ty.kind, TyKind::OpaqueDef(..) | TyKind::Typeof(_) | TyKind::Err(_)) {
                 self.0 = true;
@@ -920,7 +879,6 @@ fn ty_contains_infer(ty: &hir::Ty<'_>) -> bool {
     v.visit_ty_unambig(ty);
     v.0
 }
-
 fn ty_contains_field(ty: Ty<'_>, name: Symbol) -> bool {
     if let ty::Adt(adt, _) = *ty.kind() {
         adt.is_struct() && adt.all_fields().any(|f| f.name == name)
@@ -928,7 +886,6 @@ fn ty_contains_field(ty: Ty<'_>, name: Symbol) -> bool {
         false
     }
 }
-
 #[expect(clippy::needless_pass_by_value, clippy::too_many_lines)]
 fn report<'tcx>(
     cx: &LateContext<'tcx>,
@@ -967,7 +924,6 @@ fn report<'tcx>(
             } else {
                 "&"
             };
-
             // expr_str (the suggestion) is never shown if is_final_ufcs is true, since it's
             // `expr.kind == ExprKind::Call`. Therefore, this is, afaik, always unnecessary.
             /*
@@ -977,12 +933,10 @@ fn report<'tcx>(
                 expr_str
             };
             */
-
             // Fix #10850, do not lint if it's `Foo::deref` instead of `foo.deref()`.
             if is_ufcs {
                 return;
             }
-
             span_lint_and_sugg(
                 cx,
                 EXPLICIT_DEREF_METHODS,
@@ -1025,7 +979,6 @@ fn report<'tcx>(
                             ..
                         })
                     );
-
                     let sugg = if !snip_is_macro && needs_paren && !has_enclosing_paren(&snip) && !is_in_tuple {
                         format!("({snip})")
                     } else {
@@ -1043,9 +996,7 @@ fn report<'tcx>(
                 // Rustc bug: auto deref doesn't work on block expression when targeting sized types.
                 return;
             }
-
             let ty = typeck.expr_ty(expr);
-
             // `&&[T; N]`, or `&&..&[T; N]` (src) cannot coerce to `&[T]` (dst).
             if let ty::Ref(_, dst, _) = data.adjusted_ty.kind()
                 && dst.is_slice()
@@ -1055,7 +1006,6 @@ fn report<'tcx>(
                     return;
                 }
             }
-
             let (prefix, needs_paren) = match mutability {
                 Some(mutability) if !ty.is_ref() => {
                     let prefix = match mutability {
@@ -1130,7 +1080,6 @@ fn report<'tcx>(
         State::Borrow { .. } | State::Reborrow { .. } => (),
     }
 }
-
 impl<'tcx> Dereferencing<'tcx> {
     fn check_local_usage(&mut self, cx: &LateContext<'tcx>, e: &Expr<'tcx>, local: HirId) {
         if let Some(outer_pat) = self.ref_locals.get_mut(&local) {

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::path_def_id;
 use clippy_utils::source::snippet_with_context;
@@ -6,7 +8,6 @@ use rustc_hir::{BorrowKind, Expr, ExprKind, Mutability, UnOp};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, SyntaxContext, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `core::mem::swap` where either parameter is derived from a pointer
@@ -37,7 +38,6 @@ declare_clippy_lint! {
     "call to `mem::swap` using pointer derived references"
 }
 declare_lint_pass!(SwapPtrToRef => [SWAP_PTR_TO_REF]);
-
 impl LateLintPass<'_> for SwapPtrToRef {
     fn check_expr(&mut self, cx: &LateContext<'_>, e: &Expr<'_>) {
         if let ExprKind::Call(fn_expr, [arg1, arg2]) = e.kind
@@ -70,7 +70,6 @@ impl LateLintPass<'_> for SwapPtrToRef {
         }
     }
 }
-
 /// Checks if the expression converts a mutable pointer to a mutable reference. If it is, also
 /// returns the span of the pointer expression if it's suitable for making a suggestion.
 fn is_ptr_to_ref(cx: &LateContext<'_>, e: &Expr<'_>, ctxt: SyntaxContext) -> (bool, Option<Span>) {

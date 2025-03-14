@@ -1,4 +1,4 @@
-use std::{fmt, ops};
+use crate::HVec;
 
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -11,7 +11,7 @@ use rustc_lexer::is_ident;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
-
+use std::{fmt, ops};
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions that use a lot of stack space.
@@ -80,11 +80,9 @@ declare_clippy_lint! {
     nursery,
     "checks for functions that allocate a lot of stack space"
 }
-
 pub struct LargeStackFrames {
     maximum_allowed_size: u64,
 }
-
 impl LargeStackFrames {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -92,15 +90,12 @@ impl LargeStackFrames {
         }
     }
 }
-
 impl_lint_pass!(LargeStackFrames => [LARGE_STACK_FRAMES]);
-
 #[derive(Copy, Clone)]
 enum Space {
     Used(u64),
     Overflow,
 }
-
 impl Space {
     pub fn exceeds_limit(self, limit: u64) -> bool {
         match self {
@@ -109,7 +104,6 @@ impl Space {
         }
     }
 }
-
 impl fmt::Display for Space {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -119,7 +113,6 @@ impl fmt::Display for Space {
         }
     }
 }
-
 impl ops::Add<u64> for Space {
     type Output = Self;
     fn add(self, rhs: u64) -> Self {
@@ -132,7 +125,6 @@ impl ops::Add<u64> for Space {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for LargeStackFrames {
     fn check_fn(
         &mut self,
@@ -148,19 +140,15 @@ impl<'tcx> LateLintPass<'tcx> for LargeStackFrames {
         if fn_has_unsatisfiable_preds(cx, def_id) {
             return;
         }
-
         let mir = cx.tcx.optimized_mir(def_id);
         let typing_env = mir.typing_env(cx.tcx);
-
         let sizes_of_locals = || {
             mir.local_decls.iter().filter_map(|local| {
                 let layout = cx.tcx.layout_of(typing_env.as_query_input(local.ty)).ok()?;
                 Some((local, layout.size.bytes()))
             })
         };
-
         let frame_size = sizes_of_locals().fold(Space::Used(0), |sum, (_, size)| sum + size);
-
         let limit = self.maximum_allowed_size;
         if frame_size.exceeds_limit(limit) {
             // Point at just the function name if possible, because lints that span
@@ -169,7 +157,6 @@ impl<'tcx> LateLintPass<'tcx> for LargeStackFrames {
                 FnKind::ItemFn(ident, _, _) | FnKind::Method(ident, _) => ident.span,
                 FnKind::Closure => entire_fn_span,
             };
-
             span_lint_and_then(
                 cx,
                 LARGE_STACK_FRAMES,
@@ -182,7 +169,6 @@ impl<'tcx> LateLintPass<'tcx> for LargeStackFrames {
                         let local_span: Span = local.source_info.span;
                         let size = Space::Used(size); // pluralizes for us
                         let ty = local.ty;
-
                         // TODO: Is there a cleaner, robust way to ask this question?
                         // The obvious `LocalDecl::is_user_variable()` panics on "unwrapping cross-crate data",
                         // and that doesn't get us the true name in scope rather than the span text either.
@@ -202,12 +188,10 @@ impl<'tcx> LateLintPass<'tcx> for LargeStackFrames {
                             );
                         }
                     }
-
                     // Explain why we are linting this and not other functions.
                     diag.note(format!(
                         "{frame_size} is larger than Clippy's configured `stack-size-threshold` of {limit}"
                     ));
-
                     // Explain why the user should care, briefly.
                     diag.note_once(
                         "allocating large amounts of stack space can overflow the stack \

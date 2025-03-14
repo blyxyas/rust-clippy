@@ -1,8 +1,9 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use rustc_hir::{Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `enum`s with no variants, which therefore are uninhabited types
@@ -57,9 +58,7 @@ declare_clippy_lint! {
     pedantic,
     "enum with no variants"
 }
-
 declare_lint_pass!(EmptyEnum => [EMPTY_ENUM]);
-
 impl LateLintPass<'_> for EmptyEnum {
     fn check_item(&mut self, cx: &LateContext<'_>, item: &Item<'_>) {
         if let ItemKind::Enum(..) = item.kind

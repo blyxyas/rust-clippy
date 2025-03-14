@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::path_res;
 use rustc_ast::ast::LitKind;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::LocalDefId;
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -52,21 +53,16 @@ declare_clippy_lint! {
     pedantic,
     "detects &str that could be &'static str in function return types"
 }
-
 declare_lint_pass!(UnnecessaryLiteralBound => [UNNECESSARY_LITERAL_BOUND]);
-
 fn extract_anonymous_ref<'tcx>(hir_ty: &Ty<'tcx>) -> Option<&'tcx Ty<'tcx>> {
     let TyKind::Ref(lifetime, MutTy { ty, mutbl }) = hir_ty.kind else {
         return None;
     };
-
     if !lifetime.is_anonymous() || !matches!(mutbl, Mutability::Not) {
         return None;
     }
-
     Some(ty)
 }
-
 fn is_str_literal(expr: &Expr<'_>) -> bool {
     matches!(
         expr.kind,
@@ -76,13 +72,10 @@ fn is_str_literal(expr: &Expr<'_>) -> bool {
         }),
     )
 }
-
 struct FindNonLiteralReturn;
-
 impl<'hir> Visitor<'hir> for FindNonLiteralReturn {
     type Result = std::ops::ControlFlow<()>;
     type NestedFilter = intravisit::nested_filter::None;
-
     fn visit_expr(&mut self, expr: &'hir Expr<'hir>) -> Self::Result {
         if let ExprKind::Ret(Some(ret_val_expr)) = expr.kind
             && !is_str_literal(ret_val_expr)
@@ -93,7 +86,6 @@ impl<'hir> Visitor<'hir> for FindNonLiteralReturn {
         }
     }
 }
-
 fn check_implicit_returns_static_str(body: &Body<'_>) -> bool {
     // TODO: Improve this to the same complexity as the Visitor to catch more implicit return cases.
     if let ExprKind::Block(block, _) = body.value.kind
@@ -101,15 +93,12 @@ fn check_implicit_returns_static_str(body: &Body<'_>) -> bool {
     {
         return is_str_literal(implicit_ret);
     }
-
     false
 }
-
 fn check_explicit_returns_static_str(expr: &Expr<'_>) -> bool {
     let mut visitor = FindNonLiteralReturn;
     visitor.visit_expr(expr).is_continue()
 }
-
 impl<'tcx> LateLintPass<'tcx> for UnnecessaryLiteralBound {
     fn check_fn(
         &mut self,
@@ -123,25 +112,20 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessaryLiteralBound {
         if span.from_expansion() {
             return;
         }
-
         // Checking closures would be a little silly
         if matches!(kind, FnKind::Closure) {
             return;
         }
-
         // Check for `-> &str`
         let FnRetTy::Return(ret_hir_ty) = decl.output else {
             return;
         };
-
         let Some(inner_hir_ty) = extract_anonymous_ref(ret_hir_ty) else {
             return;
         };
-
         if path_res(cx, inner_hir_ty) != Res::PrimTy(PrimTy::Str) {
             return;
         }
-
         // Check for all return statements returning literals
         if check_explicit_returns_static_str(body.value) && check_implicit_returns_static_str(body) {
             span_lint_and_sugg(

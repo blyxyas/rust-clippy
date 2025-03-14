@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::is_from_proc_macro;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Symbol;
 use rustc_span::symbol::kw;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of items through absolute paths, like `std::env::current_dir`.
@@ -53,12 +54,10 @@ declare_clippy_lint! {
     "checks for usage of an item without a `use` statement"
 }
 impl_lint_pass!(AbsolutePaths => [ABSOLUTE_PATHS]);
-
 pub struct AbsolutePaths {
     pub absolute_paths_max_segments: u64,
     pub absolute_paths_allowed_crates: FxHashSet<Symbol>,
 }
-
 impl AbsolutePaths {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -71,7 +70,6 @@ impl AbsolutePaths {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for AbsolutePaths {
     // We should only lint `QPath::Resolved`s, but since `Path` is only used in `Resolved` and `UsePath`
     // we don't need to use a visitor or anything as we can just check if the `Node` for `hir_id` isn't

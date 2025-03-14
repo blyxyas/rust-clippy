@@ -1,14 +1,13 @@
+use crate::HVec;
+
 use super::MANUAL_MAP;
 use super::manual_utils::{SomeExpr, check_with};
 use clippy_utils::diagnostics::span_lint_and_sugg;
-
 use clippy_utils::{is_res_lang_ctor, path_res};
-
 use rustc_hir::LangItem::OptionSome;
 use rustc_hir::{Arm, Block, BlockCheckMode, Expr, ExprKind, Pat, UnsafeSource};
 use rustc_lint::LateContext;
 use rustc_span::SyntaxContext;
-
 pub(super) fn check_match<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -22,7 +21,6 @@ pub(super) fn check_match<'tcx>(
         check(cx, expr, scrutinee, arm1.pat, arm1.body, Some(arm2.pat), arm2.body);
     }
 }
-
 pub(super) fn check_if_let<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -33,7 +31,6 @@ pub(super) fn check_if_let<'tcx>(
 ) {
     check(cx, expr, let_expr, let_pat, then_expr, None, else_expr);
 }
-
 fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -74,7 +71,6 @@ fn check<'tcx>(
         );
     }
 }
-
 // Checks for an expression wrapped by the `Some` constructor. Returns the contained expression.
 fn get_some_expr<'tcx>(
     cx: &LateContext<'tcx>,

@@ -1,13 +1,12 @@
+use crate::HVec;
+
+use super::{CAST_POSSIBLE_WRAP, utils};
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_middle::ty::Ty;
-
-use super::{CAST_POSSIBLE_WRAP, utils};
-
 // this should be kept in sync with the allowed bit widths of `usize` and `isize`
 const ALLOWED_POINTER_SIZES: [u64; 3] = [16, 32, 64];
-
 // whether the lint should be emitted, and the required pointer size, if it matters
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum EmitState {
@@ -15,12 +14,10 @@ enum EmitState {
     LintAlways,
     LintOnPtrSize(u64),
 }
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, cast_from: Ty<'_>, cast_to: Ty<'_>) {
     if !(cast_from.is_integral() && cast_to.is_integral()) {
         return;
     }
-
     // emit a lint if a cast is:
     // 1. unsigned to signed
     // and
@@ -30,14 +27,11 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, cast_from: Ty<'_>, ca
     //    2b. between one target-dependent size and one constant size integer,
     //        and the constant integer is in the allowed set of target dependent sizes
     //        (the ptr size could be chosen to be the same as the constant size)
-
     if cast_from.is_signed() || !cast_to.is_signed() {
         return;
     }
-
     let from_nbits = utils::int_ty_to_nbits(cast_from, cx.tcx);
     let to_nbits = utils::int_ty_to_nbits(cast_to, cx.tcx);
-
     let should_lint = match (cast_from.is_ptr_sized_integral(), cast_to.is_ptr_sized_integral()) {
         (true, true) => {
             // casts between two ptr sized integers are trivially always the same size
@@ -70,7 +64,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, cast_from: Ty<'_>, ca
             }
         },
     };
-
     let message = match should_lint {
         EmitState::NoLint => return,
         EmitState::LintAlways => format!("casting `{cast_from}` to `{cast_to}` may wrap around the value"),
@@ -78,7 +71,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, cast_from: Ty<'_>, ca
             "casting `{cast_from}` to `{cast_to}` may wrap around the value on targets with {ptr_size}-bit wide pointers",
         ),
     };
-
     span_lint_and_then(cx, CAST_POSSIBLE_WRAP, expr.span, message, |diag| {
         if let EmitState::LintOnPtrSize(16) = should_lint {
             diag

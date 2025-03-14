@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::IDENTITY_OP;
 use clippy_utils::consts::{ConstEvalCtxt, Constant, FullInt};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
@@ -7,9 +10,6 @@ use rustc_hir::{BinOpKind, Expr, ExprKind, Node};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::Span;
-
-use super::IDENTITY_OP;
-
 pub(crate) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -20,7 +20,6 @@ pub(crate) fn check<'tcx>(
     if !is_allowed(cx, op, left, right) {
         return;
     }
-
     // we need to know whether a ref is coerced to a value
     // if a ref is coerced, then the suggested lint must deref it
     // e.g. `let _: i32 = x+0` with `x: &i32` should be replaced with `let _: i32 = *x`.
@@ -32,14 +31,12 @@ pub(crate) fn check<'tcx>(
         let is_coerced = expr_is_erased_ref(cx, expr);
         (span, is_coerced)
     };
-
     let (peeled_right_span, right_is_coerced_to_value) = {
         let expr = peel_hir_expr_refs(right).0;
         let span = expr.span;
         let is_coerced = expr_is_erased_ref(cx, expr);
         (span, is_coerced)
     };
-
     match op {
         BinOpKind::Add | BinOpKind::BitOr | BinOpKind::BitXor => {
             if is_redundant_op(cx, left, 0) {
@@ -84,20 +81,17 @@ pub(crate) fn check<'tcx>(
         _ => (),
     }
 }
-
 fn expr_is_erased_ref(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     match cx.typeck_results().expr_ty(expr).kind() {
         ty::Ref(r, ..) => r.is_erased(),
         _ => false,
     }
 }
-
 #[derive(Copy, Clone)]
 enum Parens {
     Needed,
     Unneeded,
 }
-
 /// Checks if a binary expression needs parenthesis when reduced to just its
 /// right or left child.
 ///
@@ -151,7 +145,6 @@ fn needs_parenthesis(cx: &LateContext<'_>, binary: &Expr<'_>, child: &Expr<'_>) 
                     prev_id = expr.hir_id;
                     continue;
                 }
-
                 match parent {
                     Node::Block(_) | Node::Stmt(_) => return Parens::Needed,
                     _ => return Parens::Unneeded,
@@ -164,7 +157,6 @@ fn needs_parenthesis(cx: &LateContext<'_>, binary: &Expr<'_>, child: &Expr<'_>) 
     }
     Parens::Needed
 }
-
 fn is_allowed(cx: &LateContext<'_>, cmp: BinOpKind, left: &Expr<'_>, right: &Expr<'_>) -> bool {
     // This lint applies to integers and their references
     cx.typeck_results().expr_ty(left).peel_refs().is_integral()
@@ -174,7 +166,6 @@ fn is_allowed(cx: &LateContext<'_>, cmp: BinOpKind, left: &Expr<'_>, right: &Exp
             && ConstEvalCtxt::new(cx).eval_simple(right) == Some(Constant::Int(0))
             && ConstEvalCtxt::new(cx).eval_simple(left) == Some(Constant::Int(1)))
 }
-
 fn check_remainder(cx: &LateContext<'_>, left: &Expr<'_>, right: &Expr<'_>, span: Span, arg: Span) {
     let ecx = ConstEvalCtxt::new(cx);
     if match (ecx.eval_full_int(left), ecx.eval_full_int(right)) {
@@ -185,7 +176,6 @@ fn check_remainder(cx: &LateContext<'_>, left: &Expr<'_>, right: &Expr<'_>, span
         span_ineffective_operation(cx, span, arg, Parens::Unneeded, false);
     }
 }
-
 fn is_redundant_op(cx: &LateContext<'_>, e: &Expr<'_>, m: i8) -> bool {
     if let Some(Constant::Int(v)) = ConstEvalCtxt::new(cx).eval_simple(e).map(Constant::peel_refs) {
         let check = match *cx.typeck_results().expr_ty(e).peel_refs().kind() {
@@ -204,7 +194,6 @@ fn is_redundant_op(cx: &LateContext<'_>, e: &Expr<'_>, m: i8) -> bool {
     }
     false
 }
-
 fn span_ineffective_operation(
     cx: &LateContext<'_>,
     span: Span,
@@ -223,7 +212,6 @@ fn span_ineffective_operation(
         Parens::Needed => format!("({expr_snippet})"),
         Parens::Unneeded => expr_snippet,
     };
-
     span_lint_and_sugg(
         cx,
         IDENTITY_OP,

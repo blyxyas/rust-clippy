@@ -1,9 +1,10 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_errors::Applicability;
 use rustc_hir::{BindingMode, Mutability, Node, Pat, PatKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for bindings that needlessly destructure a reference and borrow the inner
@@ -32,9 +33,7 @@ declare_clippy_lint! {
     complexity,
     "destructuring a reference and borrowing the inner value"
 }
-
 declare_lint_pass!(NeedlessBorrowedRef => [NEEDLESS_BORROWED_REFERENCE]);
-
 impl<'tcx> LateLintPass<'tcx> for NeedlessBorrowedRef {
     fn check_pat(&mut self, cx: &LateContext<'tcx>, ref_pat: &'tcx Pat<'_>) {
         if let PatKind::Ref(pat, Mutability::Not) = ref_pat.kind
@@ -107,7 +106,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessBorrowedRef {
         }
     }
 }
-
 fn check_subpatterns<'tcx>(
     cx: &LateContext<'tcx>,
     message: &'static str,
@@ -116,7 +114,6 @@ fn check_subpatterns<'tcx>(
     subpatterns: impl IntoIterator<Item = &'tcx Pat<'tcx>>,
 ) {
     let mut suggestions = Vec::new();
-
     for subpattern in subpatterns {
         match subpattern.kind {
             PatKind::Binding(BindingMode::REF, _, ident, None) => {
@@ -129,14 +126,12 @@ fn check_subpatterns<'tcx>(
             _ => return,
         }
     }
-
     if !suggestions.is_empty() {
         span_lint_and_then(cx, NEEDLESS_BORROWED_REFERENCE, ref_pat.span, message, |diag| {
             // `&pat`
             //  ^
             let span = ref_pat.span.until(pat.span);
             suggestions.push((span, String::new()));
-
             diag.multipart_suggestion(
                 "try removing the `&` and `ref` parts",
                 suggestions,

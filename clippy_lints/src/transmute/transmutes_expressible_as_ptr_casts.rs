@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::TRANSMUTES_EXPRESSIBLE_AS_PTR_CASTS;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::sugg::Sugg;
@@ -8,7 +10,6 @@ use rustc_hir_typeck::cast::check_cast;
 use rustc_lint::LateContext;
 use rustc_middle::ty::Ty;
 use rustc_middle::ty::cast::CastKind;
-
 /// Checks for `transmutes_expressible_as_ptr_casts` lint.
 /// Returns `true` if it's triggered, otherwise returns `false`.
 pub(super) fn check<'tcx>(
@@ -32,7 +33,6 @@ pub(super) fn check<'tcx>(
         Some(PtrAddrCast) if !from_ty_adjusted => Sugg::hir_with_context(cx, arg, e.span.ctxt(), "..", &mut app)
             .as_ty(to_ty.to_string())
             .to_string(),
-
         // The only adjustments here would be ref-to-ptr and unsize coercions. The result of an unsize coercions can't
         // be transmuted to a usize. For ref-to-ptr coercions, borrows need to be cast to a pointer before being cast to
         // a usize.
@@ -42,13 +42,11 @@ pub(super) fn check<'tcx>(
         ),
         _ => return false,
     };
-
     if let Node::Expr(parent) = cx.tcx.parent_hir_node(e.hir_id)
         && parent.precedence() > ExprPrecedence::Cast
     {
         sugg = format!("({sugg})");
     }
-
     span_lint_and_sugg(
         cx,
         TRANSMUTES_EXPRESSIBLE_AS_PTR_CASTS,

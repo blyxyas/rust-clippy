@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use crate::question_mark::{QUESTION_MARK, QuestionMark};
 use clippy_config::types::MatchLintBehaviour;
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -10,11 +12,9 @@ use rustc_data_structures::fx::FxHashMap;
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, MatchSource, Pat, PatExpr, PatExprKind, PatKind, QPath, Stmt, StmtKind};
 use rustc_lint::{LateContext, LintContext};
-
 use rustc_span::Span;
 use rustc_span::symbol::{Symbol, sym};
 use std::slice;
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -45,7 +45,6 @@ declare_clippy_lint! {
     pedantic,
     "manual implementation of a let...else statement"
 }
-
 impl<'tcx> QuestionMark {
     pub(crate) fn check_manual_let_else(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'tcx>) {
         if let StmtKind::Let(local) = stmt.kind
@@ -102,14 +101,12 @@ impl<'tcx> QuestionMark {
                     let Some(ident_map) = expr_simple_identity_map(local.pat, pat_arm.pat, pat_arm.body) else {
                         return;
                     };
-
                     emit_manual_let_else(cx, stmt.span, match_expr, &ident_map, pat_arm.pat, diverging_arm.body);
                 },
             }
         }
     }
 }
-
 fn emit_manual_let_else(
     cx: &LateContext<'_>,
     span: Span,
@@ -132,7 +129,6 @@ fn emit_manual_let_else(
             let mut app = Applicability::HasPlaceholders;
             let (sn_expr, _) = snippet_with_context(cx, expr.span, span.ctxt(), "", &mut app);
             let (sn_else, else_is_mac_call) = snippet_with_context(cx, else_body.span, span.ctxt(), "", &mut app);
-
             let else_bl = if matches!(else_body.kind, ExprKind::Block(..)) && !else_is_mac_call {
                 sn_else.into_owned()
             } else {
@@ -144,7 +140,6 @@ fn emit_manual_let_else(
         },
     );
 }
-
 /// Replaces the locals in the pattern
 ///
 /// For this example:
@@ -183,7 +178,6 @@ fn replace_in_pattern(
         if ident_map.is_empty() {
             break 'a;
         }
-
         match pat.kind {
             PatKind::Binding(_ann, _id, binding_name, opt_subpt) => {
                 let Some((pat_to_put, binding_mode)) = ident_map.get(&binding_name.name) else {
@@ -231,7 +225,6 @@ fn replace_in_pattern(
                     })
                     .collect::<Vec<_>>();
                 let fields_string = fields.join(", ");
-
                 let dot_dot_str = if has_dot_dot { " .." } else { "" };
                 let (sn_pth, _) = snippet_with_context(cx, path.span(), span.ctxt(), "", app);
                 return format!("{sn_pth} {{ {fields_string}{dot_dot_str} }}");
@@ -266,7 +259,6 @@ fn replace_in_pattern(
     let (sn_pat, _) = snippet_with_context(cx, pat.span, span.ctxt(), "", app);
     sn_pat.into_owned()
 }
-
 fn pat_allowed_for_else(cx: &LateContext<'_>, pat: &'_ Pat<'_>, check_types: bool) -> bool {
     // Check whether the pattern contains any bindings, as the
     // binding might potentially be used in the body.
@@ -276,12 +268,10 @@ fn pat_allowed_for_else(cx: &LateContext<'_>, pat: &'_ Pat<'_>, check_types: boo
     if has_bindings {
         return false;
     }
-
     // If we shouldn't check the types, exit early.
     if !check_types {
         return true;
     }
-
     // Check whether any possibly "unknown" patterns are included,
     // because users might not know which values some enum has.
     // Well-known enums are excepted, as we assume people know them.
@@ -311,7 +301,6 @@ fn pat_allowed_for_else(cx: &LateContext<'_>, pat: &'_ Pat<'_>, check_types: boo
     });
     !has_disallowed
 }
-
 /// Checks if the passed block is a simple identity referring to bindings created by the pattern,
 /// and if yes, returns a mapping between the relevant sub-pattern and the identifier it corresponds
 /// to.
@@ -346,14 +335,12 @@ fn expr_simple_identity_map<'a, 'hir>(
         (_, ExprKind::Path(_)) => (slice::from_ref(local_pat), slice::from_ref(peeled)),
         _ => return None,
     };
-
     // There is some length mismatch, which indicates usage of .. in the patterns above e.g.:
     // let (a, ..) = if let [a, b, _c] = ex { (a, b) } else { ... };
     // We bail in these cases as they should be rare.
     if paths.len() != sub_pats.len() {
         return None;
     }
-
     let mut pat_bindings = FxHashMap::default();
     let_pat.each_binding_or_first(&mut |binding_mode, _hir_id, _sp, ident| {
         pat_bindings.insert(ident, binding_mode);

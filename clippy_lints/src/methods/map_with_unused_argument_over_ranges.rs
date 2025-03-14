@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use crate::methods::MAP_WITH_UNUSED_ARGUMENT_OVER_RANGES;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
@@ -11,7 +13,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Body, Closure, Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_span::Span;
-
 fn extract_count_with_applicability(
     cx: &LateContext<'_>,
     range: higher::Range<'_>,
@@ -56,7 +57,6 @@ fn extract_count_with_applicability(
     }
     None
 }
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     ex: &Expr<'_>,
@@ -80,7 +80,6 @@ pub(super) fn check(
         let method_to_use_name;
         let new_span;
         let use_take;
-
         if eager_or_lazy::switch_to_eager_eval(cx, body_expr) {
             if msrv.meets(cx, msrvs::REPEAT_N) {
                 method_to_use_name = "repeat_n";
@@ -100,7 +99,6 @@ pub(super) fn check(
         } else {
             return;
         }
-
         // We need to provide nonempty parts to diag.multipart_suggestion so we
         // collate all our parts here and then remove those that are empty.
         let mut parts = vec![
@@ -113,7 +111,6 @@ pub(super) fn check(
         if use_take {
             parts.push((ex.span.shrink_to_hi(), format!(".take({count})")));
         }
-
         span_lint_and_then(
             cx,
             MAP_WITH_UNUSED_ARGUMENT_OVER_RANGES,

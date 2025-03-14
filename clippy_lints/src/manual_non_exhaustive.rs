@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_then, span_lint_hir_and_then};
 use clippy_utils::is_doc_hidden;
@@ -13,7 +15,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for manual implementations of the non-exhaustive pattern.
@@ -61,13 +62,11 @@ declare_clippy_lint! {
     style,
     "manual implementations of the non-exhaustive pattern can be simplified using #[non_exhaustive]"
 }
-
 pub struct ManualNonExhaustive {
     msrv: Msrv,
     constructed_enum_variants: FxHashSet<LocalDefId>,
     potential_enums: Vec<(LocalDefId, LocalDefId, Span, Span)>,
 }
-
 impl ManualNonExhaustive {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -77,15 +76,12 @@ impl ManualNonExhaustive {
         }
     }
 }
-
 impl_lint_pass!(ManualNonExhaustive => [MANUAL_NON_EXHAUSTIVE]);
-
 impl<'tcx> LateLintPass<'tcx> for ManualNonExhaustive {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         if !cx.effective_visibilities.is_exported(item.owner_id.def_id) || !self.msrv.meets(cx, msrvs::NON_EXHAUSTIVE) {
             return;
         }
-
         match item.kind {
             ItemKind::Enum(def, _) if def.variants.len() > 1 => {
                 let iter = def.variants.iter().filter_map(|v| {
@@ -134,7 +130,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualNonExhaustive {
             _ => {},
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         if let ExprKind::Path(QPath::Resolved(None, p)) = &e.kind
             && let Res::Def(DefKind::Ctor(CtorOf::Variant, CtorKind::Const), ctor_id) = p.res
@@ -144,7 +139,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualNonExhaustive {
             self.constructed_enum_variants.insert(variant_id);
         }
     }
-
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
         for &(enum_id, _, enum_span, variant_span) in self
             .potential_enums

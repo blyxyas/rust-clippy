@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::{is_type_diagnostic_item, is_type_lang_item};
@@ -8,7 +10,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::Ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::symbol::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -40,27 +41,21 @@ declare_clippy_lint! {
     style,
     "from_str_radix with radix 10"
 }
-
 declare_lint_pass!(FromStrRadix10 => [FROM_STR_RADIX_10]);
-
 impl<'tcx> LateLintPass<'tcx> for FromStrRadix10 {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, exp: &Expr<'tcx>) {
         if let ExprKind::Call(maybe_path, [src, radix]) = &exp.kind
             && let ExprKind::Path(QPath::TypeRelative(ty, pathseg)) = &maybe_path.kind
-
             // check if the second argument is a primitive `10`
             && is_integer_literal(radix, 10)
-
             // check if the second part of the path indeed calls the associated
             // function `from_str_radix`
             && pathseg.ident.name.as_str() == "from_str_radix"
-
             // check if the first part of the path is some integer primitive
             && let TyKind::Path(ty_qpath) = &ty.kind
             && let ty_res = cx.qpath_res(ty_qpath, ty.hir_id)
             && let def::Res::PrimTy(prim_ty) = ty_res
             && matches!(prim_ty, PrimTy::Int(_) | PrimTy::Uint(_))
-
             // do not lint in constant context, because the suggestion won't work.
             // NB: keep this check until a new `const_trait_impl` is available and stabilized.
             && !is_in_const_context(cx)
@@ -71,10 +66,8 @@ impl<'tcx> LateLintPass<'tcx> for FromStrRadix10 {
             } else {
                 &src
             };
-
             let sugg =
                 Sugg::hir_with_applicability(cx, expr, "<string>", &mut Applicability::MachineApplicable).maybe_par();
-
             span_lint_and_sugg(
                 cx,
                 FROM_STR_RADIX_10,
@@ -87,7 +80,6 @@ impl<'tcx> LateLintPass<'tcx> for FromStrRadix10 {
         }
     }
 }
-
 /// Checks if a Ty is `String` or `&str`
 fn is_ty_stringish(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
     is_type_lang_item(cx, ty, LangItem::String) || is_type_diagnostic_item(cx, ty, sym::str)

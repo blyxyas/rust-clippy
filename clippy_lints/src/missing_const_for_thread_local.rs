@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::macros::macro_backtrace;
@@ -10,7 +12,6 @@ use rustc_hir::{Expr, ExprKind, intravisit};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::sym::{self, thread_local_macro};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Suggests to use `const` in `thread_local!` macro if possible.
@@ -42,19 +43,15 @@ declare_clippy_lint! {
     perf,
     "suggest using `const` in `thread_local!` macro"
 }
-
 pub struct MissingConstForThreadLocal {
     msrv: Msrv,
 }
-
 impl MissingConstForThreadLocal {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(MissingConstForThreadLocal => [MISSING_CONST_FOR_THREAD_LOCAL]);
-
 #[inline]
 fn is_thread_local_initializer(
     cx: &LateContext<'_>,
@@ -67,7 +64,6 @@ fn is_thread_local_initializer(
             && matches!(fn_kind, intravisit::FnKind::ItemFn(..)),
     )
 }
-
 fn is_unreachable(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     if let Some(macro_call) = macro_backtrace(expr.span).next()
         && let Some(diag_name) = cx.tcx.get_diagnostic_name(macro_call.def_id)
@@ -87,7 +83,6 @@ fn is_unreachable(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     }
     false
 }
-
 #[inline]
 fn initializer_can_be_made_const(cx: &LateContext<'_>, defid: rustc_span::def_id::DefId, msrv: Msrv) -> bool {
     // Building MIR for `fn`s with unsatisfiable preds results in ICE.
@@ -99,7 +94,6 @@ fn initializer_can_be_made_const(cx: &LateContext<'_>, defid: rustc_span::def_id
     }
     false
 }
-
 impl<'tcx> LateLintPass<'tcx> for MissingConstForThreadLocal {
     fn check_fn(
         &mut self,

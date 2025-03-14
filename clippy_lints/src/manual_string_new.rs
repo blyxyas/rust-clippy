@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use rustc_ast::LitKind;
 use rustc_errors::Applicability::MachineApplicable;
@@ -6,7 +8,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym, symbol};
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -34,13 +35,11 @@ declare_clippy_lint! {
     "empty String is being created manually"
 }
 declare_lint_pass!(ManualStringNew => [MANUAL_STRING_NEW]);
-
 impl LateLintPass<'_> for ManualStringNew {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         if expr.span.from_expansion() {
             return;
         }
-
         let ty = cx.typeck_results().expr_ty(expr);
         match ty.kind() {
             ty::Adt(adt_def, _) if adt_def.is_struct() => {
@@ -50,7 +49,6 @@ impl LateLintPass<'_> for ManualStringNew {
             },
             _ => return,
         }
-
         match expr.kind {
             ExprKind::Call(func, [arg]) => {
                 parse_call(cx, expr.span, func, arg);
@@ -62,7 +60,6 @@ impl LateLintPass<'_> for ManualStringNew {
         }
     }
 }
-
 /// Checks if an expression's kind corresponds to an empty &str.
 fn is_expr_kind_empty_str(expr_kind: &ExprKind<'_>) -> bool {
     if let ExprKind::Lit(lit) = expr_kind
@@ -71,10 +68,8 @@ fn is_expr_kind_empty_str(expr_kind: &ExprKind<'_>) -> bool {
     {
         return true;
     }
-
     false
 }
-
 fn warn_then_suggest(cx: &LateContext<'_>, span: Span) {
     span_lint_and_sugg(
         cx,
@@ -86,7 +81,6 @@ fn warn_then_suggest(cx: &LateContext<'_>, span: Span) {
         MachineApplicable,
     );
 }
-
 /// Tries to parse an expression as a method call, emitting the warning if necessary.
 fn parse_method_call(cx: &LateContext<'_>, span: Span, path_segment: &PathSegment<'_>, receiver: &Expr<'_>) {
     let ident = path_segment.ident.as_str();
@@ -99,7 +93,6 @@ fn parse_method_call(cx: &LateContext<'_>, span: Span, path_segment: &PathSegmen
         parse_call(cx, span, func, arg);
     }
 }
-
 /// Tries to parse an expression as a function call, emitting the warning if necessary.
 fn parse_call(cx: &LateContext<'_>, span: Span, func: &Expr<'_>, arg: &Expr<'_>) {
     if let ExprKind::Path(qpath) = &func.kind {

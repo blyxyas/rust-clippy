@@ -1,3 +1,5 @@
+use crate::HVec;
+
 mod as_pointer_underscore;
 mod as_ptr_cast_mut;
 mod as_underscore;
@@ -23,14 +25,12 @@ mod ref_as_ptr;
 mod unnecessary_cast;
 mod utils;
 mod zero_ptr;
-
 use clippy_config::Conf;
 use clippy_utils::is_hir_ty_cfg_dependant;
 use clippy_utils::msrvs::{self, Msrv};
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts from any numeric type to a float type where
@@ -56,7 +56,6 @@ declare_clippy_lint! {
     pedantic,
     "casts that cause loss of precision, e.g., `x as f32` where `x: u64`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts from a signed to an unsigned numeric
@@ -78,7 +77,6 @@ declare_clippy_lint! {
     pedantic,
     "casts from signed types to unsigned types, e.g., `x as u32` where `x: i32`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts between numeric types that may
@@ -117,7 +115,6 @@ declare_clippy_lint! {
     pedantic,
     "casts that may cause truncation of the value, e.g., `x as u8` where `x: u32`, or `x as i32` where `x: f32`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts from an unsigned type to a signed type of
@@ -147,7 +144,6 @@ declare_clippy_lint! {
     pedantic,
     "casts that may cause wrapping around the value, e.g., `x as i32` where `x: u32` and `x > i32::MAX`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts between numeric types that can be replaced by safe
@@ -180,7 +176,6 @@ declare_clippy_lint! {
     pedantic,
     "casts using `as` that are known to be lossless, e.g., `x as u64` where `x: u8`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts to the same type, casts of int literals to integer
@@ -216,7 +211,6 @@ declare_clippy_lint! {
     complexity,
     "cast to the same type, e.g., `x as i32` where `x: i32`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts, using `as` or `pointer::cast`, from a
@@ -244,7 +238,6 @@ declare_clippy_lint! {
     pedantic,
     "cast from a pointer to a more strictly aligned pointer"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts of function pointers to something other than `usize`.
@@ -274,7 +267,6 @@ declare_clippy_lint! {
     style,
     "casting a function pointer to a numeric type other than `usize`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts of a function pointer to a numeric type not wide enough to
@@ -307,7 +299,6 @@ declare_clippy_lint! {
     style,
     "casting a function pointer to a numeric type not wide enough to store the address"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts of a function pointer to any integer type.
@@ -349,7 +340,6 @@ declare_clippy_lint! {
     restriction,
     "casting a function pointer to any integer type"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for expressions where a character literal is cast
@@ -377,7 +367,6 @@ declare_clippy_lint! {
     complexity,
     "casting a character literal to `u8` truncates"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `as` casts between raw pointers that don't change their
@@ -407,7 +396,6 @@ declare_clippy_lint! {
     pedantic,
     "casting using `as` between raw pointers that doesn't change their constness, where `pointer::cast` could take the place of `as`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `as` casts between raw pointers that change their constness, namely `*const T` to
@@ -443,7 +431,6 @@ declare_clippy_lint! {
     pedantic,
     "casting using `as` on raw pointers to change constness when specialized methods apply"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts from an enum type to an integral type that will definitely truncate the
@@ -462,7 +449,6 @@ declare_clippy_lint! {
     suspicious,
     "casts from an enum type to an integral type that will truncate the value"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `as` casts between raw pointers to slices with differently sized elements.
@@ -507,7 +493,6 @@ declare_clippy_lint! {
     correctness,
     "casting using `as` between raw pointers to slices of types with different sizes"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts from an enum tuple constructor to an integer.
@@ -525,7 +510,6 @@ declare_clippy_lint! {
     suspicious,
     "casts from an enum tuple constructor to an integer"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of the `abs()` method that cast the result to unsigned.
@@ -548,7 +532,6 @@ declare_clippy_lint! {
     suspicious,
     "casting the result of `abs()` to an unsigned integer can panic"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the usage of `as _` conversion using inferred type.
@@ -576,7 +559,6 @@ declare_clippy_lint! {
     restriction,
     "detects `as _` conversion"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the usage of `&expr as *const T` or
@@ -609,7 +591,6 @@ declare_clippy_lint! {
     pedantic,
     "borrowing just to cast to a raw pointer"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for a raw slice being cast to a slice pointer
@@ -636,7 +617,6 @@ declare_clippy_lint! {
     suspicious,
     "casting a slice created from a pointer and length to a slice pointer"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the result of a `&self`-taking `as_ptr` being cast to a mutable pointer.
@@ -662,7 +642,6 @@ declare_clippy_lint! {
     nursery,
     "casting the result of the `&self`-taking `as_ptr` to a mutable pointer"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for a known NaN float being cast to an integer
@@ -684,7 +663,6 @@ declare_clippy_lint! {
     suspicious,
     "casting a known floating-point NaN into an integer"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Catch casts from `0` to some pointer type
@@ -707,7 +685,6 @@ declare_clippy_lint! {
     style,
     "using `0 as *{const, mut} T`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for casts of references to pointer using `as`
@@ -731,7 +708,6 @@ declare_clippy_lint! {
     pedantic,
     "using `as` to cast a reference to pointer"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the usage of `as *const _` or `as *mut _` conversion using inferred type.
@@ -758,17 +734,14 @@ declare_clippy_lint! {
     restriction,
     "detects `as *mut _` and `as *const _` conversion"
 }
-
 pub struct Casts {
     msrv: Msrv,
 }
-
 impl Casts {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(Casts => [
     CAST_PRECISION_LOSS,
     CAST_SIGN_LOSS,
@@ -796,13 +769,11 @@ impl_lint_pass!(Casts => [
     REF_AS_PTR,
     AS_POINTER_UNDERSCORE,
 ]);
-
 impl<'tcx> LateLintPass<'tcx> for Casts {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if expr.span.in_external_macro(cx.sess().source_map()) {
             return;
         }
-
         if let ExprKind::Cast(cast_from_expr, cast_to_hir) = expr.kind {
             if is_hir_ty_cfg_dependant(cx, cast_to_hir) {
                 return;
@@ -811,7 +782,6 @@ impl<'tcx> LateLintPass<'tcx> for Casts {
                 cx.typeck_results().expr_ty(cast_from_expr),
                 cx.typeck_results().expr_ty(expr),
             );
-
             if !expr.span.from_expansion() && unnecessary_cast::check(cx, expr, cast_from_expr, cast_from, cast_to) {
                 return;
             }
@@ -822,7 +792,6 @@ impl<'tcx> LateLintPass<'tcx> for Casts {
             fn_to_numeric_cast::check(cx, expr, cast_from_expr, cast_from, cast_to);
             fn_to_numeric_cast_with_truncation::check(cx, expr, cast_from_expr, cast_from, cast_to);
             zero_ptr::check(cx, expr, cast_from_expr, cast_to_hir);
-
             if cast_to.is_numeric() {
                 cast_possible_truncation::check(cx, expr, cast_from_expr, cast_from, cast_to, cast_to_hir.span);
                 if cast_from.is_numeric() {
@@ -835,17 +804,14 @@ impl<'tcx> LateLintPass<'tcx> for Casts {
                 cast_lossless::check(cx, expr, cast_from_expr, cast_from, cast_to, cast_to_hir, self.msrv);
                 cast_enum_constructor::check(cx, expr, cast_from_expr, cast_from);
             }
-
             as_underscore::check(cx, expr, cast_to_hir);
             as_pointer_underscore::check(cx, cast_to, cast_to_hir);
-
             let was_borrow_as_ptr_emitted = self.msrv.meets(cx, msrvs::BORROW_AS_PTR)
                 && borrow_as_ptr::check(cx, expr, cast_from_expr, cast_to_hir, self.msrv);
             if !was_borrow_as_ptr_emitted && self.msrv.meets(cx, msrvs::PTR_FROM_REF) {
                 ref_as_ptr::check(cx, expr, cast_from_expr, cast_to_hir);
             }
         }
-
         cast_ptr_alignment::check(cx, expr);
         char_lit_as_u8::check(cx, expr);
         ptr_as_ptr::check(cx, expr, self.msrv);

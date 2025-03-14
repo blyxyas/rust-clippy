@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::ITER_SKIP_ZERO;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::{is_from_proc_macro, is_trait_method};
@@ -5,9 +8,6 @@ use rustc_errors::Applicability;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::ITER_SKIP_ZERO;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, arg_expr: &Expr<'_>) {
     if !expr.span.from_expansion()
         && is_trait_method(cx, expr, sym::Iterator)

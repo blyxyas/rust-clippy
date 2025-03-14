@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::STR_SPLIT_AT_NEWLINE;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::visitors::is_const_evaluatable;
@@ -5,9 +8,6 @@ use rustc_ast::ast::LitKind;
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
-
-use super::STR_SPLIT_AT_NEWLINE;
-
 pub(super) fn check<'a>(cx: &LateContext<'a>, expr: &'_ Expr<'_>, split_recv: &'a Expr<'_>, split_arg: &'_ Expr<'_>) {
     // We're looking for `A.trim().split(B)`, where the adjusted type of `A` is `&str` (e.g. an
     // expression returning `String`), and `B` is a `Pattern` that hard-codes a newline (either `"\n"`

@@ -1,5 +1,6 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
+use super::{OR_FUN_CALL, UNWRAP_OR_DEFAULT};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::eager_or_lazy::switch_to_lazy_eval;
 use clippy_utils::source::snippet_with_context;
@@ -13,10 +14,8 @@ use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::Span;
 use rustc_span::symbol::{self, Symbol, sym};
+use std::ops::ControlFlow;
 use {rustc_ast as ast, rustc_hir as hir};
-
-use super::{OR_FUN_CALL, UNWRAP_OR_DEFAULT};
-
 /// Checks for the `OR_FUN_CALL` lint.
 #[expect(clippy::too_many_lines)]
 pub(super) fn check<'tcx>(
@@ -43,7 +42,6 @@ pub(super) fn check<'tcx>(
         if !expr_type_is_certain(cx, receiver) {
             return false;
         }
-
         let is_new = |fun: &hir::Expr<'_>| {
             if let hir::ExprKind::Path(ref qpath) = fun.kind {
                 let path = last_path_segment(qpath).ident.name;
@@ -52,7 +50,6 @@ pub(super) fn check<'tcx>(
                 false
             }
         };
-
         let output_type_implements_default = |fun| {
             let fun_ty = cx.typeck_results().expr_ty(fun);
             if let ty::FnDef(def_id, args) = fun_ty.kind() {
@@ -64,13 +61,11 @@ pub(super) fn check<'tcx>(
                 false
             }
         };
-
         let sugg = match (name, call_expr.is_some()) {
             ("unwrap_or", true) | ("unwrap_or_else", false) => sym!(unwrap_or_default),
             ("or_insert", true) | ("or_insert_with", false) => sym!(or_default),
             _ => return false,
         };
-
         let receiver_ty = cx.typeck_results().expr_ty_adjusted(receiver).peel_refs();
         let Some(suggested_method_def_id) = receiver_ty.ty_adt_def().and_then(|adt_def| {
             cx.tcx
@@ -98,7 +93,6 @@ pub(super) fn check<'tcx>(
         if in_sugg_method_implementation {
             return false;
         }
-
         // needs to target Default::default in particular or be *::new and have a Default impl
         // available
         if (is_new(fun) && output_type_implements_default(fun))
@@ -116,13 +110,11 @@ pub(super) fn check<'tcx>(
                 format!("{sugg}()"),
                 Applicability::MachineApplicable,
             );
-
             true
         } else {
             false
         }
     }
-
     /// Checks for `*or(foo())`.
     #[expect(clippy::too_many_arguments)]
     fn check_or_fn_call<'tcx>(
@@ -144,7 +136,6 @@ pub(super) fn check<'tcx>(
             (sym::Option, false, &["map_or", "ok_or", "or", "unwrap_or"], "else"),
             (sym::Result, true, &["or", "unwrap_or"], "else"),
         ];
-
         if KNOW_TYPES.iter().any(|k| k.2.contains(&name))
             && switch_to_lazy_eval(cx, arg)
             && !contains_return(arg)
@@ -160,7 +151,6 @@ pub(super) fn check<'tcx>(
                     (false, Some(fun_span)) => (fun_span, false),
                     _ => (arg.span, true),
                 };
-
                 let snip = snippet_with_context(cx, snippet_span, ctxt, "..", &mut app).0;
                 let snip = if use_lambda {
                     let l_arg = if fn_has_arguments { "_" } else { "" };
@@ -168,7 +158,6 @@ pub(super) fn check<'tcx>(
                 } else {
                     snip.into_owned()
                 };
-
                 if let Some(f) = second_arg {
                     let f = snippet_with_context(cx, f.span, ctxt, "..", &mut app).0;
                     format!("{snip}, {f}")
@@ -191,7 +180,6 @@ pub(super) fn check<'tcx>(
             false
         }
     }
-
     if let [arg] = args {
         let inner_arg = peel_blocks(arg);
         for_each_expr(cx, inner_arg, |ex| {
@@ -200,7 +188,6 @@ pub(super) fn check<'tcx>(
             // `opt.unwrap_or(Foo { inner: String::default(), other: 1 })` to get replaced by
             // `opt.unwrap_or_default()`.
             let is_nested_expr = ex.hir_id != inner_arg.hir_id;
-
             let is_triggered = match ex.kind {
                 hir::ExprKind::Call(fun, fun_args) => {
                     let inner_fun_has_args = !fun_args.is_empty();
@@ -222,7 +209,6 @@ pub(super) fn check<'tcx>(
                 },
                 _ => false,
             };
-
             if is_triggered {
                 ControlFlow::Break(())
             } else {
@@ -230,7 +216,6 @@ pub(super) fn check<'tcx>(
             }
         });
     }
-
     // `map_or` takes two arguments
     if let [arg, lambda] = args {
         let inner_arg = peel_blocks(arg);
@@ -250,11 +235,9 @@ pub(super) fn check<'tcx>(
         });
     }
 }
-
 fn closure_body_returns_empty_to_string(cx: &LateContext<'_>, e: &hir::Expr<'_>) -> bool {
     if let hir::ExprKind::Closure(&hir::Closure { body, .. }) = e.kind {
         let body = cx.tcx.hir_body(body);
-
         if body.params.is_empty()
             && let hir::Expr { kind, .. } = &body.value
             && let hir::ExprKind::MethodCall(hir::PathSegment { ident, .. }, self_arg, [], _) = kind
@@ -266,6 +249,5 @@ fn closure_body_returns_empty_to_string(cx: &LateContext<'_>, e: &hir::Expr<'_>)
             return true;
         }
     }
-
     false
 }

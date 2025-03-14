@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::INTO_ITER_ON_REF;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_trait_method;
 use clippy_utils::ty::has_iter_method;
@@ -7,9 +10,6 @@ use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::Span;
 use rustc_span::symbol::{Symbol, sym};
-
-use super::INTO_ITER_ON_REF;
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     expr: &hir::Expr<'_>,
@@ -34,7 +34,6 @@ pub(super) fn check(
         );
     }
 }
-
 fn ty_has_iter_method(cx: &LateContext<'_>, self_ref_ty: Ty<'_>) -> Option<(Symbol, &'static str)> {
     has_iter_method(cx, self_ref_ty).map(|ty_name| {
         let ty::Ref(_, _, mutbl) = self_ref_ty.kind() else {

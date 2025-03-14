@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_errors::Applicability;
@@ -7,7 +9,6 @@ use rustc_middle::ty;
 use rustc_middle::ty::layout::LayoutOf;
 use rustc_session::impl_lint_pass;
 use rustc_span::{BytePos, Pos, Span};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for large `const` arrays that should
@@ -31,11 +32,9 @@ declare_clippy_lint! {
     perf,
     "large non-scalar const array may cause performance overhead"
 }
-
 pub struct LargeConstArrays {
     maximum_allowed_size: u64,
 }
-
 impl LargeConstArrays {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -43,9 +42,7 @@ impl LargeConstArrays {
         }
     }
 }
-
 impl_lint_pass!(LargeConstArrays => [LARGE_CONST_ARRAYS]);
-
 impl<'tcx> LateLintPass<'tcx> for LargeConstArrays {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         if let ItemKind::Const(_, generics, _) = &item.kind

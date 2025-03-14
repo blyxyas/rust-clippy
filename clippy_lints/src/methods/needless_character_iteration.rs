@@ -1,8 +1,4 @@
-use rustc_errors::Applicability;
-use rustc_hir::{Closure, Expr, ExprKind, HirId, StmtKind, UnOp};
-use rustc_lint::LateContext;
-use rustc_middle::ty;
-use rustc_span::Span;
+use crate::HVec;
 
 use super::NEEDLESS_CHARACTER_ITERATION;
 use super::utils::get_last_chain_binding_hir_id;
@@ -10,14 +6,17 @@ use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::paths::CHAR_IS_ASCII;
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::{match_def_path, path_to_local_id, peel_blocks};
-
+use rustc_errors::Applicability;
+use rustc_hir::{Closure, Expr, ExprKind, HirId, StmtKind, UnOp};
+use rustc_lint::LateContext;
+use rustc_middle::ty;
+use rustc_span::Span;
 fn peels_expr_ref<'a, 'tcx>(mut expr: &'a Expr<'tcx>) -> &'a Expr<'tcx> {
     while let ExprKind::AddrOf(_, _, e) = expr.kind {
         expr = e;
     }
     expr
 }
-
 fn handle_expr(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -96,7 +95,6 @@ fn handle_expr(
         _ => {},
     }
 }
-
 pub(super) fn check(cx: &LateContext<'_>, call_expr: &Expr<'_>, recv: &Expr<'_>, closure_arg: &Expr<'_>, is_all: bool) {
     if let ExprKind::Closure(&Closure { body, .. }) = closure_arg.kind
         && let body = cx.tcx.hir_body(body)
@@ -111,7 +109,6 @@ pub(super) fn check(cx: &LateContext<'_>, call_expr: &Expr<'_>, recv: &Expr<'_>,
             recv = new_recv;
         }
         let body_expr = peel_blocks(body.value);
-
         handle_expr(
             cx,
             body_expr,

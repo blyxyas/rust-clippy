@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::NEEDLESS_OPTION_TAKE;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::ty::is_type_diagnostic_item;
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, QPath};
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::NEEDLESS_OPTION_TAKE;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, recv: &'tcx Expr<'_>) {
     // Checks if expression type is equal to sym::Option and if the expr is not a syntactic place
     if !recv.is_syntactic_place_expr() && is_expr_option(cx, recv) {
@@ -31,12 +31,10 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, recv: &'
         }
     }
 }
-
 fn is_expr_option(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     let expr_type = cx.typeck_results().expr_ty(expr);
     is_type_diagnostic_item(cx, expr_type, sym::Option)
 }
-
 /// Returns the string of the function call that creates the temporary.
 /// When this function is called, we are reasonably certain that the `ExprKind` is either
 /// `Call` or `MethodCall` because we already checked that the expression is not

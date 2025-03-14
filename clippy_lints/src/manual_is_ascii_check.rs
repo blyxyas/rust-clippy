@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::macros::matching_root_macro_call;
@@ -12,7 +14,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, Ty};
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Suggests to use dedicated built-in methods,
@@ -57,17 +58,14 @@ declare_clippy_lint! {
     "use dedicated method to check ascii range"
 }
 impl_lint_pass!(ManualIsAsciiCheck => [MANUAL_IS_ASCII_CHECK]);
-
 pub struct ManualIsAsciiCheck {
     msrv: Msrv,
 }
-
 impl ManualIsAsciiCheck {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 #[derive(Debug, PartialEq)]
 enum CharRange {
     /// 'a'..='z' | b'a'..=b'z'
@@ -86,17 +84,14 @@ enum CharRange {
     HexDigit,
     Otherwise,
 }
-
 impl<'tcx> LateLintPass<'tcx> for ManualIsAsciiCheck {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if !self.msrv.meets(cx, msrvs::IS_ASCII_DIGIT) {
             return;
         }
-
         if is_in_const_context(cx) && !self.msrv.meets(cx, msrvs::IS_ASCII_DIGIT_CONST) {
             return;
         }
-
         if let Some(macro_call) = matching_root_macro_call(cx, expr.span, sym::matches_macro) {
             if let ExprKind::Match(recv, [arm, ..], _) = expr.kind {
                 let range = check_pat(&arm.pat.kind);
@@ -118,7 +113,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualIsAsciiCheck {
         }
     }
 }
-
 fn get_ty_sugg<'tcx>(cx: &LateContext<'tcx>, arg: &Expr<'_>) -> Option<(Span, Ty<'tcx>)> {
     let local_hid = path_to_local(arg)?;
     if let Node::Param(Param { ty_span, span, .. }) = cx.tcx.parent_hir_node(local_hid)
@@ -130,7 +124,6 @@ fn get_ty_sugg<'tcx>(cx: &LateContext<'tcx>, arg: &Expr<'_>) -> Option<(Span, Ty
     }
     None
 }
-
 fn check_is_ascii(
     cx: &LateContext<'_>,
     span: Span,
@@ -153,7 +146,6 @@ fn check_is_ascii(
     if let Some((ty_span, ty)) = ty_sugg {
         suggestion.push((ty_span, format!("{recv}: {ty}")));
     }
-
     span_lint_and_then(
         cx,
         MANUAL_IS_ASCII_CHECK,
@@ -164,12 +156,10 @@ fn check_is_ascii(
         },
     );
 }
-
 fn check_pat(pat_kind: &PatKind<'_>) -> CharRange {
     match pat_kind {
         PatKind::Or(pats) => {
             let ranges = pats.iter().map(|p| check_pat(&p.kind)).collect::<Vec<_>>();
-
             if ranges.len() == 2 && ranges.contains(&CharRange::UpperChar) && ranges.contains(&CharRange::LowerChar) {
                 CharRange::FullChar
             } else if ranges.len() == 3
@@ -186,7 +176,6 @@ fn check_pat(pat_kind: &PatKind<'_>) -> CharRange {
         _ => CharRange::Otherwise,
     }
 }
-
 fn check_expr_range(start: &Expr<'_>, end: &Expr<'_>) -> CharRange {
     if let ExprKind::Lit(start_lit) = &start.kind
         && let ExprKind::Lit(end_lit) = &end.kind
@@ -196,7 +185,6 @@ fn check_expr_range(start: &Expr<'_>, end: &Expr<'_>) -> CharRange {
         CharRange::Otherwise
     }
 }
-
 fn check_range(start: &PatExpr<'_>, end: &PatExpr<'_>) -> CharRange {
     if let PatExprKind::Lit {
         lit: start_lit,
@@ -212,7 +200,6 @@ fn check_range(start: &PatExpr<'_>, end: &PatExpr<'_>) -> CharRange {
         CharRange::Otherwise
     }
 }
-
 fn check_lit_range(start_lit: &Lit, end_lit: &Lit) -> CharRange {
     match (&start_lit.node, &end_lit.node) {
         (Char('a'), Char('z')) | (Byte(b'a'), Byte(b'z')) => CharRange::LowerChar,

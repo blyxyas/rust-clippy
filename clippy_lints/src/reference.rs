@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::{SpanRangeExt, snippet_with_applicability};
 use rustc_ast::ast::{Expr, ExprKind, Mutability, UnOp};
@@ -5,7 +7,6 @@ use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{BytePos, Span};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `*&` and `*&mut` in expressions.
@@ -34,16 +35,13 @@ declare_clippy_lint! {
     complexity,
     "use of `*&` or `*&mut` in an expression"
 }
-
 declare_lint_pass!(DerefAddrOf => [DEREF_ADDROF]);
-
 fn without_parens(mut e: &Expr) -> &Expr {
     while let ExprKind::Paren(ref child_e) = e.kind {
         e = child_e;
     }
     e
 }
-
 impl EarlyLintPass for DerefAddrOf {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, e: &Expr) {
         if let ExprKind::Unary(UnOp::Deref, ref deref_target) = e.kind
@@ -68,7 +66,6 @@ impl EarlyLintPass for DerefAddrOf {
                             })
                             .map_or(span, |start_no_whitespace| e.span.with_lo(start_no_whitespace))
                     };
-
                     let mut generate_snippet = |pattern: &str| {
                         #[expect(clippy::cast_possible_truncation)]
                         macro_source.rfind(pattern).map(|pattern_pos| {
@@ -78,7 +75,6 @@ impl EarlyLintPass for DerefAddrOf {
                             snippet_with_applicability(cx, span, "_", &mut applicability)
                         })
                     };
-
                     if *mutability == Mutability::Mut {
                         generate_snippet("mut")
                     } else {

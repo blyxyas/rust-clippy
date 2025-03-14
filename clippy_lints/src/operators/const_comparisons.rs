@@ -1,21 +1,17 @@
 #![allow(clippy::match_same_arms)]
-
-use std::cmp::Ordering;
-
+use super::{IMPOSSIBLE_COMPARISONS, REDUNDANT_COMPARISONS};
+use crate::HVec;
+use clippy_utils::SpanlessEq;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
+use clippy_utils::diagnostics::span_lint_and_note;
+use clippy_utils::source::snippet;
 use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::layout::HasTyCtxt;
 use rustc_middle::ty::{Ty, TypeckResults};
 use rustc_span::Span;
 use rustc_span::source_map::Spanned;
-
-use clippy_utils::SpanlessEq;
-use clippy_utils::diagnostics::span_lint_and_note;
-use clippy_utils::source::snippet;
-
-use super::{IMPOSSIBLE_COMPARISONS, REDUNDANT_COMPARISONS};
-
+use std::cmp::Ordering;
 // Extract a comparison between a const and non-const
 // Flip yoda conditionals, turnings expressions like `42 < x` into `x > 42`
 fn comparison_to_const<'tcx>(
@@ -37,7 +33,6 @@ fn comparison_to_const<'tcx>(
         None
     }
 }
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     and_op: Spanned<BinOpKind>,
@@ -47,30 +42,22 @@ pub(super) fn check<'tcx>(
 ) {
     if and_op.node == BinOpKind::And
         // Ensure that the binary operator is &&
-
         // Check that both operands to '&&' are themselves a binary operation
         // The `comparison_to_const` step also checks this, so this step is just an optimization
         && let ExprKind::Binary(_, _, _) = left_cond.kind
         && let ExprKind::Binary(_, _, _) = right_cond.kind
-
         && let typeck = cx.typeck_results()
-
         // Check that both operands to '&&' compare a non-literal to a literal
         && let Some((left_cmp_op, left_expr, left_const_expr, left_const, left_type)) =
             comparison_to_const(cx, typeck, left_cond)
         && let Some((right_cmp_op, right_expr, right_const_expr, right_const, right_type)) =
             comparison_to_const(cx, typeck, right_cond)
-
         && left_type == right_type
-
         // Check that the same expression is compared in both comparisons
         && SpanlessEq::new(cx).eq_expr(left_expr, right_expr)
-
         && !left_expr.can_have_side_effects()
-
         // Compare the two constant expressions
         && let Some(ordering) = Constant::partial_cmp(cx.tcx(), left_type, &left_const, &right_const)
-
         // Rule out the `x >= 42 && x <= 42` corner case immediately
         // Mostly to simplify the implementation, but it is also covered by `clippy::double_comparisons`
         && !matches!(
@@ -130,7 +117,6 @@ pub(super) fn check<'tcx>(
         }
     }
 }
-
 fn left_side_is_useless(left_cmp_op: CmpOp, ordering: Ordering) -> bool {
     // Special-case for equal constants with an inclusive comparison
     if ordering == Ordering::Equal {
@@ -149,7 +135,6 @@ fn left_side_is_useless(left_cmp_op: CmpOp, ordering: Ordering) -> bool {
         }
     }
 }
-
 fn comparison_is_possible(left_cmp_direction: CmpOpDirection, ordering: Ordering) -> bool {
     match (left_cmp_direction, ordering) {
         (CmpOpDirection::Lesser, Ordering::Less | Ordering::Equal) => false,
@@ -158,13 +143,11 @@ fn comparison_is_possible(left_cmp_direction: CmpOpDirection, ordering: Ordering
         (CmpOpDirection::Greater, Ordering::Less) => true,
     }
 }
-
 #[derive(PartialEq, Eq, Clone, Copy)]
 enum CmpOpDirection {
     Lesser,
     Greater,
 }
-
 #[derive(Clone, Copy)]
 enum CmpOp {
     Lt,
@@ -172,7 +155,6 @@ enum CmpOp {
     Ge,
     Gt,
 }
-
 impl CmpOp {
     fn reverse(self) -> Self {
         match self {
@@ -182,7 +164,6 @@ impl CmpOp {
             CmpOp::Gt => CmpOp::Lt,
         }
     }
-
     fn direction(self) -> CmpOpDirection {
         match self {
             CmpOp::Lt => CmpOpDirection::Lesser,
@@ -192,10 +173,8 @@ impl CmpOp {
         }
     }
 }
-
 impl TryFrom<BinOpKind> for CmpOp {
     type Error = ();
-
     fn try_from(bin_op: BinOpKind) -> Result<Self, Self::Error> {
         match bin_op {
             BinOpKind::Lt => Ok(CmpOp::Lt),

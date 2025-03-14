@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use crate::functions::REF_OPTION;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_trait_impl_item;
@@ -11,7 +13,6 @@ use rustc_lint::LateContext;
 use rustc_middle::ty::{self, GenericArgKind, Mutability, Ty};
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, sym};
-
 fn check_ty<'a>(cx: &LateContext<'a>, param: &rustc_hir::Ty<'a>, param_ty: Ty<'a>, fixes: &mut Vec<(Span, String)>) {
     if let ty::Ref(_, opt_ty, Mutability::Not) = param_ty.kind()
         && is_type_diagnostic_item(cx, *opt_ty, sym::Option)
@@ -40,7 +41,6 @@ fn check_ty<'a>(cx: &LateContext<'a>, param: &rustc_hir::Ty<'a>, param_ty: Ty<'a
         ));
     }
 }
-
 fn check_fn_sig<'a>(cx: &LateContext<'a>, decl: &FnDecl<'a>, span: Span, sig: ty::FnSig<'a>) {
     let mut fixes = Vec::new();
     // Check function arguments' types
@@ -63,7 +63,6 @@ fn check_fn_sig<'a>(cx: &LateContext<'a>, decl: &FnDecl<'a>, span: Span, sig: ty
         );
     }
 }
-
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn check_fn<'a>(
     cx: &LateContext<'a>,
@@ -78,7 +77,6 @@ pub(crate) fn check_fn<'a>(
     if avoid_breaking_exported_api && cx.effective_visibilities.is_exported(def_id) {
         return;
     }
-
     if let FnKind::Closure = kind {
         // Compute the span of the closure parameters + return type if set
         let span = if let hir::FnRetTy::Return(out_ty) = &decl.output {
@@ -93,20 +91,17 @@ pub(crate) fn check_fn<'a>(
             // No parameters - no point in checking
             return;
         };
-
         // Figure out the signature of the closure
         let ty::Closure(_, args) = cx.typeck_results().expr_ty(body.value).kind() else {
             return;
         };
         let sig = args.as_closure().sig().skip_binder();
-
         check_fn_sig(cx, decl, span, sig);
     } else if !is_trait_impl_item(cx, hir_id) {
         let sig = cx.tcx.fn_sig(def_id).instantiate_identity().skip_binder();
         check_fn_sig(cx, decl, span, sig);
     }
 }
-
 pub(super) fn check_trait_item<'a>(
     cx: &LateContext<'a>,
     trait_item: &hir::TraitItem<'a>,

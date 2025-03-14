@@ -20,7 +20,6 @@ macro_rules! declare_clippy_lint {
             report_in_external_macro:true
             $(, @eval_always = $eval_always)?
         }
-
         pub(crate) static ${concat($lint_name, _INFO)}: &'static crate::LintInfo = &crate::LintInfo {
             lint: &$lint_name,
             category:  $lintcategory,
@@ -72,7 +71,6 @@ macro_rules! declare_clippy_lint {
             pub $lint_name, Deny, crate::LintCategory::Correctness, $desc,
             Some($version), $version
             $(, $eval_always)?
-
         }
     };
     (
@@ -165,7 +163,6 @@ macro_rules! declare_clippy_lint {
             $(, $eval_always)?
         }
     };
-
     (
         $(#[doc = $lit:literal])*
         pub $lint_name:ident,

@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_INSPECT;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source::{IntoSpan, SpanRangeExt};
@@ -10,9 +13,6 @@ use rustc_hir::{BindingMode, BorrowKind, ByRef, ClosureKind, Expr, ExprKind, Mut
 use rustc_lint::LateContext;
 use rustc_middle::ty::adjustment::{Adjust, Adjustment, AutoBorrow, AutoBorrowMutability};
 use rustc_span::{DUMMY_SP, Span, Symbol, sym};
-
-use super::MANUAL_INSPECT;
-
 #[expect(clippy::too_many_lines)]
 pub(crate) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, arg: &Expr<'_>, name: &str, name_span: Span, msrv: Msrv) {
     if let ExprKind::Closure(c) = arg.kind
@@ -34,13 +34,10 @@ pub(crate) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, arg: &Expr<'_>, name:
     {
         let mut requires_copy = false;
         let mut requires_deref = false;
-
         // The number of unprocessed return expressions.
         let mut ret_count = 0u32;
-
         // The uses for which processing is delayed until after the visitor.
         let mut delayed = vec![];
-
         let ctxt = arg.span.ctxt();
         let can_lint = for_each_expr_without_closures(block.stmts, |e| {
             if let ExprKind::Closure(c) = e.kind {
@@ -88,12 +85,10 @@ pub(crate) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, arg: &Expr<'_>, name:
             ControlFlow::Continue(())
         })
         .is_none();
-
         if ret_count != 0 {
             // A return expression that didn't return the original value was found.
             return;
         }
-
         let mut edits = Vec::with_capacity(delayed.len() + 3);
         let mut addr_of_edits = Vec::with_capacity(delayed.len());
         for x in delayed {
@@ -122,7 +117,6 @@ pub(crate) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, arg: &Expr<'_>, name:
                         continue;
                     };
                     let mut prev_expr = e;
-
                     for (_, parent) in cx.tcx.hir_parent_iter(e.hir_id) {
                         if let Node::Expr(e) = parent {
                             match e.kind {
@@ -156,7 +150,6 @@ pub(crate) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, arg: &Expr<'_>, name:
                 UseKind::AutoBorrowed | UseKind::WillAutoDeref | UseKind::Deref => {},
             }
         }
-
         if can_lint
             && (!requires_copy || cx.type_is_copy_modulo_regions(arg_ty))
             // This case could be handled, but a fair bit of care would need to be taken.
@@ -197,7 +190,6 @@ pub(crate) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, arg: &Expr<'_>, name:
         }
     }
 }
-
 enum UseKind<'tcx> {
     AutoBorrowed,
     WillAutoDeref,
@@ -206,7 +198,6 @@ enum UseKind<'tcx> {
     Borrowed(Span),
     FieldAccess(Symbol, &'tcx Expr<'tcx>),
 }
-
 /// Checks how the value is used, and whether it was used in the same `SyntaxContext`.
 fn check_use<'tcx>(cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) -> (UseKind<'tcx>, bool) {
     let use_cx = expr_use_ctxt(cx, e);

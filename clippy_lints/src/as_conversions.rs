@@ -1,9 +1,10 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_from_proc_macro;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `as` conversions.
@@ -54,9 +55,7 @@ declare_clippy_lint! {
     restriction,
     "using a potentially dangerous silent `as` conversion"
 }
-
 declare_lint_pass!(AsConversions => [AS_CONVERSIONS]);
-
 impl<'tcx> LateLintPass<'tcx> for AsConversions {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
         if let ExprKind::Cast(_, _) = expr.kind

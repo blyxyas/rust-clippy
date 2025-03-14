@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::ASSIGN_OP_PATTERN;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::ty::implements_trait;
@@ -11,9 +14,6 @@ use rustc_hir_typeck::expr_use_visitor::{Delegate, ExprUseVisitor, PlaceBase, Pl
 use rustc_lint::LateContext;
 use rustc_middle::mir::FakeReadCause;
 use rustc_middle::ty::BorrowKind;
-
-use super::ASSIGN_OP_PATTERN;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx hir::Expr<'_>,
@@ -60,7 +60,6 @@ pub(super) fn check<'tcx>(
                 );
             }
         };
-
         let mut found = false;
         let found_multiple = for_each_expr_without_closures(e, |e| {
             if eq_expr_value(cx, assignee, e) {
@@ -72,7 +71,6 @@ pub(super) fn check<'tcx>(
             ControlFlow::Continue(())
         })
         .is_some();
-
         if found && !found_multiple {
             // a = a op b
             if eq_expr_value(cx, assignee, l) {
@@ -97,7 +95,6 @@ pub(super) fn check<'tcx>(
         }
     }
 }
-
 fn imm_borrows_in_expr(cx: &LateContext<'_>, e: &hir::Expr<'_>) -> HirIdSet {
     struct S(HirIdSet);
     impl Delegate<'_> for S {
@@ -110,19 +107,16 @@ fn imm_borrows_in_expr(cx: &LateContext<'_>, e: &hir::Expr<'_>) -> HirIdSet {
                 });
             }
         }
-
         fn consume(&mut self, _: &PlaceWithHirId<'_>, _: HirId) {}
         fn mutate(&mut self, _: &PlaceWithHirId<'_>, _: HirId) {}
         fn fake_read(&mut self, _: &PlaceWithHirId<'_>, _: FakeReadCause, _: HirId) {}
         fn copy(&mut self, _: &PlaceWithHirId<'_>, _: HirId) {}
     }
-
     let mut s = S(HirIdSet::default());
     let v = ExprUseVisitor::for_clippy(cx, e.hir_id.owner.def_id, &mut s);
     v.consume_expr(e).into_ok();
     s.0
 }
-
 fn mut_borrows_in_expr(cx: &LateContext<'_>, e: &hir::Expr<'_>) -> HirIdSet {
     struct S(HirIdSet);
     impl Delegate<'_> for S {
@@ -135,13 +129,11 @@ fn mut_borrows_in_expr(cx: &LateContext<'_>, e: &hir::Expr<'_>) -> HirIdSet {
                 });
             }
         }
-
         fn consume(&mut self, _: &PlaceWithHirId<'_>, _: HirId) {}
         fn mutate(&mut self, _: &PlaceWithHirId<'_>, _: HirId) {}
         fn fake_read(&mut self, _: &PlaceWithHirId<'_>, _: FakeReadCause, _: HirId) {}
         fn copy(&mut self, _: &PlaceWithHirId<'_>, _: HirId) {}
     }
-
     let mut s = S(HirIdSet::default());
     let v = ExprUseVisitor::for_clippy(cx, e.hir_id.owner.def_id, &mut s);
     v.consume_expr(e).into_ok();

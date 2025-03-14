@@ -1,4 +1,4 @@
-use std::num::Saturating;
+use crate::HVec;
 
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -11,7 +11,7 @@ use rustc_middle::ty;
 use rustc_middle::ty::layout::LayoutOf;
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, sym};
-
+use std::num::Saturating;
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for local arrays that may be too large.
@@ -28,13 +28,11 @@ declare_clippy_lint! {
     pedantic,
     "allocating large arrays on stack may cause stack overflow"
 }
-
 pub struct LargeStackArrays {
     maximum_allowed_size: u64,
     prev_vec_macro_callsite: Option<Span>,
     const_item_counter: Saturating<u16>,
 }
-
 impl LargeStackArrays {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -43,7 +41,6 @@ impl LargeStackArrays {
             const_item_counter: Saturating(0),
         }
     }
-
     /// Check if the given span of an expr is already in a `vec!` call.
     fn is_from_vec_macro(&mut self, cx: &LateContext<'_>, span: Span) -> bool {
         // First, we check if this is span is within the last encountered `vec!` macro's root callsite.
@@ -60,22 +57,18 @@ impl LargeStackArrays {
             }
     }
 }
-
 impl_lint_pass!(LargeStackArrays => [LARGE_STACK_ARRAYS]);
-
 impl<'tcx> LateLintPass<'tcx> for LargeStackArrays {
     fn check_item(&mut self, _: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if matches!(item.kind, ItemKind::Static(..) | ItemKind::Const(..)) {
             self.const_item_counter += 1;
         }
     }
-
     fn check_item_post(&mut self, _: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if matches!(item.kind, ItemKind::Static(..) | ItemKind::Const(..)) {
             self.const_item_counter -= 1;
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
         if self.const_item_counter.0 == 0
             && let ExprKind::Repeat(_, _) | ExprKind::Array(_) = expr.kind
@@ -114,7 +107,6 @@ impl<'tcx> LateLintPass<'tcx> for LargeStackArrays {
         }
     }
 }
-
 /// Only giving help messages if the expr does not contains macro expanded codes.
 fn might_be_expanded<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> bool {
     /// Check if the span of `ConstArg` of a repeat expression is within the expr's span,
@@ -128,6 +120,5 @@ fn might_be_expanded<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> bool {
         };
         !expr.span.contains(len_ct.span())
     }
-
     expr.span.from_expansion() || is_from_proc_macro(cx, expr) || repeat_expr_might_be_expanded(expr)
 }

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::paths;
@@ -8,7 +10,6 @@ use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -25,9 +26,7 @@ declare_clippy_lint! {
     internal,
     "detects slow comparisons of symbol"
 }
-
 declare_lint_pass!(SlowSymbolComparisons => [SLOW_SYMBOL_COMPARISONS]);
-
 fn check_slow_comparison<'tcx>(
     cx: &LateContext<'tcx>,
     op1: &'tcx Expr<'tcx>,
@@ -47,7 +46,6 @@ fn check_slow_comparison<'tcx>(
         None
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for SlowSymbolComparisons {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &Expr<'tcx>) {
         if let ExprKind::Binary(op, left, right) = expr.kind

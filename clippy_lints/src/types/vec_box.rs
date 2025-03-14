@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::VEC_BOX;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::last_path_segment;
 use clippy_utils::source::snippet;
@@ -9,9 +12,6 @@ use rustc_lint::LateContext;
 use rustc_middle::ty::TypeVisitableExt;
 use rustc_middle::ty::layout::LayoutOf;
 use rustc_span::symbol::sym;
-
-use super::VEC_BOX;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     hir_ty: &hir::Ty<'_>,

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_hir;
 use rustc_abi::ExternAbi;
@@ -11,11 +13,9 @@ use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::symbol::kw;
-
 pub struct BoxedLocal {
     too_large_for_stack: u64,
 }
-
 impl BoxedLocal {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -23,7 +23,6 @@ impl BoxedLocal {
         }
     }
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `Box<T>` where an unboxed `T` would
@@ -48,20 +47,16 @@ declare_clippy_lint! {
     perf,
     "using `Box<T>` where unnecessary"
 }
-
 fn is_non_trait_box(ty: Ty<'_>) -> bool {
     ty.boxed_ty().is_some_and(|boxed| !boxed.is_trait())
 }
-
 struct EscapeDelegate<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     set: HirIdSet,
     trait_self_ty: Option<Ty<'tcx>>,
     too_large_for_stack: u64,
 }
-
 impl_lint_pass!(BoxedLocal => [BOXED_LOCAL]);
-
 impl<'tcx> LateLintPass<'tcx> for BoxedLocal {
     fn check_fn(
         &mut self,
@@ -77,19 +72,16 @@ impl<'tcx> LateLintPass<'tcx> for BoxedLocal {
                 return;
             }
         }
-
         let parent_id = cx
             .tcx
             .hir_get_parent_item(cx.tcx.local_def_id_to_hir_id(fn_def_id))
             .def_id;
-
         let mut trait_self_ty = None;
         if let Node::Item(item) = cx.tcx.hir_node_by_def_id(parent_id) {
             // If the method is an impl for a trait, don't warn.
             if let ItemKind::Impl(Impl { of_trait: Some(_), .. }) = item.kind {
                 return;
             }
-
             // find `self` ty for this trait if relevant
             if let ItemKind::Trait(_, _, _, _, items) = item.kind {
                 for trait_item in items {
@@ -103,18 +95,15 @@ impl<'tcx> LateLintPass<'tcx> for BoxedLocal {
                 }
             }
         }
-
         let mut v = EscapeDelegate {
             cx,
             set: HirIdSet::default(),
             trait_self_ty,
             too_large_for_stack: self.too_large_for_stack,
         };
-
         ExprUseVisitor::for_clippy(cx, fn_def_id, &mut v)
             .consume_body(body)
             .into_ok();
-
         for node in v.set {
             span_lint_hir(
                 cx,
@@ -126,7 +115,6 @@ impl<'tcx> LateLintPass<'tcx> for BoxedLocal {
         }
     }
 }
-
 // TODO: Replace with Map::is_argument(..) when it's fixed
 fn is_argument(tcx: TyCtxt<'_>, id: HirId) -> bool {
     match tcx.hir_node(id) {
@@ -136,10 +124,8 @@ fn is_argument(tcx: TyCtxt<'_>, id: HirId) -> bool {
         }) => (),
         _ => return false,
     }
-
     matches!(tcx.parent_hir_node(id), Node::Param(_))
 }
-
 impl<'tcx> Delegate<'tcx> for EscapeDelegate<'_, 'tcx> {
     fn consume(&mut self, cmt: &PlaceWithHirId<'tcx>, _: HirId) {
         if cmt.place.projections.is_empty() {
@@ -149,7 +135,6 @@ impl<'tcx> Delegate<'tcx> for EscapeDelegate<'_, 'tcx> {
             }
         }
     }
-
     fn borrow(&mut self, cmt: &PlaceWithHirId<'tcx>, _: HirId, _: ty::BorrowKind) {
         if cmt.place.projections.is_empty() {
             if let PlaceBase::Local(lid) = cmt.place.base {
@@ -158,7 +143,6 @@ impl<'tcx> Delegate<'tcx> for EscapeDelegate<'_, 'tcx> {
             }
         }
     }
-
     fn mutate(&mut self, cmt: &PlaceWithHirId<'tcx>, _: HirId) {
         if cmt.place.projections.is_empty() {
             let map = &self.cx.tcx.hir();
@@ -168,7 +152,6 @@ impl<'tcx> Delegate<'tcx> for EscapeDelegate<'_, 'tcx> {
                 if let Node::Expr(..) = self.cx.tcx.parent_hir_node(parent_id) {
                     return;
                 }
-
                 // skip if there is a `self` parameter binding to a type
                 // that contains `Self` (i.e.: `self: Box<Self>`), see #4804
                 if let Some(trait_self_ty) = self.trait_self_ty {
@@ -176,17 +159,14 @@ impl<'tcx> Delegate<'tcx> for EscapeDelegate<'_, 'tcx> {
                         return;
                     }
                 }
-
                 if is_non_trait_box(cmt.place.ty()) && !self.is_large_box(cmt.place.ty()) {
                     self.set.insert(cmt.hir_id);
                 }
             }
         }
     }
-
     fn fake_read(&mut self, _: &PlaceWithHirId<'tcx>, _: FakeReadCause, _: HirId) {}
 }
-
 impl<'tcx> EscapeDelegate<'_, 'tcx> {
     fn is_large_box(&self, ty: Ty<'tcx>) -> bool {
         // Large types need to be boxed to avoid stack overflows.

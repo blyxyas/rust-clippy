@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_attr_parsing::{AttributeKind, ReprAttr, find_attr};
 use rustc_hir::{HirId, Item, ItemKind};
@@ -5,7 +7,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::layout::LayoutOf;
 use rustc_middle::ty::{self, FieldDef};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Displays a warning when a union is declared with the default representation (without a `#[repr(C)]` attribute).
@@ -49,7 +50,6 @@ declare_clippy_lint! {
     "unions without a `#[repr(C)]` attribute"
 }
 declare_lint_pass!(DefaultUnionRepresentation => [DEFAULT_UNION_REPRESENTATION]);
-
 impl<'tcx> LateLintPass<'tcx> for DefaultUnionRepresentation {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if !item.span.from_expansion()
@@ -72,7 +72,6 @@ impl<'tcx> LateLintPass<'tcx> for DefaultUnionRepresentation {
         }
     }
 }
-
 /// Returns true if the given item is a union with at least two non-ZST fields.
 /// (ZST fields having an arbitrary offset is completely inconsequential, and
 /// if there is only one field left after ignoring ZST fields then the offset
@@ -86,7 +85,6 @@ fn is_union_with_two_non_zst_fields<'tcx>(cx: &LateContext<'tcx>, item: &Item<'t
         false
     }
 }
-
 fn is_zst<'tcx>(cx: &LateContext<'tcx>, field: &FieldDef, args: ty::GenericArgsRef<'tcx>) -> bool {
     let ty = field.ty(cx.tcx, args);
     if let Ok(layout) = cx.layout_of(ty) {
@@ -95,9 +93,7 @@ fn is_zst<'tcx>(cx: &LateContext<'tcx>, field: &FieldDef, args: ty::GenericArgsR
         false
     }
 }
-
 fn has_c_repr_attr(cx: &LateContext<'_>, hir_id: HirId) -> bool {
     let attrs = cx.tcx.hir().attrs(hir_id);
-
     find_attr!(attrs, AttributeKind::Repr(r) if r.iter().any(|(x, _)| *x == ReprAttr::ReprC))
 }

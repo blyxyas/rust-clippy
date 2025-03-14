@@ -1,12 +1,12 @@
+use crate::HVec;
+
+use super::UNINIT_ASSUMED_INIT;
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::is_path_diagnostic_item;
 use clippy_utils::ty::is_uninit_value_valid_for_ty;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
-use super::UNINIT_ASSUMED_INIT;
-
 /// lint for `MaybeUninit::uninit().assume_init()` (we already have the latter)
 pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, recv: &hir::Expr<'_>) {
     if let hir::ExprKind::Call(callee, []) = recv.kind

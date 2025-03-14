@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::macros::root_macro_call_first_node;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -10,7 +12,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `panic!` or assertions in a function whose return type is `Result`.
@@ -39,9 +40,7 @@ declare_clippy_lint! {
     restriction,
     "functions of type `Result<..>` that contain `panic!()` or assertion"
 }
-
 declare_lint_pass!(PanicInResultFn  => [PANIC_IN_RESULT_FN]);
-
 impl<'tcx> LateLintPass<'tcx> for PanicInResultFn {
     fn check_fn(
         &mut self,
@@ -61,7 +60,6 @@ impl<'tcx> LateLintPass<'tcx> for PanicInResultFn {
         }
     }
 }
-
 fn lint_impl_body<'tcx>(cx: &LateContext<'tcx>, impl_span: Span, body: &'tcx hir::Body<'tcx>) {
     let mut panics = Vec::new();
     let _: Option<!> = for_each_expr(cx, body.value, |e| {

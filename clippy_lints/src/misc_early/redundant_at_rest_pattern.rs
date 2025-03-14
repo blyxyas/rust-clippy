@@ -1,10 +1,10 @@
+use crate::HVec;
+
+use super::REDUNDANT_AT_REST_PATTERN;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use rustc_ast::{Pat, PatKind};
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, LintContext};
-
-use super::REDUNDANT_AT_REST_PATTERN;
-
 pub(super) fn check(cx: &EarlyContext<'_>, pat: &Pat) {
     if !pat.span.in_external_macro(cx.sess().source_map())
         && let PatKind::Slice(slice) = &pat.kind

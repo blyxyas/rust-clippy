@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::{OPTION_MAP_OR_NONE, RESULT_MAP_OR_INTO_OPTION};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -7,9 +10,6 @@ use rustc_hir as hir;
 use rustc_hir::LangItem::{OptionNone, OptionSome};
 use rustc_lint::LateContext;
 use rustc_span::symbol::sym;
-
-use super::{OPTION_MAP_OR_NONE, RESULT_MAP_OR_INTO_OPTION};
-
 // The expression inside a closure may or may not have surrounding braces
 // which causes problems when generating a suggestion.
 fn reduce_unit_expression<'a>(expr: &'a hir::Expr<'_>) -> Option<(&'a hir::Expr<'a>, &'a [hir::Expr<'a>])> {
@@ -28,7 +28,6 @@ fn reduce_unit_expression<'a>(expr: &'a hir::Expr<'_>) -> Option<(&'a hir::Expr<
         _ => None,
     }
 }
-
 /// lint use of `_.map_or(None, _)` for `Option`s and `Result`s
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
@@ -39,7 +38,6 @@ pub(super) fn check<'tcx>(
 ) {
     let is_option = is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(recv), sym::Option);
     let is_result = is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(recv), sym::Result);
-
     // There are two variants of this `map_or` lint:
     // (1) using `map_or` as an adapter from `Result<T,E>` to `Option<T>`
     // (2) using `map_or` as a combinator instead of `and_then`
@@ -48,14 +46,11 @@ pub(super) fn check<'tcx>(
     if !is_option && !is_result {
         return;
     }
-
     if !is_res_lang_ctor(cx, path_res(cx, def_arg), OptionNone) {
         // nothing to lint!
         return;
     }
-
     let f_arg_is_some = is_res_lang_ctor(cx, path_res(cx, map_arg), OptionSome);
-
     if is_option {
         let self_snippet = snippet(cx, recv.span, "..");
         if let hir::ExprKind::Closure(&hir::Closure { body, fn_decl_span, .. }) = map_arg.kind
@@ -77,7 +72,6 @@ pub(super) fn check<'tcx>(
                 Applicability::MachineApplicable,
             );
         }
-
         let func_snippet = snippet(cx, map_arg.span, "..");
         let msg = "called `map_or(None, ..)` on an `Option` value";
         span_lint_and_sugg(

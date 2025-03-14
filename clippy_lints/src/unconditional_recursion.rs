@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::{expr_or_init, fn_def_id_with_node_args, path_def_id};
 use rustc_ast::BinOpKind;
@@ -16,7 +18,6 @@ use rustc_span::symbol::{Ident, kw};
 use rustc_span::{Span, sym};
 use rustc_trait_selection::error_reporting::traits::suggestions::ReturnsVisitor;
 use std::ops::ControlFlow;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks that there isn't an infinite recursion in trait
@@ -47,16 +48,13 @@ declare_clippy_lint! {
     suspicious,
     "detect unconditional recursion in some traits implementation"
 }
-
 #[derive(Default)]
 pub struct UnconditionalRecursion {
     /// The key is the `DefId` of the type implementing the `Default` trait and the value is the
     /// `DefId` of the return call.
     default_impl_for_type: FxHashMap<DefId, DefId>,
 }
-
 impl_lint_pass!(UnconditionalRecursion => [UNCONDITIONAL_RECURSION]);
-
 fn span_error(cx: &LateContext<'_>, method_span: Span, expr: &Expr<'_>) {
     span_lint_and_then(
         cx,
@@ -68,14 +66,12 @@ fn span_error(cx: &LateContext<'_>, method_span: Span, expr: &Expr<'_>) {
         },
     );
 }
-
 fn get_hir_ty_def_id<'tcx>(tcx: TyCtxt<'tcx>, hir_ty: rustc_hir::Ty<'tcx>) -> Option<DefId> {
     let TyKind::Path(qpath) = hir_ty.kind else { return None };
     match qpath {
         QPath::Resolved(_, path) => path.res.opt_def_id(),
         QPath::TypeRelative(_, _) => {
             let ty = lower_ty(tcx, &hir_ty);
-
             match ty.kind() {
                 ty::Alias(ty::Projection, proj) => {
                     Res::<HirId>::Def(DefKind::Trait, proj.trait_ref(tcx).def_id).opt_def_id()
@@ -86,14 +82,11 @@ fn get_hir_ty_def_id<'tcx>(tcx: TyCtxt<'tcx>, hir_ty: rustc_hir::Ty<'tcx>) -> Op
         QPath::LangItem(..) => None,
     }
 }
-
 fn get_return_calls_in_body<'tcx>(body: &'tcx Body<'tcx>) -> Vec<&'tcx Expr<'tcx>> {
     let mut visitor = ReturnsVisitor::default();
-
     visitor.visit_body(body);
     visitor.returns
 }
-
 fn has_conditional_return(body: &Body<'_>, expr: &Expr<'_>) -> bool {
     match get_return_calls_in_body(body).as_slice() {
         [] => false,
@@ -101,7 +94,6 @@ fn has_conditional_return(body: &Body<'_>, expr: &Expr<'_>) -> bool {
         _ => true,
     }
 }
-
 fn get_impl_trait_def_id(cx: &LateContext<'_>, method_def_id: LocalDefId) -> Option<DefId> {
     let hir_id = cx.tcx.local_def_id_to_hir_id(method_def_id);
     if let Some((
@@ -122,7 +114,6 @@ fn get_impl_trait_def_id(cx: &LateContext<'_>, method_def_id: LocalDefId) -> Opt
         None
     }
 }
-
 /// When we have `x == y` where `x = &T` and `y = &T`, then that resolves to
 /// `<&T as PartialEq<&T>>::eq`, which is not the same as `<T as PartialEq<T>>::eq`,
 /// however we still would want to treat it the same, because we know that it's a blanket impl
@@ -148,7 +139,6 @@ fn matches_ty<'tcx>(
     }
     false
 }
-
 fn check_partial_eq(cx: &LateContext<'_>, method_span: Span, method_def_id: LocalDefId, name: Ident, expr: &Expr<'_>) {
     let Some(sig) = cx
         .typeck_results()
@@ -157,7 +147,6 @@ fn check_partial_eq(cx: &LateContext<'_>, method_span: Span, method_def_id: Loca
     else {
         return;
     };
-
     // That has two arguments.
     if let [self_arg, other_arg] = sig.inputs()
         && let &ty::Ref(_, self_arg, _) = self_arg.kind()
@@ -182,7 +171,6 @@ fn check_partial_eq(cx: &LateContext<'_>, method_span: Span, method_def_id: Loca
             ExprKind::MethodCall(segment, receiver, [arg], _) if segment.ident.name == name.name => {
                 let receiver_ty = cx.typeck_results().expr_ty_adjusted(receiver);
                 let arg_ty = cx.typeck_results().expr_ty_adjusted(arg);
-
                 if let Some(fn_id) = cx.typeck_results().type_dependent_def_id(expr.hir_id)
                     && let Some(trait_id) = cx.tcx.trait_of_item(fn_id)
                     && trait_id == trait_def_id
@@ -200,7 +188,6 @@ fn check_partial_eq(cx: &LateContext<'_>, method_span: Span, method_def_id: Loca
         }
     }
 }
-
 fn check_to_string(cx: &LateContext<'_>, method_span: Span, method_def_id: LocalDefId, name: Ident, expr: &Expr<'_>) {
     let args = cx
         .tcx
@@ -243,7 +230,6 @@ fn check_to_string(cx: &LateContext<'_>, method_span: Span, method_def_id: Local
         }
     }
 }
-
 fn is_default_method_on_current_ty<'tcx>(tcx: TyCtxt<'tcx>, qpath: QPath<'tcx>, implemented_ty_id: DefId) -> bool {
     match qpath {
         QPath::Resolved(_, path) => match path.segments {
@@ -271,27 +257,22 @@ fn is_default_method_on_current_ty<'tcx>(tcx: TyCtxt<'tcx>, qpath: QPath<'tcx>, 
         QPath::LangItem(..) => false,
     }
 }
-
 struct CheckCalls<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     implemented_ty_id: DefId,
     method_span: Span,
 }
-
 impl<'a, 'tcx> Visitor<'tcx> for CheckCalls<'a, 'tcx>
 where
     'tcx: 'a,
 {
     type NestedFilter = nested_filter::OnlyBodies;
     type Result = ControlFlow<()>;
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'tcx>) -> ControlFlow<()> {
         walk_expr(self, expr)?;
-
         if let ExprKind::Call(f, _) = expr.kind
             && let ExprKind::Path(qpath) = f.kind
             && is_default_method_on_current_ty(self.cx.tcx, qpath, self.implemented_ty_id)
@@ -305,7 +286,6 @@ where
         ControlFlow::Continue(())
     }
 }
-
 impl UnconditionalRecursion {
     fn init_default_impl_for_type_if_needed(&mut self, cx: &LateContext<'_>) {
         if self.default_impl_for_type.is_empty()
@@ -342,7 +322,6 @@ impl UnconditionalRecursion {
             }
         }
     }
-
     fn check_default_new<'tcx>(
         &mut self,
         cx: &LateContext<'tcx>,
@@ -359,7 +338,6 @@ impl UnconditionalRecursion {
         if get_impl_trait_def_id(cx, method_def_id).is_some() {
             return;
         }
-
         let hir_id = cx.tcx.local_def_id_to_hir_id(method_def_id);
         if let Some((
             _,
@@ -385,7 +363,6 @@ impl UnconditionalRecursion {
         }
     }
 }
-
 fn check_from(cx: &LateContext<'_>, method_span: Span, method_def_id: LocalDefId, expr: &Expr<'_>) {
     let Some(sig) = cx
         .typeck_results()
@@ -394,7 +371,6 @@ fn check_from(cx: &LateContext<'_>, method_span: Span, method_def_id: LocalDefId
     else {
         return;
     };
-
     // Check if we are calling `Into::into` where the node args match with our `From::from` signature:
     // From::from signature: fn(S1) -> S2
     // <S1 as Into<S2>>::into(s1), node_args=[S1, S2]
@@ -413,7 +389,6 @@ fn check_from(cx: &LateContext<'_>, method_span: Span, method_def_id: LocalDefId
         span_error(cx, method_span, expr);
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for UnconditionalRecursion {
     fn check_fn(
         &mut self,

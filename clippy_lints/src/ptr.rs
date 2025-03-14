@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use crate::vec::is_allowed_vec_method;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then, span_lint_hir_and_then};
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::sugg::Sugg;
@@ -23,9 +26,6 @@ use rustc_span::{Span, sym};
 use rustc_trait_selection::infer::InferCtxtExt as _;
 use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _;
 use std::{fmt, iter};
-
-use crate::vec::is_allowed_vec_method;
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint checks for function arguments of type `&String`, `&Vec`,
@@ -61,7 +61,6 @@ declare_clippy_lint! {
     style,
     "fn arguments of the type `&Vec<...>` or `&String`, suggesting to use `&[...]` or `&str` instead, respectively"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint checks for equality comparisons with `ptr::null`
@@ -91,7 +90,6 @@ declare_clippy_lint! {
     style,
     "comparing a pointer to a null pointer, suggesting to use `.is_null()` instead"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint checks for functions that take immutable references and return
@@ -124,7 +122,6 @@ declare_clippy_lint! {
     correctness,
     "fns that create mutable refs from immutable ref args"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint checks for invalid usages of `ptr::null`.
@@ -147,7 +144,6 @@ declare_clippy_lint! {
     correctness,
     "invalid usage of a null pointer, suggesting `NonNull::dangling()` instead"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Use `std::ptr::eq` when applicable
@@ -176,9 +172,7 @@ declare_clippy_lint! {
     style,
     "use `std::ptr::eq` when comparing raw pointers"
 }
-
 declare_lint_pass!(Ptr => [PTR_ARG, CMP_NULL, MUT_FROM_REF, INVALID_NULL_PTR_USAGE, PTR_EQ]);
-
 impl<'tcx> LateLintPass<'tcx> for Ptr {
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx TraitItem<'_>) {
         if let TraitItemKind::Fn(sig, trait_method) = &item.kind {
@@ -186,14 +180,11 @@ impl<'tcx> LateLintPass<'tcx> for Ptr {
                 // Handled by check body.
                 return;
             }
-
             check_mut_from_ref(cx, sig, None);
-
             if !matches!(sig.header.abi, ExternAbi::Rust) {
                 // Ignore `extern` functions with non-Rust calling conventions
                 return;
             }
-
             for arg in check_fn_args(
                 cx,
                 cx.tcx.fn_sig(item.owner_id).instantiate_identity().skip_binder(),
@@ -213,7 +204,6 @@ impl<'tcx> LateLintPass<'tcx> for Ptr {
             }
         }
     }
-
     fn check_body(&mut self, cx: &LateContext<'tcx>, body: &Body<'tcx>) {
         let mut parents = cx.tcx.hir_parent_iter(body.value.hir_id);
         let (item_id, sig, is_trait_item) = match parents.next() {
@@ -245,21 +235,17 @@ impl<'tcx> LateLintPass<'tcx> for Ptr {
             },
             _ => return,
         };
-
         check_mut_from_ref(cx, sig, Some(body));
-
         if !matches!(sig.header.abi, ExternAbi::Rust) {
             // Ignore `extern` functions with non-Rust calling conventions
             return;
         }
-
         let decl = sig.decl;
         let sig = cx.tcx.fn_sig(item_id).instantiate_identity().skip_binder();
         let lint_args: Vec<_> = check_fn_args(cx, sig, decl.inputs, body.params)
             .filter(|arg| !is_trait_item || arg.mutability() == Mutability::Not)
             .collect();
         let results = check_ptr_arg_usage(cx, body, &lint_args);
-
         for (result, args) in results.iter().zip(lint_args.iter()).filter(|(r, _)| !r.skip) {
             span_lint_hir_and_then(cx, PTR_ARG, args.emission_id, args.span, args.build_msg(), |diag| {
                 diag.multipart_suggestion(
@@ -277,7 +263,6 @@ impl<'tcx> LateLintPass<'tcx> for Ptr {
             });
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Binary(op, l, r) = expr.kind
             && (op.node == BinOpKind::Eq || op.node == BinOpKind::Ne)
@@ -291,7 +276,6 @@ impl<'tcx> LateLintPass<'tcx> for Ptr {
                 (false, false, true) if let Some(sugg) = Sugg::hir_opt(cx, l) => sugg.maybe_par(),
                 _ => return check_ptr_eq(cx, expr, op.node, l, r),
             };
-
             span_lint_and_sugg(
                 cx,
                 CMP_NULL,
@@ -306,7 +290,6 @@ impl<'tcx> LateLintPass<'tcx> for Ptr {
         }
     }
 }
-
 fn check_invalid_ptr_usage<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
     if let ExprKind::Call(fun, args) = expr.kind
         && let ExprKind::Path(ref qpath) = fun.kind
@@ -318,7 +301,6 @@ fn check_invalid_ptr_usage<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         // functions since there are valid uses for null slice pointers.
         //
         // See: https://github.com/rust-lang/rust-clippy/pull/13452/files#r1773772034
-
         // `arg` positions where null would cause U.B.
         let arg_indices: &[_] = match name {
             sym::ptr_read
@@ -334,7 +316,6 @@ fn check_invalid_ptr_usage<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
             sym::ptr_copy | sym::ptr_copy_nonoverlapping | sym::ptr_swap | sym::ptr_swap_nonoverlapping => &[0, 1],
             _ => return,
         };
-
         for &arg_idx in arg_indices {
             if let Some(arg) = args.get(arg_idx).filter(|arg| is_null_path(cx, arg))
                 && let Some(std_or_core) = std_or_core(cx)
@@ -352,19 +333,16 @@ fn check_invalid_ptr_usage<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         }
     }
 }
-
 #[derive(Default)]
 struct PtrArgResult {
     skip: bool,
     replacements: Vec<PtrArgReplacement>,
 }
-
 struct PtrArgReplacement {
     expr_span: Span,
     self_span: Span,
     replacement: &'static str,
 }
-
 struct PtrArg<'tcx> {
     idx: usize,
     emission_id: HirId,
@@ -384,12 +362,10 @@ impl PtrArg<'_> {
             self.deref_ty.argless_str(),
         )
     }
-
     fn mutability(&self) -> Mutability {
         self.ref_prefix.mutability
     }
 }
-
 struct RefPrefix {
     lt: Lifetime,
     mutability: Mutability,
@@ -405,7 +381,6 @@ impl fmt::Display for RefPrefix {
         f.write_str(self.mutability.prefix_str())
     }
 }
-
 struct DerefTyDisplay<'a, 'tcx>(&'a LateContext<'tcx>, &'a DerefTy<'tcx>);
 impl fmt::Display for DerefTyDisplay<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -424,7 +399,6 @@ impl fmt::Display for DerefTyDisplay<'_, '_> {
         }
     }
 }
-
 enum DerefTy<'tcx> {
     Str,
     Path,
@@ -442,7 +416,6 @@ impl<'tcx> DerefTy<'tcx> {
             Self::Slice(_, ty) => Ty::new_slice(cx.tcx, ty),
         }
     }
-
     fn argless_str(&self) -> &'static str {
         match *self {
             Self::Str => "str",
@@ -450,12 +423,10 @@ impl<'tcx> DerefTy<'tcx> {
             Self::Slice(..) => "[_]",
         }
     }
-
     fn display<'a>(&'a self, cx: &'a LateContext<'tcx>) -> DerefTyDisplay<'a, 'tcx> {
         DerefTyDisplay(cx, self)
     }
 }
-
 fn check_fn_args<'cx, 'tcx: 'cx>(
     cx: &'cx LateContext<'tcx>,
     fn_sig: ty::FnSig<'tcx>,
@@ -530,7 +501,6 @@ fn check_fn_args<'cx, 'tcx: 'cx>(
                                 // `&Cow<'a, T>` when the return type uses 'a is okay
                                 return None;
                             }
-
                             span_lint_hir_and_then(
                                 cx,
                                 PTR_ARG,
@@ -567,7 +537,6 @@ fn check_fn_args<'cx, 'tcx: 'cx>(
             None
         })
 }
-
 fn check_mut_from_ref<'tcx>(cx: &LateContext<'tcx>, sig: &FnSig<'_>, body: Option<&Body<'tcx>>) {
     if let FnRetTy::Return(ty) = sig.decl.output
         && let Some((out, Mutability::Mut, _)) = get_ref_lm(ty)
@@ -598,7 +567,6 @@ fn check_mut_from_ref<'tcx>(cx: &LateContext<'tcx>, sig: &FnSig<'_>, body: Optio
         }
     }
 }
-
 #[expect(clippy::too_many_lines)]
 fn check_ptr_arg_usage<'tcx>(cx: &LateContext<'tcx>, body: &Body<'tcx>, args: &[PtrArg<'tcx>]) -> Vec<PtrArgResult> {
     struct V<'cx, 'tcx> {
@@ -618,21 +586,17 @@ fn check_ptr_arg_usage<'tcx>(cx: &LateContext<'tcx>, body: &Body<'tcx>, args: &[
         fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
             self.cx.tcx
         }
-
         fn visit_anon_const(&mut self, _: &'tcx AnonConst) {}
-
         fn visit_expr(&mut self, e: &'tcx Expr<'_>) {
             if self.skip_count == self.args.len() {
                 return;
             }
-
             // Check if this is local we care about
             let Some(&args_idx) = path_to_local(e).and_then(|id| self.bindings.get(&id)) else {
                 return walk_expr(self, e);
             };
             let args = &self.args[args_idx];
             let result = &mut self.results[args_idx];
-
             // Helper function to handle early returns.
             let mut set_skip_flag = || {
                 if !result.skip {
@@ -640,7 +604,6 @@ fn check_ptr_arg_usage<'tcx>(cx: &LateContext<'tcx>, body: &Body<'tcx>, args: &[
                 }
                 result.skip = true;
             };
-
             match get_expr_use_or_unification_node(self.cx.tcx, e) {
                 Some((Node::Stmt(_), _)) => (),
                 Some((Node::LetStmt(l), _)) => {
@@ -658,12 +621,10 @@ fn check_ptr_arg_usage<'tcx>(cx: &LateContext<'tcx>, body: &Body<'tcx>, args: &[
                         // Indexing works with both owned and its dereferenced type
                         return;
                     }
-
                     if let ExprKind::MethodCall(name, receiver, ..) = use_expr.kind
                         && receiver.hir_id == child_id
                     {
                         let name = name.ident.as_str();
-
                         // Check if the method can be renamed.
                         if let Some((_, replacement)) = args.method_renames.iter().find(|&&(x, _)| x == name) {
                             result.replacements.push(PtrArgReplacement {
@@ -673,7 +634,6 @@ fn check_ptr_arg_usage<'tcx>(cx: &LateContext<'tcx>, body: &Body<'tcx>, args: &[
                             });
                             return;
                         }
-
                         // Some methods exist on both `[T]` and `Vec<T>`, such as `len`, where the receiver type
                         // doesn't coerce to a slice and our adjusted type check below isn't enough,
                         // but it would still be valid to call with a slice
@@ -681,26 +641,22 @@ fn check_ptr_arg_usage<'tcx>(cx: &LateContext<'tcx>, body: &Body<'tcx>, args: &[
                             return;
                         }
                     }
-
                     let deref_ty = args.deref_ty.ty(self.cx);
                     let adjusted_ty = self.cx.typeck_results().expr_ty_adjusted(e).peel_refs();
                     if adjusted_ty == deref_ty {
                         return;
                     }
-
                     if let ty::Dynamic(preds, ..) = adjusted_ty.kind()
                         && matches_preds(self.cx, deref_ty, preds)
                     {
                         return;
                     }
-
                     set_skip_flag();
                 },
                 _ => set_skip_flag(),
             }
         }
     }
-
     let mut skip_count = 0;
     let mut results = args.iter().map(|_| PtrArgResult::default()).collect::<Vec<_>>();
     let mut v = V {
@@ -729,7 +685,6 @@ fn check_ptr_arg_usage<'tcx>(cx: &LateContext<'tcx>, body: &Body<'tcx>, args: &[
     v.visit_expr(body.value);
     v.results
 }
-
 fn matches_preds<'tcx>(
     cx: &LateContext<'tcx>,
     ty: Ty<'tcx>,
@@ -756,7 +711,6 @@ fn matches_preds<'tcx>(
                 .must_apply_modulo_regions(),
         })
 }
-
 fn get_ref_lm<'tcx>(ty: &'tcx hir::Ty<'tcx>) -> Option<(&'tcx Lifetime, Mutability, Span)> {
     if let TyKind::Ref(lt, ref m) = ty.kind {
         Some((lt, m.mutbl, ty.span))
@@ -764,7 +718,6 @@ fn get_ref_lm<'tcx>(ty: &'tcx hir::Ty<'tcx>) -> Option<(&'tcx Lifetime, Mutabili
         None
     }
 }
-
 fn is_null_path(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     if let ExprKind::Call(pathexp, []) = expr.kind {
         path_def_id(cx, pathexp)
@@ -773,7 +726,6 @@ fn is_null_path(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         false
     }
 }
-
 fn check_ptr_eq<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -784,21 +736,17 @@ fn check_ptr_eq<'tcx>(
     if expr.span.from_expansion() {
         return;
     }
-
     // Remove one level of usize conversion if any
     let (left, right) = match (expr_as_cast_to_usize(cx, left), expr_as_cast_to_usize(cx, right)) {
         (Some(lhs), Some(rhs)) => (lhs, rhs),
         _ => (left, right),
     };
-
     // This lint concerns raw pointers
     let (left_ty, right_ty) = (cx.typeck_results().expr_ty(left), cx.typeck_results().expr_ty(right));
     if !left_ty.is_raw_ptr() || !right_ty.is_raw_ptr() {
         return;
     }
-
     let (left_var, right_var) = (peel_raw_casts(cx, left, left_ty), peel_raw_casts(cx, right, right_ty));
-
     if let Some(left_snip) = left_var.span.get_source_text(cx)
         && let Some(right_snip) = right_var.span.get_source_text(cx)
     {
@@ -815,7 +763,6 @@ fn check_ptr_eq<'tcx>(
         );
     }
 }
-
 // If the given expression is a cast to a usize, return the lhs of the cast
 // E.g., `foo as *const _ as usize` returns `foo as *const _`.
 fn expr_as_cast_to_usize<'tcx>(cx: &LateContext<'tcx>, cast_expr: &'tcx Expr<'_>) -> Option<&'tcx Expr<'tcx>> {
@@ -827,7 +774,6 @@ fn expr_as_cast_to_usize<'tcx>(cx: &LateContext<'tcx>, cast_expr: &'tcx Expr<'_>
         None
     }
 }
-
 // Peel raw casts if the remaining expression can be coerced to it
 fn peel_raw_casts<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, expr_ty: Ty<'tcx>) -> &'tcx Expr<'tcx> {
     if let ExprKind::Cast(inner, _) = expr.kind

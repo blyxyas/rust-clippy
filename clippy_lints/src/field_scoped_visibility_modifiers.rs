@@ -1,8 +1,9 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_ast::ast::{Item, ItemKind, VisibilityKind};
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of scoped visibility modifiers, like `pub(crate)`, on fields. These
@@ -46,9 +47,7 @@ declare_clippy_lint! {
     restriction,
     "checks for usage of a scoped visibility modifier, like `pub(crate)`, on fields"
 }
-
 declare_lint_pass!(FieldScopedVisibilityModifiers => [FIELD_SCOPED_VISIBILITY_MODIFIERS]);
-
 impl EarlyLintPass for FieldScopedVisibilityModifiers {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         let ItemKind::Struct(ref st, _) = item.kind else {

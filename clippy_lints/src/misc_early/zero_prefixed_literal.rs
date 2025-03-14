@@ -1,10 +1,10 @@
+use crate::HVec;
+
+use super::ZERO_PREFIXED_LITERAL;
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_errors::Applicability;
 use rustc_lint::EarlyContext;
 use rustc_span::Span;
-
-use super::ZERO_PREFIXED_LITERAL;
-
 pub(super) fn check(cx: &EarlyContext<'_>, lit_span: Span, lit_snip: &str) {
     let trimmed_lit_snip = lit_snip.trim_start_matches(['_', '0']);
     span_lint_and_then(

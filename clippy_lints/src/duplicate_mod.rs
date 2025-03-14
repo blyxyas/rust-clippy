@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use rustc_ast::ast::{Crate, Inline, Item, ItemKind, ModKind};
 use rustc_errors::MultiSpan;
@@ -6,7 +8,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::{FileName, Span};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for files that are included as modules multiple times.
@@ -44,23 +45,19 @@ declare_clippy_lint! {
     suspicious,
     "file loaded as module multiple times"
 }
-
 #[derive(PartialOrd, Ord, PartialEq, Eq)]
 struct Modules {
     local_path: PathBuf,
     spans: Vec<Span>,
     lint_levels: Vec<Level>,
 }
-
 #[derive(Default)]
 pub struct DuplicateMod {
     /// map from the canonicalized path to `Modules`, `BTreeMap` to make the
     /// order deterministic for tests
     modules: BTreeMap<PathBuf, Modules>,
 }
-
 impl_lint_pass!(DuplicateMod => [DUPLICATE_MOD]);
-
 impl EarlyLintPass for DuplicateMod {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
         if let ItemKind::Mod(_, ModKind::Loaded(_, Inline::No, mod_spans, _)) = &item.kind
@@ -77,7 +74,6 @@ impl EarlyLintPass for DuplicateMod {
             modules.lint_levels.push(cx.get_lint_level(DUPLICATE_MOD));
         }
     }
-
     fn check_crate_post(&mut self, cx: &EarlyContext<'_>, _: &Crate) {
         for Modules {
             local_path,
@@ -88,7 +84,6 @@ impl EarlyLintPass for DuplicateMod {
             if spans.len() < 2 {
                 continue;
             }
-
             // At this point the lint would be emitted
             assert_eq!(spans.len(), lint_levels.len());
             let spans: Vec<_> = spans
@@ -98,23 +93,18 @@ impl EarlyLintPass for DuplicateMod {
                     if let Some(id) = lvl.get_expectation_id() {
                         cx.fulfill_expectation(id);
                     }
-
                     (!matches!(lvl, Level::Allow | Level::Expect(_))).then_some(*span)
                 })
                 .collect();
-
             if spans.len() < 2 {
                 continue;
             }
-
             let mut multi_span = MultiSpan::from_spans(spans.clone());
             let (&first, duplicates) = spans.split_first().unwrap();
-
             multi_span.push_span_label(first, "first loaded here");
             for &duplicate in duplicates {
                 multi_span.push_span_label(duplicate, "loaded again here");
             }
-
             span_lint_and_help(
                 cx,
                 DUPLICATE_MOD,

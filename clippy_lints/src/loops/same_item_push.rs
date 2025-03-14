@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::SAME_ITEM_PUSH;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::Msrv;
@@ -12,7 +14,6 @@ use rustc_hir::{BindingMode, Block, Expr, ExprKind, HirId, Mutability, Node, Pat
 use rustc_lint::LateContext;
 use rustc_span::SyntaxContext;
 use rustc_span::symbol::sym;
-
 /// Detects for loop pushing the same item into a Vec
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
@@ -26,7 +27,6 @@ pub(super) fn check<'tcx>(
         let mut app = Applicability::Unspecified;
         let vec_str = snippet_with_context(cx, vec.span, ctxt, "", &mut app).0;
         let item_str = snippet_with_context(cx, pushed_item.span, ctxt, "", &mut app).0;
-
         let secondary_help = if msrv.meets(cx, msrvs::REPEAT_N)
             && let Some(std_or_core) = std_or_core(cx)
         {
@@ -34,7 +34,6 @@ pub(super) fn check<'tcx>(
         } else {
             format!("or `{vec_str}.resize(NEW_SIZE, {item_str})`")
         };
-
         span_lint_and_then(
             cx,
             SAME_ITEM_PUSH,
@@ -46,11 +45,9 @@ pub(super) fn check<'tcx>(
             },
         );
     }
-
     if !matches!(pat.kind, PatKind::Wild) {
         return;
     }
-
     // Determine whether it is safe to lint the body
     let mut same_item_push_visitor = SameItemPushVisitor::new(cx);
     walk_expr(&mut same_item_push_visitor, body);
@@ -100,7 +97,6 @@ pub(super) fn check<'tcx>(
         }
     }
 }
-
 // Scans the body of the for loop and determines whether lint should be given
 struct SameItemPushVisitor<'a, 'tcx> {
     non_deterministic_expr: bool,
@@ -110,7 +106,6 @@ struct SameItemPushVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     used_locals: FxHashSet<HirId>,
 }
-
 impl<'a, 'tcx> SameItemPushVisitor<'a, 'tcx> {
     fn new(cx: &'a LateContext<'tcx>) -> Self {
         Self {
@@ -121,7 +116,6 @@ impl<'a, 'tcx> SameItemPushVisitor<'a, 'tcx> {
             used_locals: FxHashSet::default(),
         }
     }
-
     fn should_lint(&self) -> bool {
         if !self.non_deterministic_expr
             && !self.multiple_pushes
@@ -134,7 +128,6 @@ impl<'a, 'tcx> SameItemPushVisitor<'a, 'tcx> {
         }
     }
 }
-
 impl<'tcx> Visitor<'tcx> for SameItemPushVisitor<'_, 'tcx> {
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         match &expr.kind {
@@ -149,13 +142,11 @@ impl<'tcx> Visitor<'tcx> for SameItemPushVisitor<'_, 'tcx> {
             },
         }
     }
-
     fn visit_block(&mut self, b: &'tcx Block<'_>) {
         for stmt in b.stmts {
             self.visit_stmt(stmt);
         }
     }
-
     fn visit_stmt(&mut self, s: &'tcx Stmt<'_>) {
         let vec_push_option = get_vec_push(self.cx, s);
         if vec_push_option.is_none() {
@@ -176,7 +167,6 @@ impl<'tcx> Visitor<'tcx> for SameItemPushVisitor<'_, 'tcx> {
         }
     }
 }
-
 // Given some statement, determine if that statement is a push on a Vec. If it is, return
 // the Vec being pushed into and the item being pushed
 fn get_vec_push<'tcx>(

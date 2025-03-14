@@ -1,4 +1,4 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -18,7 +18,7 @@ use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::{kw, sym};
 use rustc_span::{Span, Symbol};
-
+use std::ops::ControlFlow;
 declare_clippy_lint! {
     /// ### What it does
     /// Searches for implementations of the `Into<..>` trait and suggests to implement `From<..>` instead.
@@ -51,19 +51,15 @@ declare_clippy_lint! {
     style,
     "Warns on implementations of `Into<..>` to use `From<..>`"
 }
-
 pub struct FromOverInto {
     msrv: Msrv,
 }
-
 impl FromOverInto {
     pub fn new(conf: &'static Conf) -> Self {
         FromOverInto { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(FromOverInto => [FROM_OVER_INTO]);
-
 impl<'tcx> LateLintPass<'tcx> for FromOverInto {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         if let ItemKind::Impl(Impl {
@@ -96,7 +92,6 @@ impl<'tcx> LateLintPass<'tcx> for FromOverInto {
                             https://doc.rust-lang.org/reference/items/implementations.html#trait-implementation-coherence"
                         );
                     }
-
                     let message = format!(
                         "replace the `Into` implementation with `From<{}>`",
                         middle_trait_ref.self_ty()
@@ -113,7 +108,6 @@ impl<'tcx> LateLintPass<'tcx> for FromOverInto {
         }
     }
 }
-
 /// Finds the occurrences of `Self` and `self`
 ///
 /// Returns `ControlFlow::break` if any of the `self`/`Self` usages were from an expansion, or the
@@ -125,15 +119,12 @@ struct SelfFinder<'a, 'tcx> {
     /// Occurrences of `self`
     lower: Vec<Span>,
 }
-
 impl<'tcx> Visitor<'tcx> for SelfFinder<'_, 'tcx> {
     type Result = ControlFlow<()>;
     type NestedFilter = OnlyBodies;
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }
-
     fn visit_path(&mut self, path: &Path<'tcx>, _id: HirId) -> Self::Result {
         for segment in path.segments {
             match segment.ident.name {
@@ -141,15 +132,12 @@ impl<'tcx> Visitor<'tcx> for SelfFinder<'_, 'tcx> {
                 kw::SelfUpper => self.upper.push(segment.ident.span),
                 _ => continue,
             }
-
             if segment.ident.span.from_expansion() {
                 return ControlFlow::Break(());
             }
         }
-
         walk_path(self, path)
     }
-
     fn visit_name(&mut self, name: Symbol) -> Self::Result {
         if name == sym::val {
             ControlFlow::Break(())
@@ -158,7 +146,6 @@ impl<'tcx> Visitor<'tcx> for SelfFinder<'_, 'tcx> {
         }
     }
 }
-
 fn convert_to_from(
     cx: &LateContext<'_>,
     into_trait_seg: &PathSegment<'_>,
@@ -180,10 +167,8 @@ fn convert_to_from(
     let PatKind::Binding(.., self_ident, None) = input.pat.kind else {
         return None;
     };
-
     let from = self_ty.span.get_source_text(cx)?;
     let into = target_ty.span.get_source_text(cx)?;
-
     let mut suggestions = vec![
         // impl Into<T> for U  ->  impl From<T> for U
         //      ~~~~                    ~~~~
@@ -201,34 +186,28 @@ fn convert_to_from(
         //               ~~~~                          ~~~~
         (self_ident.span, format!("val: {from}")),
     ];
-
     if let FnRetTy::Return(_) = sig.decl.output {
         // fn into(self) -> T  ->  fn into(self) -> Self
         //                  ~                       ~~~~
         suggestions.push((sig.decl.output.span(), String::from("Self")));
     }
-
     let mut finder = SelfFinder {
         cx,
         upper: Vec::new(),
         lower: Vec::new(),
     };
-
     if finder.visit_expr(body.value).is_break() {
         return None;
     }
-
     // don't try to replace e.g. `Self::default()` with `&[T]::default()`
     if !finder.upper.is_empty() && !matches!(self_ty.kind, TyKind::Path(_)) {
         return None;
     }
-
     for span in finder.upper {
         suggestions.push((span, from.to_owned()));
     }
     for span in finder.lower {
         suggestions.push((span, String::from("val")));
     }
-
     Some(suggestions)
 }

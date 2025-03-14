@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::CAST_ABS_TO_UNSIGNED;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::sugg::Sugg;
@@ -5,9 +8,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
-
-use super::CAST_ABS_TO_UNSIGNED;
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -29,7 +29,6 @@ pub(super) fn check(
             // e.g. `i64 -> usize`, `i16 -> u8`
             cast_expr.span
         };
-
         span_lint_and_sugg(
             cx,
             CAST_ABS_TO_UNSIGNED,

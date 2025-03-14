@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_note, span_lint_and_then};
 use clippy_utils::source::{IntoSpan, SpanRangeExt, first_line_of_span, indent_of, reindent_multiline, snippet};
@@ -18,7 +20,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::hygiene::walk_chain;
 use rustc_span::source_map::SourceMap;
 use rustc_span::{Span, Symbol};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for consecutive `if`s with the same condition.
@@ -50,7 +51,6 @@ declare_clippy_lint! {
     correctness,
     "consecutive `if`s with the same condition"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for consecutive `if`s with the same function call.
@@ -98,7 +98,6 @@ declare_clippy_lint! {
     pedantic,
     "consecutive `if`s with the same function call"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `if/else` with the same body as the *then* part
@@ -120,7 +119,6 @@ declare_clippy_lint! {
     style,
     "`if` with the same `then` and `else` blocks"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if the `if` and `else` block contain shared code that can be
@@ -154,11 +152,9 @@ declare_clippy_lint! {
     nursery,
     "`if` statement with shared code in all blocks"
 }
-
 pub struct CopyAndPaste<'tcx> {
     interior_mut: InteriorMut<'tcx>,
 }
-
 impl<'tcx> CopyAndPaste<'tcx> {
     pub fn new(tcx: TyCtxt<'tcx>, conf: &'static Conf) -> Self {
         Self {
@@ -166,14 +162,12 @@ impl<'tcx> CopyAndPaste<'tcx> {
         }
     }
 }
-
 impl_lint_pass!(CopyAndPaste<'_> => [
     IFS_SAME_COND,
     SAME_FUNCTIONS_IN_IF_CONDITION,
     IF_SAME_THEN_ELSE,
     BRANCHES_SHARING_CODE
 ]);
-
 impl<'tcx> LateLintPass<'tcx> for CopyAndPaste<'tcx> {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if !expr.span.from_expansion() && matches!(expr.kind, ExprKind::If(..)) && !is_else_clause(cx.tcx, expr) {
@@ -188,7 +182,6 @@ impl<'tcx> LateLintPass<'tcx> for CopyAndPaste<'tcx> {
         }
     }
 }
-
 /// Checks if the given expression is a let chain.
 fn contains_let(e: &Expr<'_>) -> bool {
     match e.kind {
@@ -199,7 +192,6 @@ fn contains_let(e: &Expr<'_>) -> bool {
         _ => false,
     }
 }
-
 fn lint_if_same_then_else(cx: &LateContext<'_>, conds: &[&Expr<'_>], blocks: &[&Block<'_>]) -> bool {
     let mut eq = SpanlessEq::new(cx);
     blocks
@@ -221,7 +213,6 @@ fn lint_if_same_then_else(cx: &LateContext<'_>, conds: &[&Expr<'_>], blocks: &[&
             }
         })
 }
-
 fn lint_branches_sharing_code<'tcx>(
     cx: &LateContext<'tcx>,
     conds: &[&'tcx Expr<'_>],
@@ -235,7 +226,6 @@ fn lint_branches_sharing_code<'tcx>(
     let &[.., last_block] = blocks else {
         return;
     };
-
     let res = scan_block_for_eq(cx, conds, first_block, blocks);
     let sm = cx.tcx.sess.source_map();
     let start_suggestion = res.start_span(first_block, sm).map(|span| {
@@ -254,7 +244,6 @@ fn lint_branches_sharing_code<'tcx>(
         let indent = indent_of(cx, expr.span.shrink_to_hi());
         let suggestion = "}\n".to_string() + &moved_snipped;
         let suggestion = reindent_multiline(&suggestion, true, indent);
-
         let span = span.with_hi(last_block.span.hi());
         // Improve formatting if the inner block has indention (i.e. normal Rust formatting)
         let span = span
@@ -265,7 +254,6 @@ fn lint_branches_sharing_code<'tcx>(
             .map_or(span, |range| range.with_ctxt(span.ctxt()));
         (span, suggestion.to_string())
     });
-
     let (span, msg, end_span) = match (&start_suggestion, &end_suggestion) {
         (&Some((span, _)), &Some((end_span, _))) => (
             span,
@@ -304,7 +292,6 @@ fn lint_branches_sharing_code<'tcx>(
         }
     });
 }
-
 struct BlockEq {
     /// The end of the range of equal stmts at the start.
     start_end_eq: usize,
@@ -321,7 +308,6 @@ impl BlockEq {
             [] => None,
         }
     }
-
     fn end_span(&self, b: &Block<'_>, sm: &SourceMap) -> Option<Span> {
         match (&b.stmts[b.stmts.len() - self.end_begin_eq?..], b.expr) {
             ([first, .., last], None) => Some(sm.stmt_span(first.span, b.span).to(sm.stmt_span(last.span, b.span))),
@@ -332,7 +318,6 @@ impl BlockEq {
         }
     }
 }
-
 /// If the statement is a local, checks if the bound names match the expected list of names.
 fn eq_binding_names(s: &Stmt<'_>, names: &[(HirId, Symbol)]) -> bool {
     if let StmtKind::Let(l) = s.kind {
@@ -350,7 +335,6 @@ fn eq_binding_names(s: &Stmt<'_>, names: &[(HirId, Symbol)]) -> bool {
         false
     }
 }
-
 /// Checks if the statement modifies or moves any of the given locals.
 fn modifies_any_local<'tcx>(cx: &LateContext<'tcx>, s: &'tcx Stmt<'_>, locals: &HirIdSet) -> bool {
     for_each_expr_without_closures(s, |e| {
@@ -365,7 +349,6 @@ fn modifies_any_local<'tcx>(cx: &LateContext<'tcx>, s: &'tcx Stmt<'_>, locals: &
     })
     .is_some()
 }
-
 /// Checks if the given statement should be considered equal to the statement in the same position
 /// for each block.
 fn eq_stmts(
@@ -388,7 +371,6 @@ fn eq_stmts(
         true
     }) && blocks.iter().all(|b| get_stmt(b).is_some_and(|s| eq.eq_stmt(s, stmt)))
 }
-
 #[expect(clippy::too_many_lines)]
 fn scan_block_for_eq<'tcx>(
     cx: &LateContext<'tcx>,
@@ -399,7 +381,6 @@ fn scan_block_for_eq<'tcx>(
     let mut eq = SpanlessEq::new(cx);
     let mut eq = eq.inter_expr();
     let mut moved_locals = Vec::new();
-
     let mut cond_locals = HirIdSet::default();
     for &cond in conds {
         let _: Option<!> = for_each_expr_without_closures(cond, |e| {
@@ -409,7 +390,6 @@ fn scan_block_for_eq<'tcx>(
             ControlFlow::Continue(())
         });
     }
-
     let mut local_needs_ordered_drop = false;
     let start_end_eq = block
         .stmts
@@ -426,7 +406,6 @@ fn scan_block_for_eq<'tcx>(
                 || !eq_stmts(stmt, blocks, |b| b.stmts.get(i), &mut eq, &mut moved_locals)
         })
         .map_or(block.stmts.len(), |(i, _)| i);
-
     if local_needs_ordered_drop {
         return BlockEq {
             start_end_eq,
@@ -434,7 +413,6 @@ fn scan_block_for_eq<'tcx>(
             moved_locals,
         };
     }
-
     // Walk backwards through the final expression/statements so long as their hashes are equal. Note
     // `SpanlessHash` treats all local references as equal allowing locals declared earlier in the block
     // to match those in other blocks. e.g. If each block ends with the following the hash value will be
@@ -468,7 +446,6 @@ fn scan_block_for_eq<'tcx>(
             })
         })
         .map_or(block.stmts.len() - start_end_eq, |(i, _)| i);
-
     let moved_locals_at_start = moved_locals.len();
     let mut i = end_search_start;
     let end_begin_eq = block.stmts[block.stmts.len() - end_search_start..]
@@ -514,49 +491,41 @@ fn scan_block_for_eq<'tcx>(
             }
         }
     }
-
     BlockEq {
         start_end_eq,
         end_begin_eq: Some(end_begin_eq),
         moved_locals,
     }
 }
-
 fn check_for_warn_of_moved_symbol(cx: &LateContext<'_>, symbols: &[(HirId, Symbol)], if_expr: &Expr<'_>) -> bool {
     get_enclosing_block(cx, if_expr.hir_id).is_some_and(|block| {
         let ignore_span = block.span.shrink_to_lo().to(if_expr.span);
-
         symbols
             .iter()
             .filter(|&&(_, name)| !name.as_str().starts_with('_'))
             .any(|&(_, name)| {
                 let mut walker = ContainsName { name, cx };
-
                 // Scan block
                 let mut res = block
                     .stmts
                     .iter()
                     .filter(|stmt| !ignore_span.overlaps(stmt.span))
                     .try_for_each(|stmt| intravisit::walk_stmt(&mut walker, stmt));
-
                 if let Some(expr) = block.expr {
                     if res.is_continue() {
                         res = intravisit::walk_expr(&mut walker, expr);
                     }
                 }
-
                 res.is_break()
             })
     })
 }
-
 fn method_caller_is_mutable<'tcx>(
     cx: &LateContext<'tcx>,
     caller_expr: &Expr<'_>,
     interior_mut: &mut InteriorMut<'tcx>,
 ) -> bool {
     let caller_ty = cx.typeck_results().expr_ty(caller_expr);
-
     interior_mut.is_interior_mut_ty(cx, caller_ty)
         || caller_ty.is_mutable_ptr()
         // `find_binding_init` will return the binding iff its not mutable
@@ -564,7 +533,6 @@ fn method_caller_is_mutable<'tcx>(
             .and_then(|hid| find_binding_init(cx, hid))
             .is_none()
 }
-
 /// Implementation of `IFS_SAME_COND`.
 fn lint_same_cond<'tcx>(cx: &LateContext<'tcx>, conds: &[&Expr<'_>], interior_mut: &mut InteriorMut<'tcx>) {
     for (i, j) in search_same(
@@ -594,7 +562,6 @@ fn lint_same_cond<'tcx>(cx: &LateContext<'tcx>, conds: &[&Expr<'_>], interior_mu
         );
     }
 }
-
 /// Implementation of `SAME_FUNCTIONS_IN_IF_CONDITION`.
 fn lint_same_fns_in_if_cond(cx: &LateContext<'_>, conds: &[&Expr<'_>]) {
     let eq: &dyn Fn(&&Expr<'_>, &&Expr<'_>) -> bool = &|&lhs, &rhs| -> bool {
@@ -608,7 +575,6 @@ fn lint_same_fns_in_if_cond(cx: &LateContext<'_>, conds: &[&Expr<'_>]) {
         }
         SpanlessEq::new(cx).eq_expr(lhs, rhs)
     };
-
     for (i, j) in search_same(conds, |e| hash_expr(cx, e), eq) {
         span_lint_and_note(
             cx,

@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::FILTER_MAP_IDENTITY;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::{is_expr_identity_function, is_expr_untyped_identity_function, is_trait_method};
 use rustc_errors::Applicability;
@@ -5,9 +8,6 @@ use rustc_hir as hir;
 use rustc_hir::ExprKind;
 use rustc_lint::LateContext;
 use rustc_span::{Span, sym};
-
-use super::FILTER_MAP_IDENTITY;
-
 fn is_identity(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> Option<Applicability> {
     if is_expr_untyped_identity_function(cx, expr) {
         return Some(Applicability::MachineApplicable);
@@ -17,7 +17,6 @@ fn is_identity(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> Option<Applicabili
     }
     None
 }
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, filter_map_arg: &hir::Expr<'_>, filter_map_span: Span) {
     if is_trait_method(cx, expr, sym::Iterator)
         && let Some(applicability) = is_identity(cx, filter_map_arg)
@@ -30,7 +29,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, filter_map_arg: 
         {
             return;
         }
-
         span_lint_and_sugg(
             cx,
             FILTER_MAP_IDENTITY,

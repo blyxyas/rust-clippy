@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::match_def_path;
 use clippy_utils::source::snippet_with_applicability;
@@ -6,7 +8,6 @@ use rustc_hir as hir;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `.to_digit(..).is_some()` on `char`s.
@@ -32,9 +33,7 @@ declare_clippy_lint! {
     style,
     "`char.is_digit()` is clearer"
 }
-
 declare_lint_pass!(ToDigitIsSome => [TO_DIGIT_IS_SOME]);
-
 impl<'tcx> LateLintPass<'tcx> for ToDigitIsSome {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) {
         if let hir::ExprKind::MethodCall(is_some_path, to_digit_expr, [], _) = &expr.kind
@@ -68,12 +67,10 @@ impl<'tcx> LateLintPass<'tcx> for ToDigitIsSome {
                 },
                 _ => None,
             };
-
             if let Some((is_method_call, char_arg, radix_arg)) = match_result {
                 let mut applicability = Applicability::MachineApplicable;
                 let char_arg_snip = snippet_with_applicability(cx, char_arg.span, "_", &mut applicability);
                 let radix_snip = snippet_with_applicability(cx, radix_arg.span, "_", &mut applicability);
-
                 span_lint_and_sugg(
                     cx,
                     TO_DIGIT_IS_SOME,

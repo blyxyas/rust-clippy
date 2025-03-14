@@ -1,5 +1,4 @@
-use std::collections::BTreeMap;
-use std::ops::ControlFlow;
+use crate::HVec;
 
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
@@ -16,7 +15,8 @@ use rustc_middle::ty;
 use rustc_middle::ty::layout::LayoutOf;
 use rustc_session::impl_lint_pass;
 use rustc_span::{DesugaringKind, Span, sym};
-
+use std::collections::BTreeMap;
+use std::ops::ControlFlow;
 pub struct UselessVec {
     too_large_for_stack: u64,
     msrv: Msrv,
@@ -33,7 +33,6 @@ impl UselessVec {
         }
     }
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `vec![..]` when using `[..]` would
@@ -59,9 +58,7 @@ declare_clippy_lint! {
     perf,
     "useless `vec!`"
 }
-
 impl_lint_pass!(UselessVec => [USELESS_VEC]);
-
 impl<'tcx> LateLintPass<'tcx> for UselessVec {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         let Some(vec_args) = higher::VecArgs::hir(cx, expr.peel_borrows()) else {
@@ -72,7 +69,6 @@ impl<'tcx> LateLintPass<'tcx> for UselessVec {
         }
         // the parent callsite of this `vec!` expression, or span to the borrowed one such as `&vec!`
         let callsite = expr.span.parent_callsite().unwrap_or(expr.span);
-
         match cx.tcx.parent_hir_node(expr.hir_id) {
             // search for `let foo = vec![_]` expressions where all uses of `foo`
             // adjust to slices or call a method that exist on slices (e.g. len)
@@ -98,7 +94,6 @@ impl<'tcx> LateLintPass<'tcx> for UselessVec {
                     }
                 })
                 .is_continue();
-
                 if only_slice_uses {
                     self.check_vec_macro(cx, &vec_args, callsite, expr.hir_id, SuggestedType::Array);
                 } else {
@@ -119,7 +114,6 @@ impl<'tcx> LateLintPass<'tcx> for UselessVec {
             // search for `&vec![_]` or `vec![_]` expressions where the adjusted type is `&[_]`
             _ => {
                 let suggest_slice = suggest_type(expr);
-
                 if adjusts_to_slice(cx, expr) {
                     self.check_vec_macro(cx, &vec_args, callsite, expr.hir_id, suggest_slice);
                 } else {
@@ -128,7 +122,6 @@ impl<'tcx> LateLintPass<'tcx> for UselessVec {
             },
         }
     }
-
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
         for (span, lint_opt) in &self.span_to_lint_map {
             if let Some((hir_id, suggest_slice, snippet, applicability)) = lint_opt {
@@ -150,7 +143,6 @@ impl<'tcx> LateLintPass<'tcx> for UselessVec {
         }
     }
 }
-
 impl UselessVec {
     fn check_vec_macro<'tcx>(
         &mut self,
@@ -163,7 +155,6 @@ impl UselessVec {
         if span.from_expansion() {
             return;
         }
-
         let snippet = match *vec_args {
             higher::VecArgs::Repeat(elem, len) => {
                 if let Some(Constant::Int(len_constant)) = ConstEvalCtxt::new(cx).eval(len) {
@@ -171,12 +162,10 @@ impl UselessVec {
                     if !is_copy(cx, cx.typeck_results().expr_ty(elem)) {
                         return;
                     }
-
                     #[expect(clippy::cast_possible_truncation)]
                     if len_constant as u64 * size_of(cx, elem) > self.too_large_for_stack {
                         return;
                     }
-
                     suggest_slice.snippet(cx, Some(elem.span), Some(len.span))
                 } else {
                     return;
@@ -194,7 +183,6 @@ impl UselessVec {
                 suggest_slice.snippet(cx, args_span, None)
             },
         };
-
         self.span_to_lint_map.entry(span).or_insert(Some((
             hir_id,
             suggest_slice,
@@ -203,7 +191,6 @@ impl UselessVec {
         )));
     }
 }
-
 #[derive(Copy, Clone)]
 pub(crate) enum SuggestedType {
     /// Suggest using a slice `&[..]` / `&mut [..]`
@@ -211,7 +198,6 @@ pub(crate) enum SuggestedType {
     /// Suggest using an array: `[..]`
     Array,
 }
-
 impl SuggestedType {
     fn desc(self) -> &'static str {
         match self {
@@ -219,7 +205,6 @@ impl SuggestedType {
             Self::Array => "an array",
         }
     }
-
     fn snippet(self, cx: &LateContext<'_>, args_span: Option<Span>, len_span: Option<Span>) -> String {
         let maybe_args = args_span
             .and_then(|sp| sp.get_source_text(cx))
@@ -227,7 +212,6 @@ impl SuggestedType {
         let maybe_len = len_span
             .and_then(|sp| sp.get_source_text(cx).map(|s| format!("; {s}")))
             .unwrap_or_default();
-
         match self {
             Self::SliceRef(Mutability::Mut) => format!("&mut [{maybe_args}{maybe_len}]"),
             Self::SliceRef(Mutability::Not) => format!("&[{maybe_args}{maybe_len}]"),
@@ -235,29 +219,24 @@ impl SuggestedType {
         }
     }
 }
-
 fn size_of(cx: &LateContext<'_>, expr: &Expr<'_>) -> u64 {
     let ty = cx.typeck_results().expr_ty_adjusted(expr);
     cx.layout_of(ty).map_or(0, |l| l.size.bytes())
 }
-
 fn adjusts_to_slice(cx: &LateContext<'_>, e: &Expr<'_>) -> bool {
     matches!(cx.typeck_results().expr_ty_adjusted(e).kind(), ty::Ref(_, ty, _) if ty.is_slice())
 }
-
 /// Checks if the given expression is a method call to a `Vec` method
 /// that also exists on slices. If this returns true, it means that
 /// this expression does not actually require a `Vec` and could just work with an array.
 pub fn is_allowed_vec_method(cx: &LateContext<'_>, e: &Expr<'_>) -> bool {
     const ALLOWED_METHOD_NAMES: &[&str] = &["len", "as_ptr", "is_empty"];
-
     if let ExprKind::MethodCall(path, _, [], _) = e.kind {
         ALLOWED_METHOD_NAMES.contains(&path.ident.name.as_str())
     } else {
         is_trait_method(cx, e, sym::IntoIterator)
     }
 }
-
 fn suggest_type(expr: &Expr<'_>) -> SuggestedType {
     if let ExprKind::AddrOf(BorrowKind::Ref, mutability, _) = expr.kind {
         // `expr` is `&vec![_]`, so suggest `&[_]` (or `&mut[_]` resp.)

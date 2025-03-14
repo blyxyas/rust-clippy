@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::READONLY_WRITE_LOCK;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::mir::{enclosing_mir, visit_local_usage};
@@ -8,7 +10,6 @@ use rustc_hir::{Expr, ExprKind, Node, PatKind};
 use rustc_lint::LateContext;
 use rustc_middle::mir::{Location, START_BLOCK};
 use rustc_span::sym;
-
 fn is_unwrap_call(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     if let ExprKind::MethodCall(path, receiver, [], _) = expr.kind
         && path.ident.name == sym::unwrap
@@ -18,7 +19,6 @@ fn is_unwrap_call(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         false
     }
 }
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, receiver: &Expr<'_>) {
     if is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(receiver).peel_refs(), sym::RwLock)
         && let Node::Expr(unwrap_call_expr) = cx.tcx.parent_hir_node(expr.hir_id)
@@ -46,7 +46,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, receiver
         && let [usage] = usages.as_slice()
     {
         let writer_never_mutated = usage.local_consume_or_mutate_locs.is_empty();
-
         if writer_never_mutated {
             span_lint_and_sugg(
                 cx,

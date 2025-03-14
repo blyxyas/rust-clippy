@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_STR_REPEAT;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_path_diagnostic_item;
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context};
@@ -10,14 +13,10 @@ use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::symbol::sym;
 use std::borrow::Cow;
-
-use super::MANUAL_STR_REPEAT;
-
 enum RepeatKind {
     String,
     Char(char),
 }
-
 fn get_ty_param(ty: Ty<'_>) -> Option<Ty<'_>> {
     if let ty::Adt(_, subs) = ty.kind() {
         subs.types().next()
@@ -25,7 +24,6 @@ fn get_ty_param(ty: Ty<'_>) -> Option<Ty<'_>> {
         None
     }
 }
-
 fn parse_repeat_arg(cx: &LateContext<'_>, e: &Expr<'_>) -> Option<RepeatKind> {
     if let ExprKind::Lit(lit) = &e.kind {
         match lit.node {
@@ -46,7 +44,6 @@ fn parse_repeat_arg(cx: &LateContext<'_>, e: &Expr<'_>) -> Option<RepeatKind> {
         }
     }
 }
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     collect_expr: &Expr<'_>,
@@ -67,7 +64,6 @@ pub(super) fn check(
     {
         let mut app = Applicability::MachineApplicable;
         let count_snip = snippet_with_context(cx, take_arg.span, ctxt, "..", &mut app).0;
-
         let val_str = match repeat_kind {
             RepeatKind::Char(_) if repeat_arg.span.ctxt() != ctxt => return,
             RepeatKind::Char('\'') => r#""'""#.into(),
@@ -81,7 +77,6 @@ pub(super) fn check(
                 .to_string()
                 .into(),
         };
-
         span_lint_and_sugg(
             cx,
             MANUAL_STR_REPEAT,

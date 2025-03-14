@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::UNNECESSARY_LITERAL_UNWRAP;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::{MaybePath, is_res_lang_ctor, last_path_segment, path_res};
 use rustc_errors::Applicability;
@@ -5,22 +8,16 @@ use rustc_hir::{self as hir, AmbigArg};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_middle::ty::print::with_forced_trimmed_paths;
-
-use super::UNNECESSARY_LITERAL_UNWRAP;
-
 fn get_ty_from_args<'a>(args: Option<&'a [hir::GenericArg<'a>]>, index: usize) -> Option<&'a hir::Ty<'a, AmbigArg>> {
     let args = args?;
-
     if args.len() <= index {
         return None;
     }
-
     match args[index] {
         hir::GenericArg::Type(ty) => Some(ty),
         _ => None,
     }
 }
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     expr: &hir::Expr<'_>,
@@ -34,13 +31,10 @@ pub(super) fn check(
         // (e.g. `let x = option_env!(..); x.unwrap()`)
         return;
     }
-
     let (constructor, call_args, ty) = if let hir::ExprKind::Call(call, call_args) = init.kind {
         let Some(qpath) = call.qpath_opt() else { return };
-
         let args = last_path_segment(qpath).args.map(|args| args.args);
         let res = cx.qpath_res(qpath, call.hir_id());
-
         if is_res_lang_ctor(cx, res, hir::LangItem::OptionSome) {
             ("Some", call_args, get_ty_from_args(args, 0))
         } else if is_res_lang_ctor(cx, res, hir::LangItem::ResultOk) {
@@ -56,10 +50,8 @@ pub(super) fn check(
     } else {
         return;
     };
-
     let help_message = format!("used `{method}()` on `{constructor}` value");
     let suggestion_message = format!("remove the `{constructor}` and `{method}()`");
-
     span_lint_and_then(cx, UNNECESSARY_LITERAL_UNWRAP, expr.span, help_message, |diag| {
         let suggestions = match (constructor, method, ty) {
             ("None", "unwrap", _) => Some(vec![(expr.span, "panic!()".to_string())]),
@@ -124,7 +116,6 @@ pub(super) fn check(
                 (expr.span.with_lo(call_args[0].span.hi()), String::new()),
             ]),
         };
-
         match (init.span == recv.span, suggestions) {
             (true, Some(suggestions)) => {
                 diag.multipart_suggestion(suggestion_message, suggestions, Applicability::MachineApplicable);

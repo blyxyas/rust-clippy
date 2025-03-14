@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet_with_applicability;
 use rustc_errors::Applicability;
@@ -5,7 +7,6 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks usage of `std::fs::create_dir` and suggest using `std::fs::create_dir_all` instead.
@@ -29,9 +30,7 @@ declare_clippy_lint! {
     restriction,
     "calling `std::fs::create_dir` instead of `std::fs::create_dir_all`"
 }
-
 declare_lint_pass!(CreateDir => [CREATE_DIR]);
-
 impl LateLintPass<'_> for CreateDir {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         if let ExprKind::Call(func, [arg]) = expr.kind

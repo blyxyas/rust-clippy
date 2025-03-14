@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::FORMAT_COLLECT;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::macros::{is_format_macro, root_macro_call_first_node};
@@ -5,7 +7,6 @@ use clippy_utils::ty::is_type_lang_item;
 use rustc_hir::{Expr, ExprKind, LangItem};
 use rustc_lint::LateContext;
 use rustc_span::Span;
-
 /// Same as `peel_blocks` but only actually considers blocks that are not from an expansion.
 /// This is needed because always calling `peel_blocks` would otherwise remove parts of the
 /// `format!` macro, which would cause `root_macro_call_first_node` to return `None`.
@@ -15,7 +16,6 @@ fn peel_non_expn_blocks<'tcx>(expr: &'tcx Expr<'tcx>) -> Option<&'tcx Expr<'tcx>
         _ => Some(expr),
     }
 }
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, map_arg: &Expr<'_>, map_span: Span) {
     if is_type_lang_item(cx, cx.typeck_results().expr_ty(expr), LangItem::String)
         && let ExprKind::Closure(closure) = map_arg.kind

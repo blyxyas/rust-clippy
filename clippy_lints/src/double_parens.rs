@@ -1,8 +1,9 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use rustc_ast::ast::{Expr, ExprKind};
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnecessary double parentheses.
@@ -35,9 +36,7 @@ declare_clippy_lint! {
     complexity,
     "Warn on unnecessary double parentheses"
 }
-
 declare_lint_pass!(DoubleParens => [DOUBLE_PARENS]);
-
 impl EarlyLintPass for DoubleParens {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
         let span = match &expr.kind {

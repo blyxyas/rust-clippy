@@ -1,3 +1,5 @@
+use crate::HVec;
+
 mod builtin_type_shadow;
 mod literal_suffix;
 mod mixed_case_hex_literals;
@@ -6,7 +8,6 @@ mod redundant_pattern;
 mod unneeded_field_pattern;
 mod unneeded_wildcard_pattern;
 mod zero_prefixed_literal;
-
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::source::snippet_opt;
 use rustc_ast::ast::{Expr, ExprKind, Generics, LitFloatType, LitIntType, LitKind, NodeId, Pat, PatKind};
@@ -16,7 +17,6 @@ use rustc_data_structures::fx::FxHashMap;
 use rustc_lint::{EarlyContext, EarlyLintPass, LintContext};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for structure field patterns bound to wildcards.
@@ -59,7 +59,6 @@ declare_clippy_lint! {
     restriction,
     "struct fields bound to a wildcard instead of using `..`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for function arguments having the similar names
@@ -82,7 +81,6 @@ declare_clippy_lint! {
     style,
     "function arguments having names which only differ by an underscore"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns on hexadecimal literals with mixed-case letter
@@ -109,7 +107,6 @@ declare_clippy_lint! {
     style,
     "hex literals whose letter digits are not consistently upper- or lowercased"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns if literal suffixes are not separated by an
@@ -138,7 +135,6 @@ declare_clippy_lint! {
     restriction,
     "literals whose suffix is not separated by an underscore"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns if literal suffixes are separated by an underscore.
@@ -166,7 +162,6 @@ declare_clippy_lint! {
     restriction,
     "literals whose suffix is separated by an underscore"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns if an integral constant literal starts with `0`.
@@ -205,7 +200,6 @@ declare_clippy_lint! {
     complexity,
     "integer literals starting with `0`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Warns if a generic shadows a built-in type.
@@ -227,7 +221,6 @@ declare_clippy_lint! {
     style,
     "shadowing a builtin type"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for patterns in the form `name @ _`.
@@ -258,7 +251,6 @@ declare_clippy_lint! {
     style,
     "using `name @ _` in a pattern"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for tuple patterns with a wildcard
@@ -297,7 +289,6 @@ declare_clippy_lint! {
     complexity,
     "tuple patterns with a wildcard pattern (`_`) is next to a rest pattern (`..`)"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `[all @ ..]` patterns.
@@ -327,7 +318,6 @@ declare_clippy_lint! {
     complexity,
     "checks for `[all @ ..]` where `all` would suffice"
 }
-
 declare_lint_pass!(MiscEarlyLints => [
     UNNEEDED_FIELD_PATTERN,
     DUPLICATE_UNDERSCORE_ARGUMENT,
@@ -340,32 +330,26 @@ declare_lint_pass!(MiscEarlyLints => [
     UNNEEDED_WILDCARD_PATTERN,
     REDUNDANT_AT_REST_PATTERN,
 ]);
-
 impl EarlyLintPass for MiscEarlyLints {
     fn check_generics(&mut self, cx: &EarlyContext<'_>, generics: &Generics) {
         for param in &generics.params {
             builtin_type_shadow::check(cx, param);
         }
     }
-
     fn check_pat(&mut self, cx: &EarlyContext<'_>, pat: &Pat) {
         if pat.span.in_external_macro(cx.sess().source_map()) {
             return;
         }
-
         unneeded_field_pattern::check(cx, pat);
         redundant_pattern::check(cx, pat);
         redundant_at_rest_pattern::check(cx, pat);
         unneeded_wildcard_pattern::check(cx, pat);
     }
-
     fn check_fn(&mut self, cx: &EarlyContext<'_>, fn_kind: FnKind<'_>, _: Span, _: NodeId) {
         let mut registered_names: FxHashMap<String, Span> = FxHashMap::default();
-
         for arg in &fn_kind.decl().inputs {
             if let PatKind::Ident(_, ident, None) = arg.pat.kind {
                 let arg_name = ident.to_string();
-
                 if let Some(arg_name) = arg_name.strip_prefix('_') {
                     if let Some(correspondence) = registered_names.get(arg_name) {
                         span_lint(
@@ -384,18 +368,15 @@ impl EarlyLintPass for MiscEarlyLints {
             }
         }
     }
-
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
         if expr.span.in_external_macro(cx.sess().source_map()) {
             return;
         }
-
         if let ExprKind::Lit(lit) = expr.kind {
             MiscEarlyLints::check_lit(cx, lit, expr.span);
         }
     }
 }
-
 impl MiscEarlyLints {
     fn check_lit(cx: &EarlyContext<'_>, lit: token::Lit, span: Span) {
         // We test if first character in snippet is a number, because the snippet could be an expansion
@@ -407,7 +388,6 @@ impl MiscEarlyLints {
             Some(snip) if snip.chars().next().is_some_and(|c| c.is_ascii_digit()) => snip,
             _ => return,
         };
-
         let lit_kind = LitKind::from_token_lit(lit);
         if let Ok(LitKind::Int(value, lit_int_type)) = lit_kind {
             let suffix = match lit_int_type {

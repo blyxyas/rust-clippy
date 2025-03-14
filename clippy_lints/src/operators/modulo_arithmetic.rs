@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MODULO_ARITHMETIC;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::sext;
@@ -5,9 +8,6 @@ use rustc_hir::{BinOpKind, Expr, ExprKind, Node};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 use std::fmt::Display;
-
-use super::MODULO_ARITHMETIC;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     e: &'tcx Expr<'_>,
@@ -20,7 +20,6 @@ pub(super) fn check<'tcx>(
         if allow_comparison_to_zero && used_in_comparison_with_zero(cx, e) {
             return;
         }
-
         let lhs_operand = analyze_operand(lhs, cx, e);
         let rhs_operand = analyze_operand(rhs, cx, e);
         if let Some(lhs_operand) = lhs_operand
@@ -32,7 +31,6 @@ pub(super) fn check<'tcx>(
         }
     }
 }
-
 fn used_in_comparison_with_zero(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     let Node::Expr(parent_expr) = cx.tcx.parent_hir_node(expr.hir_id) else {
         return false;
@@ -40,7 +38,6 @@ fn used_in_comparison_with_zero(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     let ExprKind::Binary(op, lhs, rhs) = parent_expr.kind else {
         return false;
     };
-
     if op.node == BinOpKind::Eq || op.node == BinOpKind::Ne {
         let ecx = ConstEvalCtxt::new(cx);
         matches!(ecx.eval(lhs), Some(Constant::Int(0))) || matches!(ecx.eval(rhs), Some(Constant::Int(0)))
@@ -48,13 +45,11 @@ fn used_in_comparison_with_zero(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         false
     }
 }
-
 struct OperandInfo {
     string_representation: Option<String>,
     is_negative: bool,
     is_integral: bool,
 }
-
 fn analyze_operand(operand: &Expr<'_>, cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<OperandInfo> {
     match ConstEvalCtxt::new(cx).eval(operand) {
         Some(Constant::Int(v)) => match *cx.typeck_results().expr_ty(expr).kind() {
@@ -86,7 +81,6 @@ fn analyze_operand(operand: &Expr<'_>, cx: &LateContext<'_>, expr: &Expr<'_>) ->
     }
     None
 }
-
 fn floating_point_operand_info<T: Display + PartialOrd + From<f32>>(f: &T) -> OperandInfo {
     OperandInfo {
         string_representation: Some(format!("{:.3}", *f)),
@@ -94,11 +88,9 @@ fn floating_point_operand_info<T: Display + PartialOrd + From<f32>>(f: &T) -> Op
         is_integral: false,
     }
 }
-
 fn might_have_negative_value(t: Ty<'_>) -> bool {
     t.is_signed() || t.is_floating_point()
 }
-
 fn check_const_operands<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -124,7 +116,6 @@ fn check_const_operands<'tcx>(
         );
     }
 }
-
 fn check_non_const_operands<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, operand: &Expr<'_>) {
     let operand_type = cx.typeck_results().expr_ty(operand);
     if might_have_negative_value(operand_type) {

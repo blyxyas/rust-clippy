@@ -1,4 +1,4 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -9,7 +9,7 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::symbol::Symbol;
 use rustc_span::{Span, sym};
-
+use std::ops::ControlFlow;
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `contains` to see if a value is not present
@@ -47,9 +47,7 @@ declare_clippy_lint! {
     nursery,
     "call to `<set>::contains` followed by `<set>::insert`"
 }
-
 declare_lint_pass!(SetContainsOrInsert => [SET_CONTAINS_OR_INSERT]);
-
 impl<'tcx> LateLintPass<'tcx> for SetContainsOrInsert {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if !expr.span.from_expansion()
@@ -70,13 +68,11 @@ impl<'tcx> LateLintPass<'tcx> for SetContainsOrInsert {
         }
     }
 }
-
 struct OpExpr<'tcx> {
     receiver: &'tcx Expr<'tcx>,
     value: &'tcx Expr<'tcx>,
     span: Span,
 }
-
 fn try_parse_op_call<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -89,7 +85,6 @@ fn try_parse_op_call<'tcx>(
             None
         }
     });
-
     if let ExprKind::MethodCall(path, receiver, [value], span) = expr.kind {
         let value = value.peel_borrows();
         let value = peel_hir_expr_while(value, |e| {
@@ -111,7 +106,6 @@ fn try_parse_op_call<'tcx>(
     }
     None
 }
-
 fn find_insert_calls<'tcx>(
     cx: &LateContext<'tcx>,
     contains_expr: &OpExpr<'tcx>,

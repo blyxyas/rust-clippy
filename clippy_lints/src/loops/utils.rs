@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::ty::{has_iter_method, implements_trait};
 use clippy_utils::{get_parent_expr, is_integer_const, path_to_local, path_to_local_id, sugg};
 use rustc_ast::ast::{LitIntType, LitKind};
@@ -9,21 +11,18 @@ use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::source_map::Spanned;
 use rustc_span::symbol::{Symbol, sym};
-
 #[derive(Debug, PartialEq, Eq)]
 enum IncrementVisitorVarState {
     Initial,  // Not examined yet
     IncrOnce, // Incremented exactly once, may be a loop counter
     DontWarn,
 }
-
 /// Scan a for loop for variables that are incremented exactly once and not used after that.
 pub(super) struct IncrementVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,                  // context reference
     states: HirIdMap<IncrementVisitorVarState>, // incremented variables
     depth: u32,                                 // depth of conditional expressions
 }
-
 impl<'a, 'tcx> IncrementVisitor<'a, 'tcx> {
     pub(super) fn new(cx: &'a LateContext<'tcx>) -> Self {
         Self {
@@ -32,7 +31,6 @@ impl<'a, 'tcx> IncrementVisitor<'a, 'tcx> {
             depth: 0,
         }
     }
-
     pub(super) fn into_results(self) -> impl Iterator<Item = HirId> {
         self.states.into_iter().filter_map(|(id, state)| {
             if state == IncrementVisitorVarState::IncrOnce {
@@ -43,7 +41,6 @@ impl<'a, 'tcx> IncrementVisitor<'a, 'tcx> {
         })
     }
 }
-
 impl<'tcx> Visitor<'tcx> for IncrementVisitor<'_, 'tcx> {
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         // If node is a variable
@@ -54,7 +51,6 @@ impl<'tcx> Visitor<'tcx> for IncrementVisitor<'_, 'tcx> {
                     *state = IncrementVisitorVarState::DontWarn;
                     return;
                 }
-
                 match parent.kind {
                     ExprKind::AssignOp(op, lhs, rhs) => {
                         if lhs.hir_id == expr.hir_id {
@@ -79,7 +75,6 @@ impl<'tcx> Visitor<'tcx> for IncrementVisitor<'_, 'tcx> {
                     _ => (),
                 }
             }
-
             walk_expr(self, expr);
         } else if is_loop(expr) || is_conditional(expr) {
             self.depth += 1;
@@ -94,7 +89,6 @@ impl<'tcx> Visitor<'tcx> for IncrementVisitor<'_, 'tcx> {
         }
     }
 }
-
 enum InitializeVisitorState<'hir> {
     Initial,                            // Not examined yet
     Declared(Symbol, Option<Ty<'hir>>), // Declared but not (yet) initialized
@@ -105,7 +99,6 @@ enum InitializeVisitorState<'hir> {
     },
     DontWarn,
 }
-
 /// Checks whether a variable is initialized at the start of a loop and not modified
 /// and used after the loop.
 pub(super) struct InitializeVisitor<'a, 'tcx> {
@@ -116,7 +109,6 @@ pub(super) struct InitializeVisitor<'a, 'tcx> {
     depth: u32, // depth of conditional expressions
     past_loop: bool,
 }
-
 impl<'a, 'tcx> InitializeVisitor<'a, 'tcx> {
     pub(super) fn new(cx: &'a LateContext<'tcx>, end_expr: &'tcx Expr<'tcx>, var_id: HirId) -> Self {
         Self {
@@ -128,7 +120,6 @@ impl<'a, 'tcx> InitializeVisitor<'a, 'tcx> {
             past_loop: false,
         }
     }
-
     pub(super) fn get_result(&self) -> Option<(Symbol, Option<Ty<'tcx>>, &'tcx Expr<'tcx>)> {
         if let InitializeVisitorState::Initialized { name, ty, initializer } = self.state {
             Some((name, ty, initializer))
@@ -137,17 +128,14 @@ impl<'a, 'tcx> InitializeVisitor<'a, 'tcx> {
         }
     }
 }
-
 impl<'tcx> Visitor<'tcx> for InitializeVisitor<'_, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
-
     fn visit_local(&mut self, l: &'tcx LetStmt<'_>) {
         // Look for declarations of the variable
         if l.pat.hir_id == self.var_id
             && let PatKind::Binding(.., ident, _) = l.pat.kind
         {
             let ty = l.ty.map(|_| self.cx.typeck_results().pat_ty(l.pat));
-
             self.state = l.init.map_or(InitializeVisitorState::Declared(ident.name, ty), |init| {
                 InitializeVisitorState::Initialized {
                     initializer: init,
@@ -156,10 +144,8 @@ impl<'tcx> Visitor<'tcx> for InitializeVisitor<'_, 'tcx> {
                 }
             });
         }
-
         walk_local(self, l);
     }
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         if matches!(self.state, InitializeVisitorState::DontWarn) {
             return;
@@ -173,14 +159,12 @@ impl<'tcx> Visitor<'tcx> for InitializeVisitor<'_, 'tcx> {
         if matches!(self.state, InitializeVisitorState::Initial) {
             return;
         }
-
         // If node is the desired variable, see how it's used
         if path_to_local_id(expr, self.var_id) {
             if self.past_loop {
                 self.state = InitializeVisitorState::DontWarn;
                 return;
             }
-
             if let Some(parent) = get_parent_expr(self.cx, expr) {
                 match parent.kind {
                     ExprKind::AssignOp(_, lhs, _) if lhs.hir_id == expr.hir_id => {
@@ -201,7 +185,6 @@ impl<'tcx> Visitor<'tcx> for InitializeVisitor<'_, 'tcx> {
                                             ty = self.cx.typeck_results().expr_ty_opt(rhs);
                                         }
                                     }
-
                                     InitializeVisitorState::Initialized {
                                         initializer: rhs,
                                         ty,
@@ -227,7 +210,6 @@ impl<'tcx> Visitor<'tcx> for InitializeVisitor<'_, 'tcx> {
                     _ => (),
                 }
             }
-
             walk_expr(self, expr);
         } else if !self.past_loop && is_loop(expr) {
             self.state = InitializeVisitorState::DontWarn;
@@ -239,20 +221,16 @@ impl<'tcx> Visitor<'tcx> for InitializeVisitor<'_, 'tcx> {
             walk_expr(self, expr);
         }
     }
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }
 }
-
 fn is_loop(expr: &Expr<'_>) -> bool {
     matches!(expr.kind, ExprKind::Loop(..))
 }
-
 fn is_conditional(expr: &Expr<'_>) -> bool {
     matches!(expr.kind, ExprKind::If(..) | ExprKind::Match(..))
 }
-
 /// If `arg` was the argument to a `for` loop, return the "cleanest" way of writing the
 /// actual `Iterator` that the loop uses.
 pub(super) fn make_iterator_snippet(cx: &LateContext<'_>, arg: &Expr<'_>, applic_ref: &mut Applicability) -> String {

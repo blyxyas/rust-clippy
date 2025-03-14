@@ -1,4 +1,4 @@
-use std::ops::ControlFlow;
+use crate::HVec;
 
 use super::NEEDLESS_COLLECT;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_hir_and_then};
@@ -20,9 +20,8 @@ use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::{self, AssocKind, ClauseKind, EarlyBinder, GenericArg, GenericArgKind, Ty};
 use rustc_span::symbol::Ident;
 use rustc_span::{Span, sym};
-
+use std::ops::ControlFlow;
 const NEEDLESS_COLLECT_MSG: &str = "avoid using `collect()` when not needed";
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     name_span: Span,
@@ -33,12 +32,10 @@ pub(super) fn check<'tcx>(
     match cx.tcx.parent_hir_node(collect_expr.hir_id) {
         Node::Expr(parent) => {
             check_collect_into_intoiterator(cx, parent, collect_expr, call_span, iter_expr);
-
             if let ExprKind::MethodCall(name, _, args @ ([] | [_]), _) = parent.kind {
                 let mut app = Applicability::MachineApplicable;
                 let name = name.ident.as_str();
                 let collect_ty = cx.typeck_results().expr_ty(collect_expr);
-
                 let sugg: String = match name {
                     "len" => {
                         if let Some(adt) = collect_ty.ty_adt_def()
@@ -75,7 +72,6 @@ pub(super) fn check<'tcx>(
                     },
                     _ => return,
                 };
-
                 span_lint_and_sugg(
                     cx,
                     NEEDLESS_COLLECT,
@@ -104,13 +100,11 @@ pub(super) fn check<'tcx>(
                 if used_count_visitor.count > 1 {
                     return;
                 }
-
                 if let IterFunctionKind::IntoIter(hir_id) = iter_call.func
                     && !check_iter_expr_used_only_as_iterator(cx, hir_id, block)
                 {
                     return;
                 }
-
                 // Suggest replacing iter_call with iter_replacement, and removing stmt
                 let mut span = MultiSpan::from_span(name_span);
                 span.push_span_label(iter_call.span, "the iterator could be used here instead");
@@ -135,7 +129,6 @@ pub(super) fn check<'tcx>(
         _ => (),
     }
 }
-
 /// checks for collecting into a (generic) method or function argument
 /// taking an `IntoIterator`
 fn check_collect_into_intoiterator<'tcx>(
@@ -165,7 +158,6 @@ fn check_collect_into_intoiterator<'tcx>(
                 .tcx
                 .liberate_late_bound_regions(id, cx.tcx.fn_sig(id).instantiate_identity())
                 .inputs();
-
             // map IntoIterator generic bounds to their signature
             // types and check whether the argument type is an
             // `IntoIterator`
@@ -198,7 +190,6 @@ fn check_collect_into_intoiterator<'tcx>(
         }
     }
 }
-
 /// Checks if the given method call matches the expected signature of `([&[mut]] self) -> bool`
 fn is_is_empty_sig(cx: &LateContext<'_>, call_id: HirId) -> bool {
     cx.typeck_results().type_dependent_def_id(call_id).is_some_and(|id| {
@@ -206,7 +197,6 @@ fn is_is_empty_sig(cx: &LateContext<'_>, call_id: HirId) -> bool {
         sig.inputs().len() == 1 && sig.output().is_bool()
     })
 }
-
 /// Checks if `<iter_ty as Iterator>::Item` is the same as `<collect_ty as IntoIter>::Item`
 fn iterates_same_ty<'tcx>(cx: &LateContext<'tcx>, iter_ty: Ty<'tcx>, collect_ty: Ty<'tcx>) -> bool {
     if let Some(iter_trait) = cx.tcx.get_diagnostic_item(sym::Iterator)
@@ -224,7 +214,6 @@ fn iterates_same_ty<'tcx>(cx: &LateContext<'tcx>, iter_ty: Ty<'tcx>, collect_ty:
         false
     }
 }
-
 /// Checks if the given method call matches the expected signature of
 /// `([&[mut]] self, &<iter_ty as Iterator>::Item) -> bool`
 fn is_contains_sig(cx: &LateContext<'_>, call_id: HirId, iter_expr: &Expr<'_>) -> bool {
@@ -253,7 +242,6 @@ fn is_contains_sig(cx: &LateContext<'_>, call_id: HirId, iter_expr: &Expr<'_>) -
         false
     }
 }
-
 struct IterFunction {
     func: IterFunctionKind,
     span: Span,
@@ -297,7 +285,6 @@ enum IterFunctionKind {
     IsEmpty,
     Contains(Span),
 }
-
 struct IterFunctionVisitor<'a, 'tcx> {
     illegal_mutable_capture_ids: HirIdSet,
     current_mutably_captured_ids: HirIdSet,
@@ -326,7 +313,6 @@ impl<'tcx> Visitor<'tcx> for IterFunctionVisitor<'_, 'tcx> {
             }
         }
     }
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'tcx>) {
         // Check function calls on our collection
         if let ExprKind::MethodCall(method_name, recv, args, _) = &expr.kind {
@@ -338,7 +324,6 @@ impl<'tcx> Visitor<'tcx> for IterFunctionVisitor<'_, 'tcx> {
                 self.visit_expr(recv);
                 return;
             }
-
             if path_to_local_id(recv, self.target) {
                 if self
                     .illegal_mutable_capture_ids
@@ -376,7 +361,6 @@ impl<'tcx> Visitor<'tcx> for IterFunctionVisitor<'_, 'tcx> {
                 }
                 return;
             }
-
             if let Some(hir_id) = path_to_local(recv) {
                 if let Some(index) = self.hir_id_uses_map.remove(&hir_id) {
                     if self
@@ -402,12 +386,10 @@ impl<'tcx> Visitor<'tcx> for IterFunctionVisitor<'_, 'tcx> {
         }
     }
 }
-
 enum LoopKind<'tcx> {
     Conditional(&'tcx Expr<'tcx>),
     Loop,
 }
-
 fn check_loop_kind<'tcx>(expr: &Expr<'tcx>) -> Option<LoopKind<'tcx>> {
     if let Some(higher::WhileLet { let_expr, .. }) = higher::WhileLet::hir(expr) {
         return Some(LoopKind::Conditional(let_expr));
@@ -421,10 +403,8 @@ fn check_loop_kind<'tcx>(expr: &Expr<'tcx>) -> Option<LoopKind<'tcx>> {
     if let ExprKind::Loop { .. } = expr.kind {
         return Some(LoopKind::Loop);
     }
-
     None
 }
-
 impl<'tcx> IterFunctionVisitor<'_, 'tcx> {
     fn visit_block_expr(&mut self, expr: &'tcx Expr<'tcx>, hir_id: Option<HirId>) {
         self.current_statement_hir_id = hir_id;
@@ -432,7 +412,6 @@ impl<'tcx> IterFunctionVisitor<'_, 'tcx> {
         self.visit_expr(expr);
     }
 }
-
 fn get_expr_and_hir_id_from_stmt<'v>(stmt: &'v Stmt<'v>) -> Option<(&'v Expr<'v>, Option<HirId>)> {
     match stmt.kind {
         StmtKind::Expr(expr) | StmtKind::Semi(expr) => Some((expr, None)),
@@ -446,16 +425,13 @@ fn get_expr_and_hir_id_from_stmt<'v>(stmt: &'v Stmt<'v>) -> Option<(&'v Expr<'v>
         },
     }
 }
-
 struct UsedCountVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     id: HirId,
     count: usize,
 }
-
 impl<'tcx> Visitor<'tcx> for UsedCountVisitor<'_, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         if path_to_local_id(expr, self.id) {
             self.count += 1;
@@ -463,12 +439,10 @@ impl<'tcx> Visitor<'tcx> for UsedCountVisitor<'_, 'tcx> {
             walk_expr(self, expr);
         }
     }
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }
 }
-
 /// Detect the occurrences of calls to `iter` or `into_iter` for the
 /// given identifier
 fn detect_iter_and_into_iters<'tcx: 'a, 'a>(
@@ -494,7 +468,6 @@ fn detect_iter_and_into_iters<'tcx: 'a, 'a>(
         Some(visitor.uses.into_iter().flatten().collect())
     }
 }
-
 fn get_captured_ids(cx: &LateContext<'_>, ty: Ty<'_>) -> HirIdSet {
     fn get_captured_ids_recursive(cx: &LateContext<'_>, ty: Ty<'_>, set: &mut HirIdSet) {
         match ty.kind() {
@@ -521,20 +494,15 @@ fn get_captured_ids(cx: &LateContext<'_>, ty: Ty<'_>) -> HirIdSet {
             _ => (),
         }
     }
-
     let mut set = HirIdSet::default();
-
     get_captured_ids_recursive(cx, ty, &mut set);
-
     set
 }
-
 struct IteratorMethodCheckVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     hir_id_of_expr: HirId,
     hir_id_of_let_binding: Option<HirId>,
 }
-
 impl<'tcx> Visitor<'tcx> for IteratorMethodCheckVisitor<'_, 'tcx> {
     type Result = ControlFlow<()>;
     fn visit_expr(&mut self, expr: &'tcx Expr<'tcx>) -> ControlFlow<()> {
@@ -573,7 +541,6 @@ impl<'tcx> Visitor<'tcx> for IteratorMethodCheckVisitor<'_, 'tcx> {
         walk_stmt(self, stmt)
     }
 }
-
 fn check_iter_expr_used_only_as_iterator<'tcx>(
     cx: &LateContext<'tcx>,
     hir_id_of_expr: HirId,

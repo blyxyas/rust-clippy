@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::ITER_NEXT_SLICE;
 use super::utils::derefs_to_slice;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
@@ -9,9 +12,6 @@ use rustc_hir as hir;
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::symbol::sym;
-
-use super::ITER_NEXT_SLICE;
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>, caller_expr: &'tcx hir::Expr<'_>) {
     // Skip lint if the `iter().next()` expression is a for loop argument,
     // since it is already covered by `&loops::ITER_NEXT_LOOP`
@@ -22,7 +22,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>, cal
         }
         parent_expr_opt = get_parent_expr(cx, parent_expr);
     }
-
     if derefs_to_slice(cx, caller_expr, cx.typeck_results().expr_ty(caller_expr)).is_some() {
         // caller is a Slice
         if let hir::ExprKind::Index(caller_var, index_expr, _) = &caller_expr.kind
@@ -73,7 +72,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>, cal
         );
     }
 }
-
 fn is_vec_or_array<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) -> bool {
     is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(expr), sym::Vec)
         || matches!(&cx.typeck_results().expr_ty(expr).peel_refs().kind(), ty::Array(_, _))

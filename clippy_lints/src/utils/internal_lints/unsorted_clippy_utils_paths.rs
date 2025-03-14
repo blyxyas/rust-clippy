@@ -1,8 +1,9 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint;
 use rustc_ast::ast::{Crate, ItemKind, ModKind};
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks that [`clippy_utils::paths`] is sorted lexically
@@ -16,9 +17,7 @@ declare_clippy_lint! {
     internal,
     "various things that will negatively affect your clippy experience"
 }
-
 declare_lint_pass!(UnsortedClippyUtilsPaths => [UNSORTED_CLIPPY_UTILS_PATHS]);
-
 impl EarlyLintPass for UnsortedClippyUtilsPaths {
     fn check_crate(&mut self, cx: &EarlyContext<'_>, krate: &Crate) {
         if let Some(utils) = krate.items.iter().find(|item| item.ident.name.as_str() == "utils") {

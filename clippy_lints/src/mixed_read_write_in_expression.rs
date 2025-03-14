@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint, span_lint_and_then};
 use clippy_utils::macros::root_macro_call_first_node;
 use clippy_utils::{get_parent_expr, path_to_local, path_to_local_id};
@@ -6,7 +8,6 @@ use rustc_hir::{BinOpKind, Block, Expr, ExprKind, HirId, LetStmt, Node, Stmt, St
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for a read and a write to the same variable where
@@ -49,7 +50,6 @@ declare_clippy_lint! {
     restriction,
     "whether a variable read occurs before a write depends on sub-expression evaluation order"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for diverging calls that are not match arms or
@@ -77,9 +77,7 @@ declare_clippy_lint! {
     complexity,
     "whether an expression contains a diverging sub expression"
 }
-
 declare_lint_pass!(EvalOrderDependence => [MIXED_READ_WRITE_IN_EXPRESSION, DIVERGING_SUB_EXPRESSION]);
-
 impl<'tcx> LateLintPass<'tcx> for EvalOrderDependence {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         // Find a write to a local variable.
@@ -111,11 +109,9 @@ impl<'tcx> LateLintPass<'tcx> for EvalOrderDependence {
         }
     }
 }
-
 struct DivergenceVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
 }
-
 impl<'tcx> DivergenceVisitor<'_, 'tcx> {
     fn maybe_walk_expr(&mut self, e: &'tcx Expr<'_>) {
         match e.kind {
@@ -133,7 +129,6 @@ impl<'tcx> DivergenceVisitor<'_, 'tcx> {
             _ => walk_expr(self, e),
         }
     }
-
     fn report_diverging_sub_expr(&mut self, e: &Expr<'_>) {
         if let Some(macro_call) = root_macro_call_first_node(self.cx, e) {
             if self.cx.tcx.item_name(macro_call.def_id).as_str() == "todo" {
@@ -143,11 +138,9 @@ impl<'tcx> DivergenceVisitor<'_, 'tcx> {
         span_lint(self.cx, DIVERGING_SUB_EXPRESSION, e.span, "sub-expression diverges");
     }
 }
-
 fn stmt_might_diverge(stmt: &Stmt<'_>) -> bool {
     !matches!(stmt.kind, StmtKind::Item(..))
 }
-
 impl<'tcx> Visitor<'tcx> for DivergenceVisitor<'_, 'tcx> {
     fn visit_expr(&mut self, e: &'tcx Expr<'_>) {
         match e.kind {
@@ -199,7 +192,6 @@ impl<'tcx> Visitor<'tcx> for DivergenceVisitor<'_, 'tcx> {
         // don't continue over blocks, LateLintPass already does that
     }
 }
-
 /// Walks up the AST from the given write expression (`vis.write_expr`) looking
 /// for reads to the same variable that are unsequenced relative to the write.
 ///
@@ -221,7 +213,6 @@ fn check_for_unsequenced_reads(vis: &mut ReadVisitor<'_, '_>) {
         if parent_id == cur_id {
             break;
         }
-
         let stop_early = match vis.cx.tcx.hir_node(parent_id) {
             Node::Expr(expr) => check_expr(vis, expr),
             Node::Stmt(stmt) => check_stmt(vis, stmt),
@@ -235,11 +226,9 @@ fn check_for_unsequenced_reads(vis: &mut ReadVisitor<'_, '_>) {
             StopEarly::Stop => break,
             StopEarly::KeepGoing => {},
         }
-
         cur_id = parent_id;
     }
 }
-
 /// Whether to stop early for the loop in `check_for_unsequenced_reads`. (If
 /// `check_expr` weren't an independent function, this would be unnecessary and
 /// we could just use `break`).
@@ -247,12 +236,10 @@ enum StopEarly {
     KeepGoing,
     Stop,
 }
-
 fn check_expr<'tcx>(vis: &mut ReadVisitor<'_, 'tcx>, expr: &'tcx Expr<'_>) -> StopEarly {
     if expr.hir_id == vis.last_expr.hir_id {
         return StopEarly::KeepGoing;
     }
-
     match expr.kind {
         ExprKind::Array(_)
         | ExprKind::Tup(_)
@@ -289,12 +276,9 @@ fn check_expr<'tcx>(vis: &mut ReadVisitor<'_, 'tcx>, expr: &'tcx Expr<'_>) -> St
         // sequence the evaluation order of their sub-expressions.
         _ => {},
     }
-
     vis.last_expr = expr;
-
     StopEarly::KeepGoing
 }
-
 fn check_stmt<'tcx>(vis: &mut ReadVisitor<'_, 'tcx>, stmt: &'tcx Stmt<'_>) -> StopEarly {
     match stmt.kind {
         StmtKind::Expr(expr) | StmtKind::Semi(expr) => check_expr(vis, expr),
@@ -307,7 +291,6 @@ fn check_stmt<'tcx>(vis: &mut ReadVisitor<'_, 'tcx>, stmt: &'tcx Stmt<'_>) -> St
         StmtKind::Item(..) => StopEarly::KeepGoing,
     }
 }
-
 /// A visitor that looks for reads from a variable.
 struct ReadVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
@@ -320,13 +303,11 @@ struct ReadVisitor<'a, 'tcx> {
     /// to recheck it.
     last_expr: &'tcx Expr<'tcx>,
 }
-
 impl<'tcx> Visitor<'tcx> for ReadVisitor<'_, 'tcx> {
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         if expr.hir_id == self.last_expr.hir_id {
             return;
         }
-
         if path_to_local_id(expr, self.var) {
             // Check that this is a read, not a write.
             if !is_in_assignment_position(self.cx, expr) {
@@ -349,7 +330,6 @@ impl<'tcx> Visitor<'tcx> for ReadVisitor<'_, 'tcx> {
             // if) the closure will be evaluated, any reads in it might not
             // occur here (or ever). Like above, bail to avoid false positives.
             ExprKind::Closure{..} |
-
             // We want to avoid a false positive when a variable name occurs
             // only to have its address taken, so we stop here. Technically,
             // this misses some weird cases, eg.
@@ -365,11 +345,9 @@ impl<'tcx> Visitor<'tcx> for ReadVisitor<'_, 'tcx> {
             }
             _ => {}
         }
-
         walk_expr(self, expr);
     }
 }
-
 /// Returns `true` if `expr` is the LHS of an assignment, like `expr = ...`.
 fn is_in_assignment_position(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     if let Some(parent) = get_parent_expr(cx, expr) {

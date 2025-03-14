@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint_and_note, span_lint_and_sugg};
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::ty::{has_drop, is_copy};
@@ -12,7 +14,6 @@ use rustc_middle::ty::print::with_forced_trimmed_paths;
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::{Ident, Symbol};
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for literal calls to `Default::default()`.
@@ -35,7 +36,6 @@ declare_clippy_lint! {
     pedantic,
     "checks for literal calls to `Default::default()`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for immediate reassignment of fields initialized
@@ -69,15 +69,12 @@ declare_clippy_lint! {
     style,
     "binding initialized with Default should have its fields set in the initializer"
 }
-
 #[derive(Default)]
 pub struct Default {
     // Spans linted by `field_reassign_with_default`.
     reassigned_linted: FxHashSet<Span>,
 }
-
 impl_lint_pass!(Default => [DEFAULT_TRAIT_ACCESS, FIELD_REASSIGN_WITH_DEFAULT]);
-
 impl<'tcx> LateLintPass<'tcx> for Default {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if !expr.span.from_expansion()
@@ -107,7 +104,6 @@ impl<'tcx> LateLintPass<'tcx> for Default {
             );
         }
     }
-
     #[expect(clippy::too_many_lines)]
     fn check_block(&mut self, cx: &LateContext<'tcx>, block: &Block<'tcx>) {
         // start from the `let mut _ = _::default();` and look at all the following
@@ -152,9 +148,7 @@ impl<'tcx> LateLintPass<'tcx> for Default {
             } else {
                 continue;
             };
-
             let init_ctxt = local.span.ctxt();
-
             // find all "later statement"'s where the fields of the binding set as
             // Default::default() get reassigned, unless the reassignment refers to the original binding
             let mut first_assign = None;
@@ -168,7 +162,6 @@ impl<'tcx> LateLintPass<'tcx> for Default {
                         cancel_lint = true;
                         break;
                     }
-
                     // if the field was previously assigned, replace the assignment, otherwise insert the assignment
                     if let Some(prev) = assigned_fields
                         .iter_mut()
@@ -178,7 +171,6 @@ impl<'tcx> LateLintPass<'tcx> for Default {
                     } else {
                         assigned_fields.push((field_ident.name, assign_rhs));
                     }
-
                     // also set first instance of error for help message
                     if first_assign.is_none() {
                         first_assign = Some(consecutive_statement);
@@ -189,7 +181,6 @@ impl<'tcx> LateLintPass<'tcx> for Default {
                     break;
                 }
             }
-
             // if there are incorrectly assigned fields, do a span_lint_and_note to suggest
             // construction using `Ty { fields, ..Default::default() }`
             if !assigned_fields.is_empty() && !cancel_lint {
@@ -198,7 +189,6 @@ impl<'tcx> LateLintPass<'tcx> for Default {
                     .fields
                     .iter()
                     .all(|field| assigned_fields.iter().any(|(a, _)| a == &field.name));
-
                 let mut app = Applicability::Unspecified;
                 let field_list = assigned_fields
                     .into_iter()
@@ -209,7 +199,6 @@ impl<'tcx> LateLintPass<'tcx> for Default {
                     })
                     .collect::<Vec<String>>()
                     .join(", ");
-
                 // give correct suggestion if generics are involved (see #6944)
                 let binding_type = if let ty::Adt(adt_def, args) = binding_type.kind()
                     && !args.is_empty()
@@ -225,7 +214,6 @@ impl<'tcx> LateLintPass<'tcx> for Default {
                 } else {
                     binding_type.to_string()
                 };
-
                 let sugg = if ext_with_default {
                     if field_list.is_empty() {
                         format!("{binding_type}::default()")
@@ -235,7 +223,6 @@ impl<'tcx> LateLintPass<'tcx> for Default {
                 } else {
                     format!("{binding_type} {{ {field_list} }}")
                 };
-
                 // span lint once per statement that binds default
                 span_lint_and_note(
                     cx,
@@ -250,7 +237,6 @@ impl<'tcx> LateLintPass<'tcx> for Default {
         }
     }
 }
-
 /// Checks if the given expression is the `default` method belonging to the `Default` trait.
 fn is_expr_default<'tcx>(expr: &'tcx Expr<'tcx>, cx: &LateContext<'tcx>) -> bool {
     if let ExprKind::Call(fn_expr, []) = &expr.kind
@@ -263,7 +249,6 @@ fn is_expr_default<'tcx>(expr: &'tcx Expr<'tcx>, cx: &LateContext<'tcx>) -> bool
         false
     }
 }
-
 /// Returns the reassigned field and the assigning expression (right-hand side of assign).
 fn field_reassigned_by_stmt<'tcx>(this: &Stmt<'tcx>, binding_name: Symbol) -> Option<(Ident, &'tcx Expr<'tcx>)> {
     if let StmtKind::Semi(later_expr) = this.kind
@@ -281,7 +266,6 @@ fn field_reassigned_by_stmt<'tcx>(this: &Stmt<'tcx>, binding_name: Symbol) -> Op
         None
     }
 }
-
 /// Returns whether `expr` is the update syntax base: `Foo { a: 1, .. base }`
 fn is_update_syntax_base<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) -> bool {
     if let Some(parent) = get_parent_expr(cx, expr)

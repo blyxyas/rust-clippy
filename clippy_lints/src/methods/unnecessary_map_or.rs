@@ -1,5 +1,6 @@
-use std::borrow::Cow;
+use crate::HVec;
 
+use super::UNNECESSARY_MAP_OR;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::eager_or_lazy::switch_to_eager_eval;
 use clippy_utils::msrvs::{self, Msrv};
@@ -12,9 +13,7 @@ use rustc_errors::Applicability;
 use rustc_hir::{BinOpKind, Expr, ExprKind, PatKind};
 use rustc_lint::LateContext;
 use rustc_span::{Span, sym};
-
-use super::UNNECESSARY_MAP_OR;
-
+use std::borrow::Cow;
 pub(super) enum Variant {
     Ok,
     Some,
@@ -26,7 +25,6 @@ impl Variant {
             Variant::Some => "Some",
         }
     }
-
     pub fn method_name(&self) -> &'static str {
         match self {
             Variant::Ok => "is_ok_and",
@@ -34,7 +32,6 @@ impl Variant {
         }
     }
 }
-
 pub(super) fn check<'a>(
     cx: &LateContext<'a>,
     expr: &Expr<'a>,
@@ -47,21 +44,16 @@ pub(super) fn check<'a>(
     let ExprKind::Lit(def_kind) = def.kind else {
         return;
     };
-
     let recv_ty = cx.typeck_results().expr_ty_adjusted(recv);
-
     let Bool(def_bool) = def_kind.node else {
         return;
     };
-
     let variant = match get_type_diagnostic_name(cx, recv_ty) {
         Some(sym::Option) => Variant::Some,
         Some(sym::Result) => Variant::Ok,
         Some(_) | None => return,
     };
-
     let ext_def_span = def.span.until(map.span);
-
     let (sugg, method, applicability) = if let ExprKind::Closure(map_closure) = map.kind
             && let closure_body = cx.tcx.hir_body(map_closure.body)
             && let closure_body_value = closure_body.value.peel_blocks()
@@ -88,25 +80,21 @@ pub(super) fn check<'a>(
             && is_copy(cx, l_ty)
     {
         let wrap = variant.variant_name();
-
         // we may need to add parens around the suggestion
         // in case the parent expression has additional method calls,
         // since for example `Some(5).map_or(false, |x| x == 5).then(|| 1)`
         // being converted to `Some(5) == Some(5).then(|| 1)` isnt
         // the same thing
-
         let inner_non_binding = Sugg::NonParen(Cow::Owned(format!(
             "{wrap}({})",
             Sugg::hir(cx, non_binding_location, "")
         )));
-
         let mut app = Applicability::MachineApplicable;
         let binop = make_binop(
             op.node,
             &Sugg::hir_with_applicability(cx, recv, "..", &mut app),
             &inner_non_binding,
         );
-
         let sugg = if let Some(parent_expr) = get_parent_expr(cx, expr) {
             match parent_expr.kind {
                 ExprKind::Binary(..) | ExprKind::Unary(..) | ExprKind::Cast(..) => binop.maybe_par(),
@@ -117,7 +105,6 @@ pub(super) fn check<'a>(
             binop
         }
         .into_string();
-
         (vec![(expr.span, sugg)], "a standard comparison", app)
     } else if !def_bool && msrv.meets(cx, msrvs::OPTION_RESULT_IS_VARIANT_AND) {
         let suggested_name = variant.method_name();
@@ -135,11 +122,9 @@ pub(super) fn check<'a>(
     } else {
         return;
     };
-
     if is_from_proc_macro(cx, expr) {
         return;
     }
-
     span_lint_and_then(
         cx,
         UNNECESSARY_MAP_OR,

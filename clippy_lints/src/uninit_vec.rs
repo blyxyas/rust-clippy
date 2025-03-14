@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint, span_lint_and_then};
 use clippy_utils::higher::{VecInitKind, get_vec_init_kind};
 use clippy_utils::ty::{is_type_diagnostic_item, is_uninit_value_valid_for_ty};
@@ -7,7 +9,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
-
 // TODO: add `ReadBuf` (RFC 2930) in "How to fix" once it is available in std
 declare_clippy_lint! {
     /// ### What it does
@@ -56,9 +57,7 @@ declare_clippy_lint! {
     correctness,
     "Vec with uninitialized data"
 }
-
 declare_lint_pass!(UninitVec => [UNINIT_VEC]);
-
 // FIXME: update to a visitor-based implementation.
 // Threads: https://github.com/rust-lang/rust-clippy/pull/7682#discussion_r710998368
 impl<'tcx> LateLintPass<'tcx> for UninitVec {
@@ -69,14 +68,12 @@ impl<'tcx> LateLintPass<'tcx> for UninitVec {
                     handle_uninit_vec_pair(cx, &w[0], expr);
                 }
             }
-
             if let (Some(stmt), Some(expr)) = (block.stmts.last(), block.expr) {
                 handle_uninit_vec_pair(cx, stmt, expr);
             }
         }
     }
 }
-
 fn handle_uninit_vec_pair<'tcx>(
     cx: &LateContext<'tcx>,
     maybe_init_or_reserve: &'tcx Stmt<'tcx>,
@@ -92,7 +89,6 @@ fn handle_uninit_vec_pair<'tcx>(
     {
         if vec.has_capacity() {
             // with_capacity / reserve -> set_len
-
             // Check T of Vec<T>
             if !is_uninit_value_valid_for_ty(cx, args.type_at(0)) {
                 // FIXME: #7698, false positive of the internal lints
@@ -118,7 +114,6 @@ fn handle_uninit_vec_pair<'tcx>(
         }
     }
 }
-
 /// The target `Vec` that is initialized or reserved
 #[derive(Clone, Copy)]
 struct TargetVec<'tcx> {
@@ -126,19 +121,16 @@ struct TargetVec<'tcx> {
     /// `None` if `reserve()`
     init_kind: Option<VecInitKind>,
 }
-
 impl TargetVec<'_> {
     pub fn has_capacity(self) -> bool {
         !matches!(self.init_kind, Some(VecInitKind::New | VecInitKind::Default))
     }
 }
-
 #[derive(Clone, Copy)]
 enum VecLocation<'tcx> {
     Local(HirId),
     Expr(&'tcx Expr<'tcx>),
 }
-
 impl<'tcx> VecLocation<'tcx> {
     pub fn eq_expr(self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> bool {
         match self {
@@ -147,7 +139,6 @@ impl<'tcx> VecLocation<'tcx> {
         }
     }
 }
-
 /// Finds the target location where the result of `Vec` initialization is stored
 /// or `self` expression for `Vec::reserve()`.
 fn extract_init_or_reserve_target<'tcx>(cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'tcx>) -> Option<TargetVec<'tcx>> {
@@ -184,12 +175,10 @@ fn extract_init_or_reserve_target<'tcx>(cx: &LateContext<'tcx>, stmt: &'tcx Stmt
     }
     None
 }
-
 fn is_reserve(cx: &LateContext<'_>, path: &PathSegment<'_>, self_expr: &Expr<'_>) -> bool {
     is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(self_expr).peel_refs(), sym::Vec)
         && path.ident.name.as_str() == "reserve"
 }
-
 /// Returns self if the expression is `Vec::set_len()`
 fn extract_set_len_self<'tcx>(cx: &LateContext<'_>, expr: &'tcx Expr<'_>) -> Option<(&'tcx Expr<'tcx>, Span)> {
     // peel unsafe blocks in `unsafe { vec.set_len() }`

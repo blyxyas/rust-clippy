@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::{COLLAPSIBLE_MATCH, pat_contains_disallowed_or};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::higher::IfLetOrMatch;
 use clippy_utils::msrvs::Msrv;
@@ -11,9 +14,6 @@ use rustc_hir::LangItem::OptionNone;
 use rustc_hir::{Arm, Expr, HirId, Pat, PatExpr, PatExprKind, PatKind};
 use rustc_lint::LateContext;
 use rustc_span::Span;
-
-use super::{COLLAPSIBLE_MATCH, pat_contains_disallowed_or};
-
 pub(super) fn check_match<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>], msrv: Msrv) {
     if let Some(els_arm) = arms.iter().rfind(|arm| arm_is_wild_like(cx, arm)) {
         for arm in arms {
@@ -21,7 +21,6 @@ pub(super) fn check_match<'tcx>(cx: &LateContext<'tcx>, arms: &'tcx [Arm<'_>], m
         }
     }
 }
-
 pub(super) fn check_if_let<'tcx>(
     cx: &LateContext<'tcx>,
     pat: &'tcx Pat<'_>,
@@ -31,7 +30,6 @@ pub(super) fn check_if_let<'tcx>(
 ) {
     check_arm(cx, false, pat, body, None, else_expr, msrv);
 }
-
 fn check_arm<'tcx>(
     cx: &LateContext<'tcx>,
     outer_is_match: bool,
@@ -110,7 +108,6 @@ fn check_arm<'tcx>(
         });
     }
 }
-
 /// A "wild-like" arm has a wild (`_`) or `None` pattern and no guard. Such arms can be "collapsed"
 /// into a single wild arm without any significant loss in semantics or readability.
 fn arm_is_wild_like(cx: &LateContext<'_>, arm: &Arm<'_>) -> bool {
@@ -127,7 +124,6 @@ fn arm_is_wild_like(cx: &LateContext<'_>, arm: &Arm<'_>) -> bool {
         _ => false,
     }
 }
-
 fn find_pat_binding_and_is_innermost_parent_pat_struct(pat: &Pat<'_>, hir_id: HirId) -> (Option<Span>, bool) {
     let mut span = None;
     let mut is_innermost_parent_pat_struct = false;

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::mir::{PossibleBorrowerMap, enclosing_mir, expr_local, local_assignments, used_exactly_once};
@@ -21,7 +23,6 @@ use rustc_span::symbol::sym;
 use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _;
 use rustc_trait_selection::traits::{Obligation, ObligationCause};
 use std::collections::VecDeque;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for borrow operations (`&`) that are used as a generic argument to a
@@ -56,18 +57,15 @@ declare_clippy_lint! {
     style,
     "taking a reference that is going to be automatically dereferenced"
 }
-
 pub struct NeedlessBorrowsForGenericArgs<'tcx> {
     /// Stack of (body owner, `PossibleBorrowerMap`) pairs. Used by
     /// `needless_borrow_impl_arg_position` to determine when a borrowed expression can instead
     /// be moved.
     possible_borrowers: Vec<(LocalDefId, PossibleBorrowerMap<'tcx, 'tcx>)>,
-
     // `IntoIterator` for arrays requires Rust 1.53.
     msrv: Msrv,
 }
 impl_lint_pass!(NeedlessBorrowsForGenericArgs<'_> => [NEEDLESS_BORROWS_FOR_GENERIC_ARGS]);
-
 impl NeedlessBorrowsForGenericArgs<'_> {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -76,7 +74,6 @@ impl NeedlessBorrowsForGenericArgs<'_> {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for NeedlessBorrowsForGenericArgs<'tcx> {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if matches!(expr.kind, ExprKind::AddrOf(..))
@@ -132,7 +129,6 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessBorrowsForGenericArgs<'tcx> {
             );
         }
     }
-
     fn check_body_post(&mut self, cx: &LateContext<'tcx>, body: &Body<'_>) {
         if self
             .possible_borrowers
@@ -143,14 +139,12 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessBorrowsForGenericArgs<'tcx> {
         }
     }
 }
-
 fn path_has_args(p: &QPath<'_>) -> bool {
     match *p {
         QPath::Resolved(_, Path { segments: [.., s], .. }) | QPath::TypeRelative(_, s) => s.args.is_some(),
         _ => false,
     }
 }
-
 /// Checks for the number of borrow expressions which can be removed from the given expression
 /// where the expression is used as an argument to a function expecting a generic type.
 ///
@@ -175,7 +169,6 @@ fn needless_borrow_count<'tcx>(
     let destruct_trait_def_id = cx.tcx.lang_items().destruct_trait();
     let sized_trait_def_id = cx.tcx.lang_items().sized_trait();
     let drop_trait_def_id = cx.tcx.lang_items().drop_trait();
-
     let fn_sig = cx.tcx.fn_sig(fn_id).instantiate_identity().skip_binder();
     let predicates = cx.tcx.param_env(fn_id).caller_bounds();
     let projection_predicates = predicates
@@ -188,9 +181,7 @@ fn needless_borrow_count<'tcx>(
             }
         })
         .collect::<Vec<_>>();
-
     let mut trait_with_ref_mut_self_method = false;
-
     // If no traits were found, or only the `Destruct`, `Sized`, or `Any` traits were found, return.
     if predicates
         .iter()
@@ -214,7 +205,6 @@ fn needless_borrow_count<'tcx>(
     {
         return 0;
     }
-
     // See:
     // - https://github.com/rust-lang/rust-clippy/pull/9674#issuecomment-1289294201
     // - https://github.com/rust-lang/rust-clippy/pull/9674#issuecomment-1292225232
@@ -224,11 +214,9 @@ fn needless_borrow_count<'tcx>(
     {
         return 0;
     }
-
     // `args_with_referent_ty` can be constructed outside of `check_referent` because the same
     // elements are modified each time `check_referent` is called.
     let mut args_with_referent_ty = callee_args.to_vec();
-
     let mut check_reference_and_referent = |reference: &Expr<'tcx>, referent: &Expr<'tcx>| {
         if let ExprKind::Field(base, _) = &referent.kind {
             let base_ty = cx.typeck_results().expr_ty(base);
@@ -236,21 +224,17 @@ fn needless_borrow_count<'tcx>(
                 return false;
             }
         }
-
         let referent_ty = cx.typeck_results().expr_ty(referent);
-
         if !(is_copy(cx, referent_ty)
             || referent_ty.is_ref() && referent_used_exactly_once(cx, possible_borrowers, reference)
             || matches!(referent.kind, ExprKind::Call(..) | ExprKind::MethodCall(..)))
         {
             return false;
         }
-
         // https://github.com/rust-lang/rust-clippy/pull/9136#pullrequestreview-1037379321
         if trait_with_ref_mut_self_method && !matches!(referent_ty.kind(), ty::Ref(_, _, Mutability::Mut)) {
             return false;
         }
-
         if !replace_types(
             cx,
             param_ty,
@@ -262,7 +246,6 @@ fn needless_borrow_count<'tcx>(
         ) {
             return false;
         }
-
         predicates.iter().all(|predicate| {
             if let ClauseKind::Trait(trait_predicate) = predicate.kind().skip_binder()
                 && cx
@@ -275,14 +258,12 @@ fn needless_borrow_count<'tcx>(
             {
                 return false;
             }
-
             let predicate = EarlyBinder::bind(predicate).instantiate(cx.tcx, &args_with_referent_ty[..]);
             let obligation = Obligation::new(cx.tcx, ObligationCause::dummy(), cx.param_env, predicate);
             let infcx = cx.tcx.infer_ctxt().build(cx.typing_mode());
             infcx.predicate_must_hold_modulo_regions(&obligation)
         })
     };
-
     let mut count = 0;
     while let ExprKind::AddrOf(_, _, referent) = expr.kind {
         if !check_reference_and_referent(expr, referent) {
@@ -293,7 +274,6 @@ fn needless_borrow_count<'tcx>(
     }
     count
 }
-
 fn has_ref_mut_self_method(cx: &LateContext<'_>, trait_def_id: DefId) -> bool {
     cx.tcx
         .associated_items(trait_def_id)
@@ -312,7 +292,6 @@ fn has_ref_mut_self_method(cx: &LateContext<'_>, trait_def_id: DefId) -> bool {
             }
         })
 }
-
 fn is_mixed_projection_predicate<'tcx>(
     cx: &LateContext<'tcx>,
     callee_def_id: DefId,
@@ -343,7 +322,6 @@ fn is_mixed_projection_predicate<'tcx>(
         false
     }
 }
-
 fn referent_used_exactly_once<'tcx>(
     cx: &LateContext<'tcx>,
     possible_borrowers: &mut Vec<(LocalDefId, PossibleBorrowerMap<'tcx, 'tcx>)>,
@@ -374,7 +352,6 @@ fn referent_used_exactly_once<'tcx>(
         false
     }
 }
-
 // Iteratively replaces `param_ty` with `new_ty` in `args`, and similarly for each resulting
 // projected type that is a type parameter. Returns `false` if replacing the types would have an
 // effect on the function signature beyond substituting `new_ty` for `param_ty`.
@@ -389,10 +366,8 @@ fn replace_types<'tcx>(
     args: &mut [GenericArg<'tcx>],
 ) -> bool {
     let mut replaced = DenseBitSet::new_empty(args.len());
-
     let mut deque = VecDeque::with_capacity(args.len());
     deque.push_back((param_ty, new_ty));
-
     while let Some((param_ty, new_ty)) = deque.pop_front() {
         // If `replaced.is_empty()`, then `param_ty` and `new_ty` are those initially passed in.
         if !fn_sig
@@ -403,9 +378,7 @@ fn replace_types<'tcx>(
         {
             return false;
         }
-
         args[param_ty.index as usize] = GenericArg::from(new_ty);
-
         // The `replaced.insert(...)` check provides some protection against infinite loops.
         if replaced.insert(param_ty.index) {
             for projection_predicate in projection_predicates {
@@ -418,7 +391,6 @@ fn replace_types<'tcx>(
                         .with_self_ty(cx.tcx, new_ty)
                         .expect_ty(cx.tcx)
                         .to_ty(cx.tcx);
-
                     if let Ok(projected_ty) = cx.tcx.try_normalize_erasing_regions(cx.typing_env(), projection)
                         && args[term_param_ty.index as usize] != GenericArg::from(projected_ty)
                     {
@@ -428,6 +400,5 @@ fn replace_types<'tcx>(
             }
         }
     }
-
     true
 }

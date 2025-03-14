@@ -1,9 +1,9 @@
+use crate::HVec;
+
+use super::INTEGER_DIVISION;
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
-
-use super::INTEGER_DIVISION;
-
 pub(crate) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx hir::Expr<'_>,

@@ -1,11 +1,11 @@
+use crate::HVec;
+
+use super::WILDCARD_IN_OR_PATTERNS;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::{has_non_exhaustive_attr, is_wild};
 use rustc_hir::{Arm, Expr, PatKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
-
-use super::WILDCARD_IN_OR_PATTERNS;
-
 pub(crate) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, arms: &[Arm<'_>]) {
     // first check if we are matching on an enum that has the non_exhaustive attribute
     let ty = cx.typeck_results().expr_ty(expr).peel_refs();

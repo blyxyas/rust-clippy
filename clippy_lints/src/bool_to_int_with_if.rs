@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::{is_else_clause, is_in_const_context};
@@ -6,7 +8,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Instead of using an if statement to convert a bool to an int,
@@ -43,7 +44,6 @@ declare_clippy_lint! {
     "using if to convert bool to int"
 }
 declare_lint_pass!(BoolToIntWithIf => [BOOL_TO_INT_WITH_IF]);
-
 impl<'tcx> LateLintPass<'tcx> for BoolToIntWithIf {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let ExprKind::If(cond, then, Some(else_)) = expr.kind
@@ -71,10 +71,8 @@ impl<'tcx> LateLintPass<'tcx> for BoolToIntWithIf {
                 }
                 s
             };
-
             let into_snippet = snippet.clone().maybe_par();
             let as_snippet = snippet.as_ty(ty);
-
             span_lint_and_then(
                 cx,
                 BOOL_TO_INT_WITH_IF,
@@ -90,7 +88,6 @@ impl<'tcx> LateLintPass<'tcx> for BoolToIntWithIf {
         }
     }
 }
-
 fn as_int_bool_lit(e: &Expr<'_>) -> Option<bool> {
     if let ExprKind::Block(b, _) = e.kind
         && b.stmts.is_empty()

@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::UNNECESSARY_SORT_BY;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::implements_trait;
@@ -10,25 +13,19 @@ use rustc_middle::ty::GenericArgKind;
 use rustc_span::sym;
 use rustc_span::symbol::Ident;
 use std::iter;
-
-use super::UNNECESSARY_SORT_BY;
-
 enum LintTrigger {
     Sort(SortDetection),
     SortByKey(SortByKeyDetection),
 }
-
 struct SortDetection {
     vec_name: String,
 }
-
 struct SortByKeyDetection {
     vec_name: String,
     closure_arg: String,
     closure_body: String,
     reverse: bool,
 }
-
 /// Detect if the two expressions are mirrored (identical, except one
 /// contains a and the other replaces it with b)
 fn mirrored_exprs(a_expr: &Expr<'_>, a_ident: &Ident, b_expr: &Expr<'_>, b_ident: &Ident) -> bool {
@@ -112,7 +109,6 @@ fn mirrored_exprs(a_expr: &Expr<'_>, a_ident: &Ident, b_expr: &Expr<'_>, b_ident
         _ => false,
     }
 }
-
 fn detect_lint(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, arg: &Expr<'_>) -> Option<LintTrigger> {
     if let Some(method_id) = cx.typeck_results().type_dependent_def_id(expr.hir_id)
         && let Some(impl_id) = cx.tcx.impl_of_method(method_id)
@@ -157,7 +153,6 @@ fn detect_lint(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, arg: &Exp
             return None;
         };
         let vec_name = Sugg::hir(cx, recv, "..").to_string();
-
         if let ExprKind::Path(QPath::Resolved(
             _,
             Path {
@@ -173,7 +168,6 @@ fn detect_lint(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, arg: &Exp
         {
             return Some(LintTrigger::Sort(SortDetection { vec_name }));
         }
-
         if !expr_borrows(cx, left_expr) {
             return Some(LintTrigger::SortByKey(SortByKeyDetection {
                 vec_name,
@@ -183,15 +177,12 @@ fn detect_lint(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, arg: &Exp
             }));
         }
     }
-
     None
 }
-
 fn expr_borrows(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     let ty = cx.typeck_results().expr_ty(expr);
     matches!(ty.kind(), ty::Ref(..)) || ty.walk().any(|arg| matches!(arg.unpack(), GenericArgKind::Lifetime(_)))
 }
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,

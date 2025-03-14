@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::{CAST_LOSSLESS, utils};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_in_const_context;
 use clippy_utils::msrvs::{self, Msrv};
@@ -9,9 +12,6 @@ use rustc_hir::{Expr, QPath, TyKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, FloatTy, Ty};
 use rustc_span::hygiene;
-
-use super::{CAST_LOSSLESS, utils};
-
 pub(super) fn check(
     cx: &LateContext<'_>,
     expr: &Expr<'_>,
@@ -24,7 +24,6 @@ pub(super) fn check(
     if !should_lint(cx, cast_from, cast_to, msrv) {
         return;
     }
-
     span_lint_and_then(
         cx,
         CAST_LOSSLESS,
@@ -69,13 +68,11 @@ pub(super) fn check(
         },
     );
 }
-
 fn should_lint(cx: &LateContext<'_>, cast_from: Ty<'_>, cast_to: Ty<'_>, msrv: Msrv) -> bool {
     // Do not suggest using From in consts/statics until it is valid to do so (see #2267).
     if is_in_const_context(cx) {
         return false;
     }
-
     match (cast_from.is_integral(), cast_to.is_integral()) {
         (true, true) => {
             let cast_signed_to_unsigned = cast_from.is_signed() && !cast_to.is_signed();
@@ -86,7 +83,6 @@ fn should_lint(cx: &LateContext<'_>, cast_from: Ty<'_>, cast_to: Ty<'_>, msrv: M
                 && from_nbits < to_nbits
                 && !cast_signed_to_unsigned
         },
-
         (true, false) => {
             let from_nbits = utils::int_ty_to_nbits(cast_from, cx.tcx);
             let to_nbits = if let ty::Float(FloatTy::F32) = cast_to.kind() {

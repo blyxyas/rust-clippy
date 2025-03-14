@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::is_trait_method;
@@ -6,7 +8,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
 use std::cmp::Ordering::{Equal, Greater, Less};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for expressions where `std::cmp::min` and `max` are
@@ -31,9 +32,7 @@ declare_clippy_lint! {
     correctness,
     "`min(_, max(_, _))` (or vice versa) with bounds clamping the result to a constant"
 }
-
 declare_lint_pass!(MinMaxPass => [MIN_MAX]);
-
 impl<'tcx> LateLintPass<'tcx> for MinMaxPass {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let Some((outer_max, outer_c, oe)) = min_max(cx, expr)
@@ -54,13 +53,11 @@ impl<'tcx> LateLintPass<'tcx> for MinMaxPass {
         }
     }
 }
-
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 enum MinMax {
     Min,
     Max,
 }
-
 fn min_max<'a, 'tcx>(cx: &LateContext<'tcx>, expr: &'a Expr<'a>) -> Option<(MinMax, Constant<'tcx>, &'a Expr<'a>)> {
     match expr.kind {
         ExprKind::Call(path, args) => {
@@ -93,7 +90,6 @@ fn min_max<'a, 'tcx>(cx: &LateContext<'tcx>, expr: &'a Expr<'a>) -> Option<(MinM
         _ => None,
     }
 }
-
 fn fetch_const<'a, 'tcx>(
     cx: &LateContext<'tcx>,
     receiver: Option<&'a Expr<'a>>,

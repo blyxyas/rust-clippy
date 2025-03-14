@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use crate::methods::DRAIN_COLLECT;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
@@ -9,7 +11,6 @@ use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_middle::ty::Ty;
 use rustc_span::{Symbol, sym};
-
 /// Checks if both types match the given diagnostic item, e.g.:
 ///
 /// `vec![1,2].drain(..).collect::<Vec<_>>()`
@@ -25,21 +26,18 @@ fn types_match_diagnostic_item(cx: &LateContext<'_>, expr: Ty<'_>, recv: Ty<'_>,
         false
     }
 }
-
 /// Checks `std::{vec::Vec, collections::VecDeque}`.
 fn check_vec(cx: &LateContext<'_>, args: &[Expr<'_>], expr: Ty<'_>, recv: Ty<'_>, recv_path: &Path<'_>) -> bool {
     (types_match_diagnostic_item(cx, expr, recv, sym::Vec)
         || types_match_diagnostic_item(cx, expr, recv, sym::VecDeque))
         && matches!(args, [arg] if is_range_full(cx, arg, Some(recv_path)))
 }
-
 /// Checks `std::string::String`
 fn check_string(cx: &LateContext<'_>, args: &[Expr<'_>], expr: Ty<'_>, recv: Ty<'_>, recv_path: &Path<'_>) -> bool {
     is_type_lang_item(cx, expr, LangItem::String)
         && is_type_lang_item(cx, recv, LangItem::String)
         && matches!(args, [arg] if is_range_full(cx, arg, Some(recv_path)))
 }
-
 /// Checks `std::collections::{HashSet, HashMap, BinaryHeap}`.
 fn check_collections(cx: &LateContext<'_>, expr: Ty<'_>, recv: Ty<'_>) -> Option<&'static str> {
     types_match_diagnostic_item(cx, expr, recv, sym::HashSet)
@@ -47,12 +45,10 @@ fn check_collections(cx: &LateContext<'_>, expr: Ty<'_>, recv: Ty<'_>) -> Option
         .or_else(|| types_match_diagnostic_item(cx, expr, recv, sym::HashMap).then_some("HashMap"))
         .or_else(|| types_match_diagnostic_item(cx, expr, recv, sym::BinaryHeap).then_some("BinaryHeap"))
 }
-
 pub(super) fn check(cx: &LateContext<'_>, args: &[Expr<'_>], expr: &Expr<'_>, recv: &Expr<'_>) {
     let expr_ty = cx.typeck_results().expr_ty(expr);
     let recv_ty = cx.typeck_results().expr_ty(recv);
     let recv_ty_no_refs = recv_ty.peel_refs();
-
     if let ExprKind::Path(QPath::Resolved(_, recv_path)) = recv.kind
         && let Some(typename) = check_vec(cx, args, expr_ty, recv_ty_no_refs, recv_path)
             .then_some("Vec")
@@ -66,7 +62,6 @@ pub(super) fn check(cx: &LateContext<'_>, args: &[Expr<'_>], expr: &Expr<'_>, re
         } else {
             format!("{exec_context}::mem::take(&mut {recv})")
         };
-
         span_lint_and_sugg(
             cx,
             DRAIN_COLLECT,

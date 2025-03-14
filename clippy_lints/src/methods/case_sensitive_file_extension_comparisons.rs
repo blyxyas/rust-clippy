@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::CASE_SENSITIVE_FILE_EXTENSION_COMPARISONS;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::{SpanRangeExt, indent_of, reindent_multiline};
 use clippy_utils::ty::is_type_lang_item;
@@ -7,9 +10,6 @@ use rustc_hir::{Expr, ExprKind, LangItem};
 use rustc_lint::LateContext;
 use rustc_span::Span;
 use rustc_span::source_map::Spanned;
-
-use super::CASE_SENSITIVE_FILE_EXTENSION_COMPARISONS;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -25,7 +25,6 @@ pub(super) fn check<'tcx>(
             return;
         }
     }
-
     if let Some(method_id) = cx.typeck_results().type_dependent_def_id(expr.hir_id)
         && let Some(impl_id) = cx.tcx.impl_of_method(method_id)
         && cx.tcx.type_of(impl_id).instantiate_identity().is_str()
@@ -55,7 +54,6 @@ pub(super) fn check<'tcx>(
                     } else {
                         format!("&{recv_source}")
                     };
-
                     let suggestion_source = reindent_multiline(
                         &format!(
                             "std::path::Path::new({})
@@ -67,7 +65,6 @@ pub(super) fn check<'tcx>(
                         true,
                         Some(indent_of(cx, call_span).unwrap_or(0) + 4),
                     );
-
                     diag.span_suggestion(
                         recv.span.to(call_span),
                         "use std::path::Path",

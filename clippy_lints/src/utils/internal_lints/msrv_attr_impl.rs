@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
 use clippy_utils::ty::match_type;
@@ -7,7 +9,6 @@ use rustc_hir as hir;
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::ty::{self, EarlyBinder, GenericArgKind};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Check that the `extract_msrv_attr!` macro is used, when a lint has a MSRV.
@@ -16,9 +17,7 @@ declare_clippy_lint! {
     internal,
     "checking if all necessary steps were taken when adding a MSRV to a lint"
 }
-
 declare_lint_pass!(MsrvAttrImpl => [MISSING_MSRV_ATTR_IMPL]);
-
 impl LateLintPass<'_> for MsrvAttrImpl {
     fn check_item(&mut self, cx: &LateContext<'_>, item: &hir::Item<'_>) {
         if let hir::ItemKind::Impl(hir::Impl {

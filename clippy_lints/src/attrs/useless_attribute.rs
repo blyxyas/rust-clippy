@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::USELESS_ATTRIBUTE;
 use super::utils::{is_lint_level, is_word, namespace_and_lint};
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -6,10 +8,8 @@ use rustc_ast::{Attribute, Item, ItemKind};
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, LintContext};
 use rustc_span::sym;
-
 pub(super) fn check(cx: &EarlyContext<'_>, item: &Item, attrs: &[Attribute]) {
     let skip_unused_imports = attrs.iter().any(|attr| attr.has_name(sym::macro_use));
-
     for attr in attrs {
         if attr.span.in_external_macro(cx.sess().source_map()) {
             return;
@@ -22,7 +22,6 @@ pub(super) fn check(cx: &EarlyContext<'_>, item: &Item, attrs: &[Attribute]) {
                             let (namespace @ (Some(sym::clippy) | None), Some(name)) = namespace_and_lint(lint) else {
                                 return;
                             };
-
                             if namespace.is_none()
                                 && matches!(
                                     name.as_str(),
@@ -39,7 +38,6 @@ pub(super) fn check(cx: &EarlyContext<'_>, item: &Item, attrs: &[Attribute]) {
                             {
                                 return;
                             }
-
                             if namespace == Some(sym::clippy)
                                 && matches!(
                                     name.as_str(),
@@ -69,7 +67,6 @@ pub(super) fn check(cx: &EarlyContext<'_>, item: &Item, attrs: &[Attribute]) {
                     }
                 }
                 let line_span = first_line_of_span(cx, attr.span);
-
                 if let Some(src) = line_span.get_source_text(cx) {
                     if src.contains("#[") {
                         #[expect(clippy::collapsible_span_lint_calls)]

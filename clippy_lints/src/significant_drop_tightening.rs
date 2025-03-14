@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::{indent_of, snippet};
 use clippy_utils::{expr_or_init, get_attr, path_to_local, peel_hir_expr_unary};
@@ -13,7 +15,6 @@ use rustc_span::symbol::Ident;
 use rustc_span::{DUMMY_SP, Span, sym};
 use std::borrow::Cow;
 use std::collections::hash_map::Entry;
-
 declare_clippy_lint! {
     /// ### What it does
     ///
@@ -51,16 +52,13 @@ declare_clippy_lint! {
     nursery,
     "Searches for elements marked with `#[clippy::has_significant_drop]` that could be early dropped but are in fact dropped at the end of their scopes"
 }
-
 impl_lint_pass!(SignificantDropTightening<'_> => [SIGNIFICANT_DROP_TIGHTENING]);
-
 #[derive(Default)]
 pub struct SignificantDropTightening<'tcx> {
     apas: FxIndexMap<HirId, AuxParamsAttr>,
     /// Auxiliary structure used to avoid having to verify the same type multiple times.
     type_cache: FxHashMap<Ty<'tcx>, bool>,
 }
-
 impl<'tcx> LateLintPass<'tcx> for SignificantDropTightening<'tcx> {
     fn check_fn(
         &mut self,
@@ -99,7 +97,6 @@ impl<'tcx> LateLintPass<'tcx> for SignificantDropTightening<'tcx> {
                                     snippet(cx, apa.last_bind_ident.span, ".."),
                                 )
                             };
-
                             diag.multipart_suggestion_verbose(
                                 "merge the temporary construction with its single usage",
                                 vec![(apa.first_stmt_span, stmt), (apa.last_stmt_span, String::new())],
@@ -132,18 +129,15 @@ impl<'tcx> LateLintPass<'tcx> for SignificantDropTightening<'tcx> {
         }
     }
 }
-
 /// Checks the existence of the `#[has_significant_drop]` attribute.
 struct AttrChecker<'cx, 'others, 'tcx> {
     cx: &'cx LateContext<'tcx>,
     type_cache: &'others mut FxHashMap<Ty<'tcx>, bool>,
 }
-
 impl<'cx, 'others, 'tcx> AttrChecker<'cx, 'others, 'tcx> {
     pub(crate) fn new(cx: &'cx LateContext<'tcx>, type_cache: &'others mut FxHashMap<Ty<'tcx>, bool>) -> Self {
         Self { cx, type_cache }
     }
-
     fn has_sig_drop_attr(&mut self, ty: Ty<'tcx>) -> bool {
         let ty = self
             .cx
@@ -160,7 +154,6 @@ impl<'cx, 'others, 'tcx> AttrChecker<'cx, 'others, 'tcx> {
         self.type_cache.insert(ty, value);
         value
     }
-
     fn has_sig_drop_attr_uncached(&mut self, ty: Ty<'tcx>) -> bool {
         if let Some(adt) = ty.ty_adt_def() {
             let mut iter = get_attr(
@@ -197,13 +190,11 @@ impl<'cx, 'others, 'tcx> AttrChecker<'cx, 'others, 'tcx> {
         }
     }
 }
-
 struct StmtsChecker<'ap, 'lc, 'others, 'stmt, 'tcx> {
     ap: &'ap mut AuxParams<'others, 'stmt, 'tcx>,
     cx: &'lc LateContext<'tcx>,
     type_cache: &'others mut FxHashMap<Ty<'tcx>, bool>,
 }
-
 impl<'ap, 'lc, 'others, 'stmt, 'tcx> StmtsChecker<'ap, 'lc, 'others, 'stmt, 'tcx> {
     fn new(
         ap: &'ap mut AuxParams<'others, 'stmt, 'tcx>,
@@ -212,7 +203,6 @@ impl<'ap, 'lc, 'others, 'stmt, 'tcx> StmtsChecker<'ap, 'lc, 'others, 'stmt, 'tcx
     ) -> Self {
         Self { ap, cx, type_cache }
     }
-
     fn manage_has_expensive_expr_after_last_attr(&mut self) {
         let has_expensive_stmt = match self.ap.curr_stmt.kind {
             hir::StmtKind::Expr(expr) if is_inexpensive_expr(expr) => false,
@@ -241,7 +231,6 @@ impl<'ap, 'lc, 'others, 'stmt, 'tcx> StmtsChecker<'ap, 'lc, 'others, 'stmt, 'tcx
         }
     }
 }
-
 impl<'tcx> Visitor<'tcx> for StmtsChecker<'_, '_, '_, '_, 'tcx> {
     fn visit_block(&mut self, block: &'tcx hir::Block<'tcx>) {
         self.ap.curr_block_hir_id = block.hir_id;
@@ -261,7 +250,6 @@ impl<'tcx> Visitor<'tcx> for StmtsChecker<'_, '_, '_, '_, 'tcx> {
             self.manage_has_expensive_expr_after_last_attr();
         }
     }
-
     fn visit_expr(&mut self, expr: &'tcx hir::Expr<'tcx>) {
         let modify_apa_params = |apa: &mut AuxParamsAttr| {
             apa.counter = apa.counter.wrapping_add(1);
@@ -334,7 +322,6 @@ impl<'tcx> Visitor<'tcx> for StmtsChecker<'_, '_, '_, '_, 'tcx> {
         walk_expr(self, expr);
     }
 }
-
 /// Auxiliary parameters used on each block check of an item
 struct AuxParams<'others, 'stmt, 'tcx> {
     //// See [AuxParamsAttr].
@@ -346,7 +333,6 @@ struct AuxParams<'others, 'stmt, 'tcx> {
     /// The current statement that is being visited.
     curr_stmt: Cow<'stmt, hir::Stmt<'tcx>>,
 }
-
 impl<'others, 'stmt, 'tcx> AuxParams<'others, 'stmt, 'tcx> {
     fn new(apas: &'others mut FxIndexMap<HirId, AuxParamsAttr>, curr_stmt: &'stmt hir::Stmt<'tcx>) -> Self {
         Self {
@@ -357,7 +343,6 @@ impl<'others, 'stmt, 'tcx> AuxParams<'others, 'stmt, 'tcx> {
         }
     }
 }
-
 /// Auxiliary parameters used on expression created with `#[has_significant_drop]`.
 #[derive(Debug)]
 struct AuxParamsAttr {
@@ -366,7 +351,6 @@ struct AuxParamsAttr {
     /// If an expensive expression follows the last use of anything marked with
     /// `#[has_significant_drop]`.
     has_expensive_expr_after_last_attr: bool,
-
     /// The identifier of the block that involves the first `#[has_significant_drop]`.
     first_block_hir_id: HirId,
     /// The span of the block that involves the first `#[has_significant_drop]`.
@@ -378,7 +362,6 @@ struct AuxParamsAttr {
     first_method_span: Span,
     /// Similar to `init_bind_ident` but encompasses the whole contained statement.
     first_stmt_span: Span,
-
     /// The last visited binding or variable span within a block that had any referenced inner type
     /// marked with `#[has_significant_drop]`.
     last_bind_ident: Ident,
@@ -387,7 +370,6 @@ struct AuxParamsAttr {
     /// Similar to `last_bind_span` but encompasses the whole contained statement.
     last_stmt_span: Span,
 }
-
 impl Default for AuxParamsAttr {
     fn default() -> Self {
         Self {
@@ -404,7 +386,6 @@ impl Default for AuxParamsAttr {
         }
     }
 }
-
 fn dummy_stmt_expr<'any>(expr: &'any hir::Expr<'any>) -> hir::Stmt<'any> {
     hir::Stmt {
         hir_id: HirId::INVALID,
@@ -412,7 +393,6 @@ fn dummy_stmt_expr<'any>(expr: &'any hir::Expr<'any>) -> hir::Stmt<'any> {
         span: DUMMY_SP,
     }
 }
-
 fn has_drop(expr: &hir::Expr<'_>, first_bind_ident: &Ident, lcx: &LateContext<'_>) -> bool {
     if let hir::ExprKind::Call(fun, [first_arg]) = expr.kind
         && let hir::ExprKind::Path(hir::QPath::Resolved(_, fun_path)) = &fun.kind
@@ -440,7 +420,6 @@ fn has_drop(expr: &hir::Expr<'_>, first_bind_ident: &Ident, lcx: &LateContext<'_
     }
     false
 }
-
 fn is_inexpensive_expr(expr: &hir::Expr<'_>) -> bool {
     let actual = peel_hir_expr_unary(expr).0;
     let is_path = matches!(actual.kind, hir::ExprKind::Path(_));

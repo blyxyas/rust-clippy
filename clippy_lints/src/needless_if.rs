@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::higher::If;
 use clippy_utils::is_from_proc_macro;
@@ -6,7 +8,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{ExprKind, Stmt, StmtKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for empty `if` branches with no else branch.
@@ -34,7 +35,6 @@ declare_clippy_lint! {
     "checks for empty if branches"
 }
 declare_lint_pass!(NeedlessIf => [NEEDLESS_IF]);
-
 impl LateLintPass<'_> for NeedlessIf {
     fn check_stmt<'tcx>(&mut self, cx: &LateContext<'tcx>, stmt: &Stmt<'tcx>) {
         if let StmtKind::Expr(expr) = stmt.kind

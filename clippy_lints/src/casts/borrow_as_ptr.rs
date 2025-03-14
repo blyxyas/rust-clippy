@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::BORROW_AS_PTR;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::Msrv;
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context};
@@ -7,9 +10,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{BorrowKind, Expr, ExprKind, Mutability, Ty, TyKind};
 use rustc_lint::LateContext;
 use rustc_span::BytePos;
-
-use super::BORROW_AS_PTR;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -27,7 +27,6 @@ pub(super) fn check<'tcx>(
         if is_expr_temporary_value(cx, e) {
             return false;
         }
-
         let (suggestion, span) = if msrv.meets(cx, msrvs::RAW_REF_OP) {
             let operator_kind = match mutability {
                 Mutability::Not => "const",
@@ -53,7 +52,6 @@ pub(super) fn check<'tcx>(
             };
             (format!("{std_or_core}::ptr::{macro_name}!({snip})"), expr.span)
         };
-
         span_lint_and_sugg(cx, BORROW_AS_PTR, span, "borrow as raw pointer", "try", suggestion, app);
         return true;
     }

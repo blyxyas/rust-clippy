@@ -1,3 +1,5 @@
+use crate::HVec;
+
 mod allow_attributes;
 mod allow_attributes_without_reason;
 mod blanket_clippy_restriction_lints;
@@ -12,7 +14,6 @@ mod should_panic_without_expect;
 mod unnecessary_clippy_cfg;
 mod useless_attribute;
 mod utils;
-
 use clippy_config::Conf;
 use clippy_utils::msrvs::{self, Msrv, MsrvStack};
 use rustc_ast::{self as ast, Attribute, MetaItemInner, MetaItemKind};
@@ -21,7 +22,6 @@ use rustc_lint::{EarlyContext, EarlyLintPass, LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
 use utils::{is_lint_level, is_relevant_impl, is_relevant_item, is_relevant_trait};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for items annotated with `#[inline(always)]`,
@@ -51,7 +51,6 @@ declare_clippy_lint! {
     pedantic,
     "use of `#[inline(always)]`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `extern crate` and `use` items annotated with
@@ -104,7 +103,6 @@ declare_clippy_lint! {
     correctness,
     "use of lint attributes on `extern crate` items"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `#[deprecated]` annotations with a `since`
@@ -125,7 +123,6 @@ declare_clippy_lint! {
     correctness,
     "use of `#[deprecated(since = \"x\")]` where x is not semver"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `warn`/`deny`/`forbid` attributes targeting the whole clippy::restriction category.
@@ -148,7 +145,6 @@ declare_clippy_lint! {
     suspicious,
     "enabling the complete restriction group"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `#[cfg_attr(rustfmt, rustfmt_skip)]` and suggests to replace it
@@ -179,7 +175,6 @@ declare_clippy_lint! {
     complexity,
     "usage of `cfg_attr(rustfmt)` instead of tool attributes"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for attributes that allow lints without a reason.
@@ -202,7 +197,6 @@ declare_clippy_lint! {
     restriction,
     "ensures that all `allow` and `expect` attributes have a reason"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of the `#[allow]` attribute and suggests replacing it with
@@ -237,7 +231,6 @@ declare_clippy_lint! {
     restriction,
     "`#[allow]` will not trigger if a warning isn't found. `#[expect]` triggers if there are no warnings."
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `#[should_panic]` attributes without specifying the expected panic message.
@@ -272,7 +265,6 @@ declare_clippy_lint! {
     pedantic,
     "ensures that all `should_panic` attributes specify its expected panic message"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for items with `#[repr(packed)]`-attribute without ABI qualification
@@ -310,7 +302,6 @@ declare_clippy_lint! {
     suspicious,
     "ensures that `repr(packed)` always comes with a qualified ABI"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `any` and `all` combinators in `cfg` with only one condition.
@@ -334,7 +325,6 @@ declare_clippy_lint! {
     style,
     "ensure that all `cfg(any())` and `cfg(all())` have more than one condition"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `#[cfg_attr(feature = "cargo-clippy", ...)]` and for
@@ -360,7 +350,6 @@ declare_clippy_lint! {
     suspicious,
     "usage of `cfg(feature = \"cargo-clippy\")` instead of `cfg(clippy)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for `#[cfg_attr(clippy, allow(clippy::lint))]`
@@ -384,7 +373,6 @@ declare_clippy_lint! {
     suspicious,
     "usage of `cfg_attr(clippy, allow(clippy::lint))` instead of `allow(clippy::lint)`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for items that have the same kind of attributes with mixed styles (inner/outer).
@@ -421,7 +409,6 @@ declare_clippy_lint! {
     style,
     "item has both inner and outer attributes"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for attributes that appear two or more times.
@@ -447,22 +434,18 @@ declare_clippy_lint! {
     suspicious,
     "duplicated attribute"
 }
-
 pub struct Attributes {
     msrv: Msrv,
 }
-
 impl_lint_pass!(Attributes => [
     INLINE_ALWAYS,
     REPR_PACKED_WITHOUT_ABI,
 ]);
-
 impl Attributes {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for Attributes {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         let attrs = cx.tcx.hir().attrs(item.hir_id());
@@ -471,24 +454,20 @@ impl<'tcx> LateLintPass<'tcx> for Attributes {
         }
         repr_attributes::check(cx, item.span, attrs, self.msrv);
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx ImplItem<'_>) {
         if is_relevant_impl(cx, item) {
             inline_always::check(cx, item.span, item.ident.name, cx.tcx.hir().attrs(item.hir_id()));
         }
     }
-
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx TraitItem<'_>) {
         if is_relevant_trait(cx, item) {
             inline_always::check(cx, item.span, item.ident.name, cx.tcx.hir().attrs(item.hir_id()));
         }
     }
 }
-
 pub struct EarlyAttributes {
     msrv: MsrvStack,
 }
-
 impl EarlyAttributes {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -496,28 +475,23 @@ impl EarlyAttributes {
         }
     }
 }
-
 impl_lint_pass!(EarlyAttributes => [
     DEPRECATED_CFG_ATTR,
     NON_MINIMAL_CFG,
     DEPRECATED_CLIPPY_CFG_ATTR,
     UNNECESSARY_CLIPPY_CFG,
 ]);
-
 impl EarlyLintPass for EarlyAttributes {
     fn check_attribute(&mut self, cx: &EarlyContext<'_>, attr: &Attribute) {
         deprecated_cfg_attr::check(cx, attr, &self.msrv);
         deprecated_cfg_attr::check_clippy(cx, attr);
         non_minimal_cfg::check(cx, attr);
     }
-
     extract_msrv_attr!();
 }
-
 pub struct PostExpansionEarlyAttributes {
     msrv: MsrvStack,
 }
-
 impl PostExpansionEarlyAttributes {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -525,7 +499,6 @@ impl PostExpansionEarlyAttributes {
         }
     }
 }
-
 impl_lint_pass!(PostExpansionEarlyAttributes => [
     ALLOW_ATTRIBUTES,
     ALLOW_ATTRIBUTES_WITHOUT_REASON,
@@ -536,13 +509,11 @@ impl_lint_pass!(PostExpansionEarlyAttributes => [
     MIXED_ATTRIBUTES_STYLE,
     DUPLICATED_ATTRIBUTES,
 ]);
-
 impl EarlyLintPass for PostExpansionEarlyAttributes {
     fn check_crate(&mut self, cx: &EarlyContext<'_>, krate: &ast::Crate) {
         blanket_clippy_restriction_lints::check_command_line(cx);
         duplicated_attributes::check(cx, &krate.attrs);
     }
-
     fn check_attribute(&mut self, cx: &EarlyContext<'_>, attr: &Attribute) {
         if let Some(items) = &attr.meta_item_list() {
             if let Some(ident) = attr.ident() {
@@ -569,21 +540,17 @@ impl EarlyLintPass for PostExpansionEarlyAttributes {
                 }
             }
         }
-
         if attr.has_name(sym::should_panic) {
             should_panic_without_expect::check(cx, attr);
         }
     }
-
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &'_ ast::Item) {
         match item.kind {
             ast::ItemKind::ExternCrate(..) | ast::ItemKind::Use(..) => useless_attribute::check(cx, item, &item.attrs),
             _ => {},
         }
-
         mixed_attributes_style::check(cx, item.span, &item.attrs);
         duplicated_attributes::check(cx, &item.attrs);
     }
-
     extract_msrv_attr!();
 }

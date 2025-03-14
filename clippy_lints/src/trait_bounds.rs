@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_sugg};
 use clippy_utils::msrvs::{self, Msrv};
@@ -16,7 +18,6 @@ use rustc_hir::{
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::{BytePos, Span};
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint warns about unnecessary type repetitions in trait bounds
@@ -39,7 +40,6 @@ declare_clippy_lint! {
     nursery,
     "types are repeated unnecessarily in trait bounds, use `+` instead of using `T: _, T: _`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for cases where generics or trait objects are being used and multiple
@@ -85,12 +85,10 @@ declare_clippy_lint! {
     nursery,
     "check if the same trait bounds are specified more than once during a generic declaration"
 }
-
 pub struct TraitBounds {
     max_trait_bounds: u64,
     msrv: Msrv,
 }
-
 impl TraitBounds {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -99,15 +97,12 @@ impl TraitBounds {
         }
     }
 }
-
 impl_lint_pass!(TraitBounds => [TYPE_REPETITION_IN_BOUNDS, TRAIT_DUPLICATION_IN_BOUNDS]);
-
 impl<'tcx> LateLintPass<'tcx> for TraitBounds {
     fn check_generics(&mut self, cx: &LateContext<'tcx>, generics: &'tcx Generics<'_>) {
         self.check_type_repetition(cx, generics);
         check_trait_bound_duplication(cx, generics);
     }
-
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         // special handling for self trait bounds as these are not considered generics
         // ie. trait Foo: Display {}
@@ -119,10 +114,8 @@ impl<'tcx> LateLintPass<'tcx> for TraitBounds {
             rollup_traits(cx, bounds, "these bounds contain repeated elements");
         }
     }
-
     fn check_trait_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx TraitItem<'tcx>) {
         let mut self_bounds_map = FxHashMap::default();
-
         for predicate in item.generics.predicates {
             if let WherePredicateKind::BoundPredicate(bound_predicate) = predicate.kind
                 && bound_predicate.origin != PredicateOrigin::ImplTrait
@@ -145,7 +138,6 @@ impl<'tcx> LateLintPass<'tcx> for TraitBounds {
                         self_bounds_map.insert(self_res, self_segments);
                     }
                 }
-
                 bound_predicate
                     .bounds
                     .iter()
@@ -170,7 +162,6 @@ impl<'tcx> LateLintPass<'tcx> for TraitBounds {
             }
         }
     }
-
     fn check_ty(&mut self, cx: &LateContext<'tcx>, ty: &'tcx Ty<'tcx, AmbigArg>) {
         if let TyKind::Ref(.., mut_ty) = &ty.kind
             && let TyKind::TraitObject(bounds, ..) = mut_ty.ty.kind
@@ -179,38 +170,30 @@ impl<'tcx> LateLintPass<'tcx> for TraitBounds {
             // Build up a hash of every trait we've seen
             // When we see a trait for the first time, add it to unique_traits
             // so we can later use it to build a string of all traits exactly once, without duplicates
-
             let mut seen_def_ids = FxHashSet::default();
             let mut unique_traits = Vec::new();
-
             // Iterate the bounds and add them to our seen hash
             // If we haven't yet seen it, add it to the fixed traits
             for bound in bounds {
                 let Some(def_id) = bound.trait_ref.trait_def_id() else {
                     continue;
                 };
-
                 let new_trait = seen_def_ids.insert(def_id);
-
                 if new_trait {
                     unique_traits.push(bound);
                 }
             }
-
             // If the number of unique traits isn't the same as the number of traits in the bounds,
             // there must be 1 or more duplicates
             if bounds.len() != unique_traits.len() {
                 let mut bounds_span = bounds[0].span;
-
                 for bound in bounds.iter().skip(1) {
                     bounds_span = bounds_span.to(bound.span);
                 }
-
                 let fixed_trait_snippet = unique_traits
                     .iter()
                     .filter_map(|b| b.span.get_source_text(cx))
                     .join(" + ");
-
                 span_lint_and_sugg(
                     cx,
                     TRAIT_DUPLICATION_IN_BOUNDS,
@@ -224,7 +207,6 @@ impl<'tcx> LateLintPass<'tcx> for TraitBounds {
         }
     }
 }
-
 impl TraitBounds {
     /// Is the given bound a `?Sized` bound, and is combining it (i.e. `T: X + ?Sized`) an error on
     /// this MSRV? See <https://github.com/rust-lang/rust-clippy/issues/8772> for details.
@@ -238,7 +220,6 @@ impl TraitBounds {
             false
         }
     }
-
     #[allow(clippy::mutable_key_type)]
     fn check_type_repetition<'tcx>(&self, cx: &LateContext<'tcx>, generics: &'tcx Generics<'_>) {
         struct SpanlessTy<'cx, 'tcx> {
@@ -259,7 +240,6 @@ impl TraitBounds {
             }
         }
         impl Eq for SpanlessTy<'_, '_> {}
-
         if generics.span.from_expansion() {
             return;
         }
@@ -302,12 +282,10 @@ impl TraitBounds {
         }
     }
 }
-
 fn check_trait_bound_duplication<'tcx>(cx: &LateContext<'tcx>, generics: &'_ Generics<'tcx>) {
     if generics.span.from_expansion() {
         return;
     }
-
     // Explanation:
     // fn bad_foo<T: Clone + Default, Z: Copy>(arg0: T, arg1: Z)
     // where T: Clone + Default, { unimplemented!(); }
@@ -338,7 +316,6 @@ fn check_trait_bound_duplication<'tcx>(cx: &LateContext<'tcx>, generics: &'_ Gen
         })
         .flatten()
         .collect::<FxHashSet<_>>();
-
     // Explanation:
     // fn bad_foo<T: Clone + Default, Z: Copy>(arg0: T, arg1: Z) ...
     //            ^^^^^^^^^^^^^^^^^^  ^^^^^^^
@@ -368,13 +345,11 @@ fn check_trait_bound_duplication<'tcx>(cx: &LateContext<'tcx>, generics: &'_ Gen
         }
     }
 }
-
 struct ComparableTraitRef<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     trait_ref: &'tcx TraitRef<'tcx>,
     modifiers: TraitBoundModifiers,
 }
-
 impl PartialEq for ComparableTraitRef<'_, '_> {
     fn eq(&self, other: &Self) -> bool {
         SpanlessEq::eq_modifiers(self.modifiers, other.modifiers)
@@ -392,7 +367,6 @@ impl Hash for ComparableTraitRef<'_, '_> {
         state.write_u64(s.finish());
     }
 }
-
 fn get_trait_info_from_bound<'a>(bound: &'a GenericBound<'_>) -> Option<(Res, &'a [PathSegment<'a>], Span)> {
     if let GenericBound::Trait(t) = bound {
         let trait_path = t.trait_ref.path;
@@ -409,7 +383,6 @@ fn get_trait_info_from_bound<'a>(bound: &'a GenericBound<'_>) -> Option<(Res, &'
         None
     }
 }
-
 fn rollup_traits<'cx, 'tcx>(
     cx: &'cx LateContext<'tcx>,
     bounds: &'tcx [GenericBound<'tcx>],
@@ -418,7 +391,6 @@ fn rollup_traits<'cx, 'tcx>(
     // Source order is needed for joining spans
     let mut map = FxIndexMap::default();
     let mut repeated_res = false;
-
     let only_comparable_trait_refs = |bound: &'tcx GenericBound<'tcx>| {
         if let GenericBound::Trait(t) = bound {
             Some((
@@ -433,7 +405,6 @@ fn rollup_traits<'cx, 'tcx>(
             None
         }
     };
-
     for bound in bounds.iter().filter_map(only_comparable_trait_refs) {
         let (comparable_bound, span_direct) = bound;
         match map.entry(comparable_bound) {
@@ -443,17 +414,13 @@ fn rollup_traits<'cx, 'tcx>(
             },
         }
     }
-
     let comparable_bounds: Vec<_> = map.into_iter().collect();
-
     if repeated_res && let [first_trait, .., last_trait] = bounds {
         let all_trait_span = first_trait.span().to(last_trait.span());
-
         let traits = comparable_bounds
             .iter()
             .filter_map(|&(_, span)| span.get_source_text(cx))
             .join(" + ");
-
         span_lint_and_sugg(
             cx,
             TRAIT_DUPLICATION_IN_BOUNDS,
@@ -464,6 +431,5 @@ fn rollup_traits<'cx, 'tcx>(
             Applicability::MachineApplicable,
         );
     }
-
     comparable_bounds
 }

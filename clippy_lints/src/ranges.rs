@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg, span_lint_and_then};
@@ -14,7 +16,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::source_map::Spanned;
 use std::cmp::Ordering;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for exclusive ranges where 1 is added to the
@@ -61,7 +62,6 @@ declare_clippy_lint! {
     pedantic,
     "`x..(y+1)` reads better as `x..=y`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for inclusive ranges where 1 is subtracted from
@@ -99,7 +99,6 @@ declare_clippy_lint! {
     pedantic,
     "`x..=(y-1)` reads better as `x..y`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for range expressions `x..y` where both `x` and `y`
@@ -132,7 +131,6 @@ declare_clippy_lint! {
     correctness,
     "reversing the limits of range expressions, resulting in empty ranges"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for expressions like `x >= 3 && x < 8` that could
@@ -159,24 +157,20 @@ declare_clippy_lint! {
     style,
     "manually reimplementing {`Range`, `RangeInclusive`}`::contains`"
 }
-
 pub struct Ranges {
     msrv: Msrv,
 }
-
 impl Ranges {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(Ranges => [
     RANGE_PLUS_ONE,
     RANGE_MINUS_ONE,
     REVERSED_EMPTY_RANGES,
     MANUAL_RANGE_CONTAINS,
 ]);
-
 impl<'tcx> LateLintPass<'tcx> for Ranges {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Binary(ref op, l, r) = expr.kind {
@@ -184,13 +178,11 @@ impl<'tcx> LateLintPass<'tcx> for Ranges {
                 check_possible_range_contains(cx, op.node, l, r, expr, expr.span);
             }
         }
-
         check_exclusive_range_plus_one(cx, expr);
         check_inclusive_range_minus_one(cx, expr);
         check_reversed_empty_range(cx, expr);
     }
 }
-
 fn check_possible_range_contains(
     cx: &LateContext<'_>,
     op: BinOpKind,
@@ -202,7 +194,6 @@ fn check_possible_range_contains(
     if is_in_const_context(cx) {
         return;
     }
-
     let combine_and = match op {
         BinOpKind::And | BinOpKind::BitAnd => true,
         BinOpKind::Or | BinOpKind::BitOr => false,
@@ -278,7 +269,6 @@ fn check_possible_range_contains(
             );
         }
     }
-
     // If the LHS is the same operator, we have to recurse to get the "real" RHS, since they have
     // the same operator precedence
     if let ExprKind::Binary(ref lhs_op, _left, new_lhs) = left.kind
@@ -292,7 +282,6 @@ fn check_possible_range_contains(
         check_possible_range_contains(cx, op, new_lhs, right, expr, new_span);
     }
 }
-
 struct RangeBounds<'a, 'tcx> {
     val: Constant<'tcx>,
     expr: &'a Expr<'a>,
@@ -302,7 +291,6 @@ struct RangeBounds<'a, 'tcx> {
     ord: Ordering,
     inc: bool,
 }
-
 // Takes a binary expression such as x <= 2 as input
 // Breaks apart into various pieces, such as the value of the number,
 // hir id of the variable, and direction/inclusiveness of the operator
@@ -343,7 +331,6 @@ fn check_range_bounds<'a, 'tcx>(cx: &'a LateContext<'tcx>, ex: &'a Expr<'_>) -> 
     }
     None
 }
-
 // exclusive range plus one: `x..(y+1)`
 fn check_exclusive_range_plus_one(cx: &LateContext<'_>, expr: &Expr<'_>) {
     if expr.span.can_be_used_for_suggestions()
@@ -381,7 +368,6 @@ fn check_exclusive_range_plus_one(cx: &LateContext<'_>, expr: &Expr<'_>) {
         );
     }
 }
-
 // inclusive range minus one: `x..=(y-1)`
 fn check_inclusive_range_minus_one(cx: &LateContext<'_>, expr: &Expr<'_>) {
     if expr.span.can_be_used_for_suggestions()
@@ -410,7 +396,6 @@ fn check_inclusive_range_minus_one(cx: &LateContext<'_>, expr: &Expr<'_>) {
         );
     }
 }
-
 fn check_reversed_empty_range(cx: &LateContext<'_>, expr: &Expr<'_>) {
     fn inside_indexing_expr(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         matches!(
@@ -421,7 +406,6 @@ fn check_reversed_empty_range(cx: &LateContext<'_>, expr: &Expr<'_>) {
             })
         )
     }
-
     fn is_for_loop_arg(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         let mut cur_expr = expr;
         while let Some(parent_expr) = get_parent_expr(cx, cur_expr) {
@@ -430,17 +414,14 @@ fn check_reversed_empty_range(cx: &LateContext<'_>, expr: &Expr<'_>) {
                 _ => cur_expr = parent_expr,
             }
         }
-
         false
     }
-
     fn is_empty_range(limits: RangeLimits, ordering: Ordering) -> bool {
         match limits {
             RangeLimits::HalfOpen => ordering != Ordering::Less,
             RangeLimits::Closed => ordering == Ordering::Greater,
         }
     }
-
     if let Some(higher::Range {
         start: Some(start),
         end: Some(end),
@@ -479,7 +460,6 @@ fn check_reversed_empty_range(cx: &LateContext<'_>, expr: &Expr<'_>) {
                             RangeLimits::HalfOpen => "..",
                             RangeLimits::Closed => "..=",
                         };
-
                         diag.span_suggestion(
                             expr.span,
                             "consider using the following if you are attempting to iterate over this \
@@ -493,7 +473,6 @@ fn check_reversed_empty_range(cx: &LateContext<'_>, expr: &Expr<'_>) {
         }
     }
 }
-
 fn y_plus_one<'t>(cx: &LateContext<'_>, expr: &'t Expr<'_>) -> Option<&'t Expr<'t>> {
     match expr.kind {
         ExprKind::Binary(
@@ -514,7 +493,6 @@ fn y_plus_one<'t>(cx: &LateContext<'_>, expr: &'t Expr<'_>) -> Option<&'t Expr<'
         _ => None,
     }
 }
-
 fn y_minus_one<'t>(cx: &LateContext<'_>, expr: &'t Expr<'_>) -> Option<&'t Expr<'t>> {
     match expr.kind {
         ExprKind::Binary(

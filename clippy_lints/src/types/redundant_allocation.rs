@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::{REDUNDANT_ALLOCATION, utils};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::{snippet, snippet_with_applicability};
 use clippy_utils::{path_def_id, qpath_generic_tys};
@@ -8,9 +11,6 @@ use rustc_hir_analysis::lower_ty;
 use rustc_lint::LateContext;
 use rustc_middle::ty::TypeVisitableExt;
 use rustc_span::symbol::sym;
-
-use super::{REDUNDANT_ALLOCATION, utils};
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, hir_ty: &hir::Ty<'tcx>, qpath: &QPath<'tcx>, def_id: DefId) -> bool {
     let mut applicability = Applicability::MaybeIncorrect;
     let outer_sym = if Some(def_id) == cx.tcx.lang_items().owned_box() {
@@ -22,7 +22,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, hir_ty: &hir::Ty<'tcx>, qpath:
     } else {
         return false;
     };
-
     if let Some(span) = utils::match_borrows_parameter(cx, qpath) {
         let generic_snippet = snippet_with_applicability(cx, span, "..", &mut applicability);
         span_lint_and_then(
@@ -39,7 +38,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, hir_ty: &hir::Ty<'tcx>, qpath:
         );
         return true;
     }
-
     let Some(ty) = qpath_generic_tys(qpath).next() else {
         return false;
     };
@@ -50,7 +48,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, hir_ty: &hir::Ty<'tcx>, qpath:
         _ if Some(id) == cx.tcx.lang_items().owned_box() => ("Box", ty),
         _ => return false,
     };
-
     let TyKind::Path(inner_qpath) = &ty.kind else {
         return false;
     };

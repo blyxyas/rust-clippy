@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::is_from_proc_macro;
@@ -9,7 +11,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use std::borrow::Cow;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for identifiers which consist of a single character (or fewer than the configured threshold).
@@ -38,12 +39,10 @@ declare_clippy_lint! {
     "disallows idents that are too short"
 }
 impl_lint_pass!(MinIdentChars => [MIN_IDENT_CHARS]);
-
 pub struct MinIdentChars {
     allowed_idents_below_min_chars: FxHashSet<String>,
     min_ident_chars_threshold: u64,
 }
-
 impl MinIdentChars {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -51,7 +50,6 @@ impl MinIdentChars {
             min_ident_chars_threshold: conf.min_ident_chars_threshold,
         }
     }
-
     #[expect(clippy::cast_possible_truncation)]
     fn is_ident_too_short(&self, cx: &LateContext<'_>, str: &str, span: Span) -> bool {
         !span.in_external_macro(cx.sess().source_map())
@@ -61,24 +59,19 @@ impl MinIdentChars {
             && !self.allowed_idents_below_min_chars.contains(str)
     }
 }
-
 impl LateLintPass<'_> for MinIdentChars {
     fn check_item(&mut self, cx: &LateContext<'_>, item: &Item<'_>) {
         if self.min_ident_chars_threshold == 0 {
             return;
         }
-
         walk_item(&mut IdentVisitor { conf: self, cx }, item);
     }
-
     fn check_trait_item(&mut self, cx: &LateContext<'_>, item: &TraitItem<'_>) {
         if self.min_ident_chars_threshold == 0 {
             return;
         }
-
         walk_trait_item(&mut IdentVisitor { conf: self, cx }, item);
     }
-
     // This is necessary as `Node::Pat`s are not visited in `visit_id`. :/
     fn check_pat(&mut self, cx: &LateContext<'_>, pat: &Pat<'_>) {
         if let PatKind::Binding(_, _, ident, ..) = pat.kind
@@ -89,12 +82,10 @@ impl LateLintPass<'_> for MinIdentChars {
         }
     }
 }
-
 struct IdentVisitor<'cx, 'tcx> {
     conf: &'cx MinIdentChars,
     cx: &'cx LateContext<'tcx>,
 }
-
 impl Visitor<'_> for IdentVisitor<'_, '_> {
     fn visit_id(&mut self, hir_id: HirId) {
         let Self { conf, cx } = *self;
@@ -115,7 +106,6 @@ impl Visitor<'_> for IdentVisitor<'_, '_> {
         let Some(ident) = node.ident() else {
             return;
         };
-
         let str = ident.as_str();
         if conf.is_ident_too_short(cx, str, ident.span) {
             // Check whether the node is part of a `use` statement. We don't want to emit a warning if the user
@@ -125,7 +115,6 @@ impl Visitor<'_> for IdentVisitor<'_, '_> {
                     .hir_parent_iter(hir_id)
                     .find_map(|(_, node)| opt_as_use_node(node))
             });
-
             // If the name of the identifier is the same as the one of the imported item, this means that we
             // found a `use foo::bar`. We can early-return to not emit the warning.
             // If however the identifier is different, this means it is an alias (`use foo::bar as baz`). In
@@ -136,7 +125,6 @@ impl Visitor<'_> for IdentVisitor<'_, '_> {
             {
                 return;
             }
-
             // `struct Array<T, const N: usize>([T; N])`
             //                                   ^  ^
             if let Node::PathSegment(path) = node {
@@ -157,7 +145,6 @@ impl Visitor<'_> for IdentVisitor<'_, '_> {
             {
                 return;
             }
-
             // `struct Array<T, const N: usize>([T; N])`
             //                        ^
             if let Node::GenericParam(generic_param) = node
@@ -165,16 +152,13 @@ impl Visitor<'_> for IdentVisitor<'_, '_> {
             {
                 return;
             }
-
             if is_from_proc_macro(cx, &ident) {
                 return;
             }
-
             emit_min_ident_chars(conf, cx, str, ident.span);
         }
     }
 }
-
 fn emit_min_ident_chars(conf: &MinIdentChars, cx: &impl LintContext, ident: &str, span: Span) {
     let help = if conf.min_ident_chars_threshold == 1 {
         Cow::Borrowed("this ident consists of a single char")
@@ -187,7 +171,6 @@ fn emit_min_ident_chars(conf: &MinIdentChars, cx: &impl LintContext, ident: &str
     };
     span_lint(cx, MIN_IDENT_CHARS, span, help);
 }
-
 /// Attempt to convert the node to an [`ItemKind::Use`] node.
 ///
 /// If it is, return the [`UsePath`] contained within.

@@ -1,27 +1,24 @@
+use crate::HVec;
+
+use super::{CAST_PRECISION_LOSS, utils};
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::ty::is_isize_or_usize;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, FloatTy, Ty};
-
-use super::{CAST_PRECISION_LOSS, utils};
-
 pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, cast_from: Ty<'_>, cast_to: Ty<'_>) {
     if !cast_from.is_integral() || cast_to.is_integral() {
         return;
     }
-
     let from_nbits = utils::int_ty_to_nbits(cast_from, cx.tcx);
     let to_nbits = if cast_to.kind() == &ty::Float(FloatTy::F32) {
         32
     } else {
         64
     };
-
     if !(is_isize_or_usize(cast_from) || from_nbits >= to_nbits) {
         return;
     }
-
     let cast_to_f64 = to_nbits == 64;
     let mantissa_nbits = if cast_to_f64 { 52 } else { 23 };
     let arch_dependent = is_isize_or_usize(cast_from) && cast_to_f64;
@@ -33,7 +30,6 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, cast_from: Ty<'_>, ca
     } else {
         utils::int_ty_to_nbits(cast_from, cx.tcx).to_string()
     };
-
     span_lint(
         cx,
         CAST_PRECISION_LOSS,

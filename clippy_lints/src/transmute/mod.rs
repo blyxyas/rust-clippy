@@ -1,3 +1,5 @@
+use crate::HVec;
+
 mod crosspointer_transmute;
 mod eager_transmute;
 mod missing_transmute_annotations;
@@ -18,7 +20,6 @@ mod unsound_collection_transmute;
 mod useless_transmute;
 mod utils;
 mod wrong_transmute;
-
 use clippy_config::Conf;
 use clippy_utils::is_in_const_context;
 use clippy_utils::msrvs::Msrv;
@@ -26,7 +27,6 @@ use rustc_hir::{Expr, ExprKind, QPath};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::symbol::sym;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes that can't ever be correct on any
@@ -48,7 +48,6 @@ declare_clippy_lint! {
     correctness,
     "transmutes that are confusing at best, undefined behavior at worst and always useless"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes to the original type of the object
@@ -67,7 +66,6 @@ declare_clippy_lint! {
     complexity,
     "transmutes that have the same to and from types or could be a cast/coercion"
 }
-
 // FIXME: Merge this lint with USELESS_TRANSMUTE once that is out of the nursery.
 declare_clippy_lint! {
     /// ### What it does
@@ -93,7 +91,6 @@ declare_clippy_lint! {
     complexity,
     "transmutes that could be a pointer cast"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes between a type `T` and `*T`.
@@ -112,7 +109,6 @@ declare_clippy_lint! {
     complexity,
     "transmutes that have to or from types that are a pointer to the other"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes from a pointer to a reference.
@@ -140,7 +136,6 @@ declare_clippy_lint! {
     complexity,
     "transmutes from a pointer to a reference type"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes from an integer to a `char`.
@@ -174,7 +169,6 @@ declare_clippy_lint! {
     complexity,
     "transmutes from an integer to a `char`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes from a `&[u8]` to a `&str`.
@@ -208,7 +202,6 @@ declare_clippy_lint! {
     complexity,
     "transmutes from a `&[u8]` to a `&str`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes from an integer to a `bool`.
@@ -231,7 +224,6 @@ declare_clippy_lint! {
     complexity,
     "transmutes from an integer to a `bool`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes from an integer to a float.
@@ -254,7 +246,6 @@ declare_clippy_lint! {
     complexity,
     "transmutes from an integer to a float"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes from `T` to `NonZero<T>`, and suggests the `new_unchecked`
@@ -279,7 +270,6 @@ declare_clippy_lint! {
     complexity,
     "transmutes from an integer to a non-zero wrapper"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes from a float to an integer.
@@ -302,7 +292,6 @@ declare_clippy_lint! {
     complexity,
     "transmutes from a float to an integer"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes from a number to an array of `u8`
@@ -325,7 +314,6 @@ declare_clippy_lint! {
     complexity,
     "transmutes from a number to an array of `u8`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes from a pointer to a pointer, or
@@ -353,7 +341,6 @@ declare_clippy_lint! {
     pedantic,
     "transmutes from a pointer to a pointer / a reference to a reference"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes between collections whose
@@ -385,7 +372,6 @@ declare_clippy_lint! {
     correctness,
     "transmute between collections of layout-incompatible types"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmutes between types which do not have a representation defined relative to
@@ -414,7 +400,6 @@ declare_clippy_lint! {
     nursery,
     "transmute to or from a type with an undefined representation"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for transmute calls which would receive a null pointer.
@@ -436,7 +421,6 @@ declare_clippy_lint! {
     correctness,
     "transmutes from a null pointer to a reference, which is undefined behavior"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for null function pointer creation through transmute.
@@ -464,7 +448,6 @@ declare_clippy_lint! {
     correctness,
     "transmute results in a null function pointer, which is undefined behavior"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for integer validity checks, followed by a transmute that is (incorrectly) evaluated
@@ -520,7 +503,6 @@ declare_clippy_lint! {
     correctness,
     "eager evaluation of `transmute`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if transmute calls have all generics specified.
@@ -571,7 +553,6 @@ declare_clippy_lint! {
     suspicious,
     "warns if a transmute call doesn't have all generics specified"
 }
-
 pub struct Transmute {
     msrv: Msrv,
 }
@@ -613,19 +594,16 @@ impl<'tcx> LateLintPass<'tcx> for Transmute {
             // - dereferencing raw pointers (https://github.com/rust-lang/rust/issues/51911)
             // - char conversions (https://github.com/rust-lang/rust/issues/89259)
             let const_context = is_in_const_context(cx);
-
             let (from_ty, from_ty_adjusted) = match cx.typeck_results().expr_adjustments(arg) {
                 [] => (cx.typeck_results().expr_ty(arg), false),
                 [.., a] => (a.target, true),
             };
             // Adjustments for `to_ty` happen after the call to `transmute`, so don't use them.
             let to_ty = cx.typeck_results().expr_ty(e);
-
             // If useless_transmute is triggered, the other lints can be skipped.
             if useless_transmute::check(cx, e, from_ty, to_ty, arg) {
                 return;
             }
-
             let linted = wrong_transmute::check(cx, e, from_ty, to_ty)
                 | crosspointer_transmute::check(cx, e, from_ty, to_ty)
                 | transmuting_null::check(cx, e, arg, to_ty)
@@ -643,7 +621,6 @@ impl<'tcx> LateLintPass<'tcx> for Transmute {
                 | (unsound_collection_transmute::check(cx, e, from_ty, to_ty)
                     || transmute_undefined_repr::check(cx, e, from_ty, to_ty))
                 | (eager_transmute::check(cx, e, arg, from_ty, to_ty));
-
             if !linted {
                 transmutes_expressible_as_ptr_casts::check(cx, e, from_ty, from_ty_adjusted, to_ty, arg, const_context);
             }

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_then};
 use clippy_utils::{is_from_proc_macro, trait_ref_of_method};
@@ -13,7 +15,6 @@ use rustc_middle::hir::nested_filter;
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::{DefId, LocalDefId};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for type parameters in generics that are never used anywhere else.
@@ -39,11 +40,9 @@ declare_clippy_lint! {
     complexity,
     "unused type parameters in function definitions"
 }
-
 pub struct ExtraUnusedTypeParameters {
     avoid_breaking_exported_api: bool,
 }
-
 impl ExtraUnusedTypeParameters {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -51,9 +50,7 @@ impl ExtraUnusedTypeParameters {
         }
     }
 }
-
 impl_lint_pass!(ExtraUnusedTypeParameters => [EXTRA_UNUSED_TYPE_PARAMETERS]);
-
 /// A visitor struct that walks a given function and gathers generic type parameters, plus any
 /// trait bounds those parameters have.
 struct TypeWalker<'cx, 'tcx> {
@@ -68,7 +65,6 @@ struct TypeWalker<'cx, 'tcx> {
     /// The entire `Generics` object of the function, useful for querying purposes.
     generics: &'tcx Generics<'tcx>,
 }
-
 impl<'cx, 'tcx> TypeWalker<'cx, 'tcx> {
     fn new(cx: &'cx LateContext<'tcx>, generics: &'tcx Generics<'tcx>) -> Self {
         let ty_params = generics
@@ -79,7 +75,6 @@ impl<'cx, 'tcx> TypeWalker<'cx, 'tcx> {
                 _ => None,
             })
             .collect();
-
         Self {
             cx,
             ty_params,
@@ -88,24 +83,20 @@ impl<'cx, 'tcx> TypeWalker<'cx, 'tcx> {
             generics,
         }
     }
-
     fn get_bound_span(&self, param: &'tcx GenericParam<'tcx>) -> Span {
         self.inline_bounds
             .get(&param.def_id.to_def_id())
             .map_or(param.span, |bound_span| param.span.with_hi(bound_span.hi()))
     }
-
     fn emit_help(&self, spans: Vec<Span>, msg: String, help: &'static str) {
         span_lint_and_help(self.cx, EXTRA_UNUSED_TYPE_PARAMETERS, spans, msg, None, help);
     }
-
     fn emit_sugg(&self, spans: Vec<Span>, msg: String, help: &'static str) {
         let suggestions: Vec<(Span, String)> = spans.iter().copied().zip(std::iter::repeat(String::new())).collect();
         span_lint_and_then(self.cx, EXTRA_UNUSED_TYPE_PARAMETERS, spans, msg, |diag| {
             diag.multipart_suggestion(help, suggestions, Applicability::MachineApplicable);
         });
     }
-
     fn emit_lint(&self) {
         let explicit_params = self
             .generics
@@ -113,13 +104,11 @@ impl<'cx, 'tcx> TypeWalker<'cx, 'tcx> {
             .iter()
             .filter(|param| !param.is_elided_lifetime() && !param.is_impl_trait())
             .collect::<Vec<_>>();
-
         let extra_params = explicit_params
             .iter()
             .enumerate()
             .filter(|(_, param)| self.ty_params.contains_key(&param.def_id.to_def_id()))
             .collect::<Vec<_>>();
-
         let (msg, help) = match extra_params.len() {
             0 => return,
             1 => (
@@ -141,7 +130,6 @@ impl<'cx, 'tcx> TypeWalker<'cx, 'tcx> {
                 "consider removing the parameters",
             ),
         };
-
         // If any parameters are bounded in where clauses, don't try to form a suggestion.
         // Otherwise, the leftover where bound would produce code that wouldn't compile.
         if extra_params
@@ -172,7 +160,6 @@ impl<'cx, 'tcx> TypeWalker<'cx, 'tcx> {
                             // param. If the span of the next param in the list has already been
                             // extended, we continue the chain. This is why we're iterating in reverse.
                             end = Some(param.def_id);
-
                             // idx will never be 0, else we'd be removing the entire list of generics
                             let prev = explicit_params[idx - 1];
                             let prev_span = self.get_bound_span(prev);
@@ -185,16 +172,13 @@ impl<'cx, 'tcx> TypeWalker<'cx, 'tcx> {
         }
     }
 }
-
 /// Given a generic bound, if the bound is for a trait that's not a `LangItem`, return the
 /// `LocalDefId` for that trait.
 fn bound_to_trait_def_id(bound: &GenericBound<'_>) -> Option<LocalDefId> {
     bound.trait_ref()?.trait_def_id()?.as_local()
 }
-
 impl<'tcx> Visitor<'tcx> for TypeWalker<'_, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
-
     fn visit_ty(&mut self, t: &'tcx Ty<'tcx, AmbigArg>) {
         if let Some((def_id, _)) = t.peel_refs().as_generic_param() {
             self.ty_params.remove(&def_id);
@@ -202,7 +186,6 @@ impl<'tcx> Visitor<'tcx> for TypeWalker<'_, 'tcx> {
             walk_ty(self, t);
         }
     }
-
     fn visit_where_predicate(&mut self, predicate: &'tcx WherePredicate<'tcx>) {
         let span = predicate.span;
         if let WherePredicateKind::BoundPredicate(predicate) = predicate.kind {
@@ -217,7 +200,6 @@ impl<'tcx> Visitor<'tcx> for TypeWalker<'_, 'tcx> {
                     },
                     PredicateOrigin::ImplTrait => (),
                 }
-
                 // If the bound contains non-public traits, err on the safe side and don't lint the
                 // corresponding parameter.
                 if !predicate
@@ -240,16 +222,13 @@ impl<'tcx> Visitor<'tcx> for TypeWalker<'_, 'tcx> {
             }
         }
     }
-
     fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
         self.cx.tcx
     }
 }
-
 fn is_empty_body(cx: &LateContext<'_>, body: BodyId) -> bool {
     matches!(cx.tcx.hir_body(body).value.kind, ExprKind::Block(b, _) if b.stmts.is_empty() && b.expr.is_none())
 }
-
 impl<'tcx> LateLintPass<'tcx> for ExtraUnusedTypeParameters {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if let ItemKind::Fn {
@@ -268,7 +247,6 @@ impl<'tcx> LateLintPass<'tcx> for ExtraUnusedTypeParameters {
             walker.emit_lint();
         }
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx ImplItem<'tcx>) {
         // Only lint on inherent methods, not trait methods.
         if let ImplItemKind::Fn(.., body_id) = item.kind

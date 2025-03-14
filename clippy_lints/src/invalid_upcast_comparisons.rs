@@ -1,16 +1,16 @@
-use rustc_hir::{Expr, ExprKind};
-use rustc_lint::{LateContext, LateLintPass};
-use rustc_middle::ty::layout::LayoutOf;
-use rustc_middle::ty::{self, IntTy, UintTy};
-use rustc_session::declare_lint_pass;
-use rustc_span::Span;
+use crate::HVec;
 
 use clippy_utils::comparisons;
 use clippy_utils::comparisons::Rel;
 use clippy_utils::consts::{ConstEvalCtxt, FullInt};
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::source::snippet;
-
+use rustc_hir::{Expr, ExprKind};
+use rustc_lint::{LateContext, LateLintPass};
+use rustc_middle::ty::layout::LayoutOf;
+use rustc_middle::ty::{self, IntTy, UintTy};
+use rustc_session::declare_lint_pass;
+use rustc_span::Span;
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for comparisons where the relation is always either
@@ -32,9 +32,7 @@ declare_clippy_lint! {
     pedantic,
     "a comparison involving an upcast which is always true or false"
 }
-
 declare_lint_pass!(InvalidUpcastComparisons => [INVALID_UPCAST_COMPARISONS]);
-
 fn numeric_cast_precast_bounds(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<(FullInt, FullInt)> {
     if let ExprKind::Cast(cast_exp, _) = expr.kind {
         let pre_cast_ty = cx.typeck_results().expr_ty(cast_exp);
@@ -66,7 +64,6 @@ fn numeric_cast_precast_bounds(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<
         None
     }
 }
-
 fn err_upcast_comparison(cx: &LateContext<'_>, span: Span, expr: &Expr<'_>, always: bool) {
     if let ExprKind::Cast(cast_val, _) = expr.kind {
         span_lint(
@@ -81,7 +78,6 @@ fn err_upcast_comparison(cx: &LateContext<'_>, span: Span, expr: &Expr<'_>, alwa
         );
     }
 }
-
 fn upcast_comparison_bounds_err<'tcx>(
     cx: &LateContext<'tcx>,
     span: Span,
@@ -137,7 +133,6 @@ fn upcast_comparison_bounds_err<'tcx>(
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for InvalidUpcastComparisons {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Binary(ref cmp, lhs, rhs) = expr.kind {
@@ -145,10 +140,8 @@ impl<'tcx> LateLintPass<'tcx> for InvalidUpcastComparisons {
             let Some((rel, normalized_lhs, normalized_rhs)) = normalized else {
                 return;
             };
-
             let lhs_bounds = numeric_cast_precast_bounds(cx, normalized_lhs);
             let rhs_bounds = numeric_cast_precast_bounds(cx, normalized_rhs);
-
             upcast_comparison_bounds_err(cx, expr.span, rel, lhs_bounds, normalized_lhs, normalized_rhs, false);
             upcast_comparison_bounds_err(cx, expr.span, rel, rhs_bounds, normalized_rhs, normalized_lhs, true);
         }

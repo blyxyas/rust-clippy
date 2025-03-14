@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_trait_method;
 use clippy_utils::ty::implements_trait;
@@ -5,7 +7,6 @@ use rustc_errors::Applicability;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_span::symbol::sym;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
@@ -13,7 +14,6 @@ pub(super) fn check<'tcx>(
     rev_recv: &'tcx Expr<'_>,
 ) {
     let rev_recv_ty = cx.typeck_results().expr_ty(rev_recv);
-
     // check that the receiver of `rev` implements `DoubleEndedIterator` and
     // that `rev` and `next` come from `Iterator`
     if cx

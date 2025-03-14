@@ -1,17 +1,16 @@
+use crate::HVec;
+
+use super::{UNIT_ARG, utils};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_from_proc_macro;
 use clippy_utils::source::{SourceText, SpanRangeExt, indent_of, reindent_multiline};
 use rustc_errors::Applicability;
 use rustc_hir::{Block, Expr, ExprKind, MatchSource, Node, StmtKind};
 use rustc_lint::LateContext;
-
-use super::{UNIT_ARG, utils};
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
     if expr.span.from_expansion() {
         return;
     }
-
     // apparently stuff in the desugaring of `?` can trigger this
     // so check for that here
     // only the calls to `Try::from_error` is marked as desugared,
@@ -24,13 +23,11 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
     {
         return;
     }
-
     let (receiver, args) = match expr.kind {
         ExprKind::Call(_, args) => (None, args),
         ExprKind::MethodCall(_, receiver, args, _) => (Some(receiver), args),
         _ => return,
     };
-
     let args_to_recover = receiver
         .into_iter()
         .chain(args)
@@ -49,7 +46,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         lint_unit_args(cx, expr, args_to_recover.as_slice());
     }
 }
-
 fn is_questionmark_desugar_marked_call(expr: &Expr<'_>) -> bool {
     use rustc_span::hygiene::DesugaringKind;
     if let ExprKind::Call(callee, _) = expr.kind {
@@ -58,7 +54,6 @@ fn is_questionmark_desugar_marked_call(expr: &Expr<'_>) -> bool {
         false
     }
 }
-
 fn lint_unit_args(cx: &LateContext<'_>, expr: &Expr<'_>, args_to_recover: &[&Expr<'_>]) {
     let mut applicability = Applicability::MachineApplicable;
     let (singular, plural) = if args_to_recover.len() > 1 {
@@ -97,7 +92,6 @@ fn lint_unit_args(cx: &LateContext<'_>, expr: &Expr<'_>, args_to_recover: &[&Exp
                     or = "or ";
                     applicability = Applicability::MaybeIncorrect;
                 });
-
             let arg_snippets: Vec<_> = args_to_recover
                 .iter()
                 .filter_map(|arg| arg.span.get_source_text(cx))
@@ -107,7 +101,6 @@ fn lint_unit_args(cx: &LateContext<'_>, expr: &Expr<'_>, args_to_recover: &[&Exp
                 .filter(|arg| !is_empty_block(arg))
                 .filter_map(|arg| arg.span.get_source_text(cx))
                 .collect();
-
             if let Some(call_snippet) = expr.span.get_source_text(cx) {
                 let sugg = fmt_stmts_and_call(
                     cx,
@@ -116,7 +109,6 @@ fn lint_unit_args(cx: &LateContext<'_>, expr: &Expr<'_>, args_to_recover: &[&Exp
                     &arg_snippets,
                     &arg_snippets_without_empty_blocks,
                 );
-
                 if arg_snippets_without_empty_blocks.is_empty() {
                     db.multipart_suggestion(
                         format!("use {singular}unit literal{plural} instead"),
@@ -143,7 +135,6 @@ fn lint_unit_args(cx: &LateContext<'_>, expr: &Expr<'_>, args_to_recover: &[&Exp
         },
     );
 }
-
 fn is_empty_block(expr: &Expr<'_>) -> bool {
     matches!(
         expr.kind,
@@ -157,7 +148,6 @@ fn is_empty_block(expr: &Expr<'_>) -> bool {
         )
     )
 }
-
 fn fmt_stmts_and_call(
     cx: &LateContext<'_>,
     call_expr: &Expr<'_>,
@@ -169,7 +159,6 @@ fn fmt_stmts_and_call(
     let call_snippet_with_replacements = args_snippets
         .iter()
         .fold(call_snippet.to_owned(), |acc, arg| acc.replacen(arg.as_ref(), "()", 1));
-
     let mut stmts_and_call = non_empty_block_args_snippets
         .iter()
         .map(|it| it.as_ref().to_owned())
@@ -179,7 +168,6 @@ fn fmt_stmts_and_call(
         .into_iter()
         .map(|v| reindent_multiline(&v, true, Some(call_expr_indent)))
         .collect();
-
     let mut stmts_and_call_snippet = stmts_and_call.join(&format!("{}{}", ";\n", " ".repeat(call_expr_indent)));
     // expr is not in a block statement or result expression position, wrap in a block
     let parent_node = cx.tcx.parent_hir_node(call_expr.hir_id);

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_from_proc_macro;
@@ -16,7 +18,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::Ty as MiddleTy;
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for unnecessary repetition of structure name when a
@@ -53,12 +54,10 @@ declare_clippy_lint! {
     nursery,
     "unnecessary structure name repetition whereas `Self` is applicable"
 }
-
 pub struct UseSelf {
     msrv: Msrv,
     stack: Vec<StackItem>,
 }
-
 impl UseSelf {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -67,7 +66,6 @@ impl UseSelf {
         }
     }
 }
-
 #[derive(Debug)]
 enum StackItem {
     Check {
@@ -76,11 +74,8 @@ enum StackItem {
     },
     NoCheck,
 }
-
 impl_lint_pass!(UseSelf => [USE_SELF]);
-
 const SEGMENTS_MSG: &str = "segments should be composed of at least 1 element";
-
 impl<'tcx> LateLintPass<'tcx> for UseSelf {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &Item<'tcx>) {
         // We push the self types of `impl`s on a stack here. Only the top type on the stack is
@@ -122,11 +117,9 @@ impl<'tcx> LateLintPass<'tcx> for UseSelf {
         };
         self.stack.push(stack_item);
     }
-
     fn check_item_post(&mut self, _: &LateContext<'_>, _: &Item<'_>) {
         self.stack.pop();
     }
-
     fn check_impl_item(&mut self, cx: &LateContext<'_>, impl_item: &hir::ImplItem<'_>) {
         // Checking items of `impl Self` blocks in which macro expands into.
         if impl_item.span.from_expansion() {
@@ -146,7 +139,6 @@ impl<'tcx> LateLintPass<'tcx> for UseSelf {
             // `self_ty` is the semantic self type of `impl <trait> for <type>`. This cannot be
             // `Self`.
             let self_ty = impl_trait_ref.instantiate_identity().self_ty();
-
             // `trait_method_sig` is the signature of the function, how it is declared in the
             // trait, not in the impl of the trait.
             let trait_method = cx
@@ -156,7 +148,6 @@ impl<'tcx> LateLintPass<'tcx> for UseSelf {
                 .expect("impl method matches a trait method");
             let trait_method_sig = cx.tcx.fn_sig(trait_method).instantiate_identity();
             let trait_method_sig = cx.tcx.instantiate_bound_regions_with_erased(trait_method_sig);
-
             // `impl_inputs_outputs` is an iterator over the types (`hir::Ty`) declared in the
             // implementation of the trait.
             let output_hir_ty = if let FnRetTy::Return(ty) = &decl.output {
@@ -165,7 +156,6 @@ impl<'tcx> LateLintPass<'tcx> for UseSelf {
                 None
             };
             let impl_inputs_outputs = decl.inputs.iter().chain(output_hir_ty);
-
             // `impl_hir_ty` (of type `hir::Ty`) represents the type written in the signature.
             //
             // `trait_sem_ty` (of type `ty::Ty`) is the semantic type for the signature in the
@@ -187,7 +177,6 @@ impl<'tcx> LateLintPass<'tcx> for UseSelf {
             }
         }
     }
-
     fn check_impl_item_post(&mut self, _: &LateContext<'_>, impl_item: &hir::ImplItem<'_>) {
         if impl_item.span.from_expansion()
             && let Some(StackItem::NoCheck) = self.stack.last()
@@ -195,7 +184,6 @@ impl<'tcx> LateLintPass<'tcx> for UseSelf {
             self.stack.pop();
         }
     }
-
     fn check_ty(&mut self, cx: &LateContext<'tcx>, hir_ty: &Ty<'tcx, AmbigArg>) {
         if !hir_ty.span.from_expansion()
             && let Some(&StackItem::Check {
@@ -220,7 +208,6 @@ impl<'tcx> LateLintPass<'tcx> for UseSelf {
             span_lint(cx, hir_ty.span);
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         if !expr.span.from_expansion()
             && let Some(&StackItem::Check { impl_id, .. }) = self.stack.last()
@@ -241,7 +228,6 @@ impl<'tcx> LateLintPass<'tcx> for UseSelf {
             _ => (),
         }
     }
-
     fn check_pat(&mut self, cx: &LateContext<'_>, pat: &Pat<'_>) {
         if !pat.span.from_expansion()
             && let Some(&StackItem::Check { impl_id, .. }) = self.stack.last()
@@ -256,12 +242,10 @@ impl<'tcx> LateLintPass<'tcx> for UseSelf {
         }
     }
 }
-
 #[derive(Default)]
 struct SkipTyCollector {
     types_to_skip: Vec<HirId>,
 }
-
 impl Visitor<'_> for SkipTyCollector {
     fn visit_infer(&mut self, inf_id: HirId, _inf_span: Span, kind: InferKind<'_>) -> Self::Result {
         // Conservatively assume ambiguously kinded inferred arguments are type arguments
@@ -272,11 +256,9 @@ impl Visitor<'_> for SkipTyCollector {
     }
     fn visit_ty(&mut self, hir_ty: &Ty<'_, AmbigArg>) {
         self.types_to_skip.push(hir_ty.hir_id);
-
         walk_ty(self, hir_ty);
     }
 }
-
 fn span_lint(cx: &LateContext<'_>, span: Span) {
     span_lint_and_sugg(
         cx,
@@ -288,7 +270,6 @@ fn span_lint(cx: &LateContext<'_>, span: Span) {
         Applicability::MachineApplicable,
     );
 }
-
 fn check_path(cx: &LateContext<'_>, path: &Path<'_>) {
     match path.res {
         Res::Def(DefKind::Ctor(CtorOf::Variant, _) | DefKind::Variant, ..) => {
@@ -298,7 +279,6 @@ fn check_path(cx: &LateContext<'_>, path: &Path<'_>) {
         _ => (),
     }
 }
-
 fn lint_path_to_variant(cx: &LateContext<'_>, path: &Path<'_>) {
     if let [.., self_seg, _variant] = path.segments {
         let span = path
@@ -307,7 +287,6 @@ fn lint_path_to_variant(cx: &LateContext<'_>, path: &Path<'_>) {
         span_lint(cx, span);
     }
 }
-
 /// Returns `true` if types `a` and `b` have the same lifetime parameters, otherwise returns
 /// `false`.
 ///
@@ -329,7 +308,6 @@ fn same_lifetimes<'tcx>(a: MiddleTy<'tcx>, b: MiddleTy<'tcx>) -> bool {
         _ => a == b,
     }
 }
-
 /// Returns `true` if `ty` has no lifetime parameter, otherwise returns `false`.
 fn has_no_lifetime(ty: MiddleTy<'_>) -> bool {
     use rustc_middle::ty::{Adt, GenericArgKind};

@@ -1,3 +1,10 @@
+use crate::HVec;
+
+use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::higher::IfLetOrMatch;
+use clippy_utils::sugg::Sugg;
+use clippy_utils::ty::{expr_type_is_certain, implements_trait};
+use clippy_utils::{is_default_equivalent, is_in_const_context, path_res, peel_blocks, span_contains_comment};
 use rustc_errors::Applicability;
 use rustc_hir::def::Res;
 use rustc_hir::{Arm, Expr, ExprKind, HirId, LangItem, MatchSource, Pat, PatExpr, PatExprKind, PatKind, QPath};
@@ -5,13 +12,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::ty::GenericArgKind;
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
-
-use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::higher::IfLetOrMatch;
-use clippy_utils::sugg::Sugg;
-use clippy_utils::ty::{expr_type_is_certain, implements_trait};
-use clippy_utils::{is_default_equivalent, is_in_const_context, path_res, peel_blocks, span_contains_comment};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks if a `match` or `if let` expression can be simplified using
@@ -48,9 +48,7 @@ declare_clippy_lint! {
     suspicious,
     "check if a `match` or `if let` can be simplified with `unwrap_or_default`"
 }
-
 declare_lint_pass!(ManualUnwrapOrDefault => [MANUAL_UNWRAP_OR_DEFAULT]);
-
 fn get_some<'tcx>(cx: &LateContext<'tcx>, pat: &Pat<'tcx>) -> Option<HirId> {
     if let PatKind::TupleStruct(QPath::Resolved(_, path), &[pat], _) = pat.kind
         && let PatKind::Binding(_, pat_id, _, _) = pat.kind
@@ -66,7 +64,6 @@ fn get_some<'tcx>(cx: &LateContext<'tcx>, pat: &Pat<'tcx>) -> Option<HirId> {
         None
     }
 }
-
 fn get_none<'tcx>(cx: &LateContext<'tcx>, arm: &Arm<'tcx>) -> Option<&'tcx Expr<'tcx>> {
     if let PatKind::Expr(PatExpr { kind: PatExprKind::Path(QPath::Resolved(_, path)), .. }) = arm.pat.kind
         && let Some(def_id) = path.res.opt_def_id()
@@ -91,7 +88,6 @@ fn get_none<'tcx>(cx: &LateContext<'tcx>, arm: &Arm<'tcx>) -> Option<&'tcx Expr<
         None
     }
 }
-
 fn get_some_and_none_bodies<'tcx>(
     cx: &LateContext<'tcx>,
     arm1: &'tcx Arm<'tcx>,
@@ -109,7 +105,6 @@ fn get_some_and_none_bodies<'tcx>(
         None
     }
 }
-
 #[allow(clippy::needless_pass_by_value)]
 fn handle<'tcx>(cx: &LateContext<'tcx>, if_let_or_match: IfLetOrMatch<'tcx>, expr: &'tcx Expr<'tcx>) {
     // Get expr_name ("if let" or "match" depending on kind of expression),  the condition, the body for
@@ -134,7 +129,6 @@ fn handle<'tcx>(cx: &LateContext<'tcx>, if_let_or_match: IfLetOrMatch<'tcx>, exp
             return;
         },
     };
-
     // We check if the return type of the expression implements Default.
     let expr_type = cx.typeck_results().expr_ty(expr);
     if let Some(default_trait_id) = cx.tcx.get_diagnostic_item(sym::Default)
@@ -158,7 +152,6 @@ fn handle<'tcx>(cx: &LateContext<'tcx>, if_let_or_match: IfLetOrMatch<'tcx>, exp
         } else {
             Applicability::MachineApplicable
         };
-
         // We now check if the condition is a None variant, in which case we need to specify the type
         if path_res(cx, condition)
             .opt_def_id()
@@ -174,7 +167,6 @@ fn handle<'tcx>(cx: &LateContext<'tcx>, if_let_or_match: IfLetOrMatch<'tcx>, exp
                 applicability,
             );
         }
-
         // We check if the expression type is still uncertain, in which case we ask the user to specify it
         if !expr_type_is_certain(cx, condition) {
             return span_lint_and_sugg(
@@ -187,7 +179,6 @@ fn handle<'tcx>(cx: &LateContext<'tcx>, if_let_or_match: IfLetOrMatch<'tcx>, exp
                 Applicability::Unspecified,
             );
         }
-
         span_lint_and_sugg(
             cx,
             MANUAL_UNWRAP_OR_DEFAULT,
@@ -199,7 +190,6 @@ fn handle<'tcx>(cx: &LateContext<'tcx>, if_let_or_match: IfLetOrMatch<'tcx>, exp
         );
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for ManualUnwrapOrDefault {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let Some(if_let_or_match) = IfLetOrMatch::parse(cx, expr)

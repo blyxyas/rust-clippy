@@ -1,6 +1,7 @@
+use crate::HVec;
+
 use clippy_utils::ty::{EnumValue, read_explicit_enum_value};
 use rustc_middle::ty::{self, AdtDef, IntTy, Ty, TyCtxt, UintTy, VariantDiscr};
-
 /// Returns the size in bits of an integral type.
 /// Will return 0 if the type is not an int or uint variant
 pub(super) fn int_ty_to_nbits(typ: Ty<'_>, tcx: TyCtxt<'_>) -> u64 {
@@ -24,7 +25,6 @@ pub(super) fn int_ty_to_nbits(typ: Ty<'_>, tcx: TyCtxt<'_>) -> u64 {
         _ => 0,
     }
 }
-
 pub(super) fn enum_value_nbits(value: EnumValue) -> u64 {
     match value {
         EnumValue::Unsigned(x) => 128 - x.leading_zeros(),
@@ -33,7 +33,6 @@ pub(super) fn enum_value_nbits(value: EnumValue) -> u64 {
     }
     .into()
 }
-
 pub(super) fn enum_ty_to_nbits(adt: AdtDef<'_>, tcx: TyCtxt<'_>) -> u64 {
     let mut explicit = 0i128;
     let (start, end) = adt
@@ -59,7 +58,6 @@ pub(super) fn enum_ty_to_nbits(adt: AdtDef<'_>, tcx: TyCtxt<'_>) -> u64 {
                 None => (start, end),
             },
         });
-
     if start > end {
         // No variants.
         0

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::NEEDLESS_RANGE_LOOP;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet;
@@ -15,7 +17,6 @@ use rustc_middle::middle::region;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::symbol::{Symbol, sym};
 use std::{iter, mem};
-
 /// Checks for looping over a range and then indexing a sequence with it.
 /// The iteratee must be a range literal.
 #[expect(clippy::too_many_lines)]
@@ -45,7 +46,6 @@ pub(super) fn check<'tcx>(
                 prefer_mutable: false,
             };
             walk_expr(&mut visitor, body);
-
             // linting condition: we only indexed one variable, and indexed it directly
             if visitor.indexed_indirectly.is_empty() && visitor.indexed_directly.len() == 1 {
                 let (indexed, (indexed_extent, indexed_ty)) = visitor
@@ -53,7 +53,6 @@ pub(super) fn check<'tcx>(
                     .into_iter()
                     .next()
                     .expect("already checked that we have exactly 1 element");
-
                 // ensure that the indexed variable was declared before the loop, see #601
                 if let Some(indexed_extent) = indexed_extent {
                     let parent_def_id = cx.tcx.hir_get_parent_item(expr.hir_id);
@@ -63,21 +62,17 @@ pub(super) fn check<'tcx>(
                         return;
                     }
                 }
-
                 // don't lint if the container that is indexed does not have .iter() method
                 let has_iter = has_iter_method(cx, indexed_ty);
                 if has_iter.is_none() {
                     return;
                 }
-
                 // don't lint if the container that is indexed into is also used without
                 // indexing
                 if visitor.referenced.contains(&indexed) {
                     return;
                 }
-
                 let starts_at_zero = is_integer_const(cx, start, 0);
-
                 let skip = if starts_at_zero {
                     String::new()
                 } else if visitor.indexed_mut.contains(&indexed) && contains_name(indexed, start, cx) {
@@ -85,27 +80,21 @@ pub(super) fn check<'tcx>(
                 } else {
                     format!(".skip({})", snippet(cx, start.span, ".."))
                 };
-
                 let mut end_is_start_plus_val = false;
-
                 let take = if let Some(end) = *end {
                     let mut take_expr = end;
-
                     if let ExprKind::Binary(ref op, left, right) = end.kind {
                         if op.node == BinOpKind::Add {
                             let start_equal_left = SpanlessEq::new(cx).eq_expr(start, left);
                             let start_equal_right = SpanlessEq::new(cx).eq_expr(start, right);
-
                             if start_equal_left {
                                 take_expr = right;
                             } else if start_equal_right {
                                 take_expr = left;
                             }
-
                             end_is_start_plus_val = start_equal_left | start_equal_right;
                         }
                     }
-
                     if is_len_call(end, indexed) || is_end_eq_array_len(cx, end, limits, indexed_ty) {
                         String::new()
                     } else if visitor.indexed_mut.contains(&indexed) && contains_name(indexed, take_expr, cx) {
@@ -124,21 +113,17 @@ pub(super) fn check<'tcx>(
                 } else {
                     String::new()
                 };
-
                 let (ref_mut, method) = if visitor.indexed_mut.contains(&indexed) {
                     ("mut ", "iter_mut")
                 } else {
                     ("", "iter")
                 };
-
                 let take_is_empty = take.is_empty();
                 let mut method_1 = take;
                 let mut method_2 = skip;
-
                 if end_is_start_plus_val {
                     mem::swap(&mut method_1, &mut method_2);
                 }
-
                 if visitor.nonindex {
                     span_lint_and_then(
                         cx,
@@ -165,7 +150,6 @@ pub(super) fn check<'tcx>(
                     } else {
                         format!("{indexed}.{method}(){method_1}{method_2}")
                     };
-
                     span_lint_and_then(
                         cx,
                         NEEDLESS_RANGE_LOOP,
@@ -184,7 +168,6 @@ pub(super) fn check<'tcx>(
         }
     }
 }
-
 fn is_len_call(expr: &Expr<'_>, var: Symbol) -> bool {
     if let ExprKind::MethodCall(method, recv, [], _) = expr.kind
         && method.ident.name == sym::len
@@ -194,10 +177,8 @@ fn is_len_call(expr: &Expr<'_>, var: Symbol) -> bool {
     {
         return true;
     }
-
     false
 }
-
 fn is_end_eq_array_len<'tcx>(
     cx: &LateContext<'tcx>,
     end: &Expr<'_>,
@@ -214,10 +195,8 @@ fn is_end_eq_array_len<'tcx>(
             ast::RangeLimits::HalfOpen => end_int.get() >= arr_len.into(),
         };
     }
-
     false
 }
-
 struct VarVisitor<'a, 'tcx> {
     /// context reference
     cx: &'a LateContext<'tcx>,
@@ -240,7 +219,6 @@ struct VarVisitor<'a, 'tcx> {
     /// takes `&mut self`
     prefer_mutable: bool,
 }
-
 impl<'tcx> VarVisitor<'_, 'tcx> {
     fn check(&mut self, idx: &'tcx Expr<'_>, seqexpr: &'tcx Expr<'_>, expr: &'tcx Expr<'_>) -> bool {
         if let ExprKind::Path(ref seqpath) = seqexpr.kind
@@ -291,7 +269,6 @@ impl<'tcx> VarVisitor<'_, 'tcx> {
         true
     }
 }
-
 impl<'tcx> Visitor<'tcx> for VarVisitor<'_, 'tcx> {
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         if let ExprKind::MethodCall(meth, args_0, [args_1, ..], _) = &expr.kind
@@ -307,14 +284,12 @@ impl<'tcx> Visitor<'tcx> for VarVisitor<'_, 'tcx> {
         {
             return;
         }
-
         if let ExprKind::Index(seqexpr, idx, _) = expr.kind
             // an index op
             && !self.check(idx, seqexpr, expr)
         {
             return;
         }
-
         if let ExprKind::Path(QPath::Resolved(None, path)) = expr.kind
             // directly using a variable
             && let Res::Local(local_id) = path.res
@@ -326,7 +301,6 @@ impl<'tcx> Visitor<'tcx> for VarVisitor<'_, 'tcx> {
                 self.referenced.insert(path.segments[0].ident.name);
             }
         }
-
         let old = self.prefer_mutable;
         match expr.kind {
             ExprKind::AssignOp(_, lhs, rhs) | ExprKind::Assign(lhs, rhs, _) => {

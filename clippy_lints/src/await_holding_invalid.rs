@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_config::types::{DisallowedPathWithoutReplacement, create_disallowed_map};
 use clippy_utils::diagnostics::span_lint_and_then;
@@ -9,7 +11,6 @@ use rustc_middle::mir::CoroutineLayout;
 use rustc_middle::ty::TyCtxt;
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `await` while holding a non-async-aware
@@ -75,7 +76,6 @@ declare_clippy_lint! {
     suspicious,
     "inside an async function, holding a `MutexGuard` while calling `await`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for calls to `await` while holding a `RefCell`, `Ref`, or `RefMut`.
@@ -133,7 +133,6 @@ declare_clippy_lint! {
     suspicious,
     "inside an async function, holding a `RefCell` ref while calling `await`"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Allows users to configure types which should not be held across await
@@ -170,13 +169,10 @@ declare_clippy_lint! {
     suspicious,
     "holding a type across an await point which is not allowed to be held as per the configuration"
 }
-
 impl_lint_pass!(AwaitHolding => [AWAIT_HOLDING_LOCK, AWAIT_HOLDING_REFCELL_REF, AWAIT_HOLDING_INVALID_TYPE]);
-
 pub struct AwaitHolding {
     def_ids: DefIdMap<(&'static str, &'static DisallowedPathWithoutReplacement)>,
 }
-
 impl AwaitHolding {
     pub(crate) fn new(tcx: TyCtxt<'_>, conf: &'static Conf) -> Self {
         Self {
@@ -184,7 +180,6 @@ impl AwaitHolding {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for AwaitHolding {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'tcx>) {
         if let hir::ExprKind::Closure(hir::Closure {
@@ -199,7 +194,6 @@ impl<'tcx> LateLintPass<'tcx> for AwaitHolding {
         }
     }
 }
-
 impl AwaitHolding {
     fn check_interior_types(&self, cx: &LateContext<'_>, coroutine: &CoroutineLayout<'_>) {
         for (ty_index, ty_cause) in coroutine.field_tys.iter_enumerated() {
@@ -254,7 +248,6 @@ impl AwaitHolding {
         }
     }
 }
-
 fn emit_invalid_type(
     cx: &LateContext<'_>,
     span: Span,
@@ -269,7 +262,6 @@ fn emit_invalid_type(
         disallowed_path.diag_amendment(span),
     );
 }
-
 fn is_mutex_guard(cx: &LateContext<'_>, def_id: DefId) -> bool {
     cx.tcx.is_diagnostic_item(sym::MutexGuard, def_id)
         || cx.tcx.is_diagnostic_item(sym::RwLockReadGuard, def_id)
@@ -278,7 +270,6 @@ fn is_mutex_guard(cx: &LateContext<'_>, def_id: DefId) -> bool {
         || match_def_path(cx, def_id, &paths::PARKING_LOT_RWLOCK_READ_GUARD)
         || match_def_path(cx, def_id, &paths::PARKING_LOT_RWLOCK_WRITE_GUARD)
 }
-
 fn is_refcell_ref(cx: &LateContext<'_>, def_id: DefId) -> bool {
     matches!(
         cx.tcx.get_diagnostic_name(def_id),

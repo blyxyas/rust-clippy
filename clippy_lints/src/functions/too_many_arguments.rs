@@ -1,13 +1,12 @@
+use crate::HVec;
+
+use super::TOO_MANY_ARGUMENTS;
+use clippy_utils::diagnostics::span_lint;
+use clippy_utils::is_trait_impl_item;
 use rustc_abi::ExternAbi;
 use rustc_hir::{self as hir, intravisit};
 use rustc_lint::LateContext;
 use rustc_span::Span;
-
-use clippy_utils::diagnostics::span_lint;
-use clippy_utils::is_trait_impl_item;
-
-use super::TOO_MANY_ARGUMENTS;
-
 pub(super) fn check_fn(
     cx: &LateContext<'_>,
     kind: intravisit::FnKind<'_>,
@@ -45,7 +44,6 @@ pub(super) fn check_fn(
         }
     }
 }
-
 pub(super) fn check_trait_item(cx: &LateContext<'_>, item: &hir::TraitItem<'_>, too_many_arguments_threshold: u64) {
     if let hir::TraitItemKind::Fn(ref sig, _) = item.kind {
         // don't lint extern functions decls, it's not their fault
@@ -59,7 +57,6 @@ pub(super) fn check_trait_item(cx: &LateContext<'_>, item: &hir::TraitItem<'_>, 
         }
     }
 }
-
 fn check_arg_number(cx: &LateContext<'_>, decl: &hir::FnDecl<'_>, fn_span: Span, too_many_arguments_threshold: u64) {
     let args = decl.inputs.len() as u64;
     if args > too_many_arguments_threshold {

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use crate::Lint;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_lint_allowed;
@@ -7,7 +9,6 @@ use rustc_middle::ty::Ty;
 use rustc_session::declare_lint_pass;
 use rustc_span::Symbol;
 use std::fmt::Write;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the usage of the `to_ne_bytes` method and/or the function `from_ne_bytes`.
@@ -26,7 +27,6 @@ declare_clippy_lint! {
     restriction,
     "disallows usage of the `to_ne_bytes` method"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the usage of the `to_le_bytes` method and/or the function `from_le_bytes`.
@@ -44,7 +44,6 @@ declare_clippy_lint! {
     restriction,
     "disallows usage of the `to_le_bytes` method"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the usage of the `to_be_bytes` method and/or the function `from_be_bytes`.
@@ -62,31 +61,25 @@ declare_clippy_lint! {
     restriction,
     "disallows usage of the `to_be_bytes` method"
 }
-
 declare_lint_pass!(EndianBytes => [HOST_ENDIAN_BYTES, LITTLE_ENDIAN_BYTES, BIG_ENDIAN_BYTES]);
-
 const HOST_NAMES: [&str; 2] = ["from_ne_bytes", "to_ne_bytes"];
 const LITTLE_NAMES: [&str; 2] = ["from_le_bytes", "to_le_bytes"];
 const BIG_NAMES: [&str; 2] = ["from_be_bytes", "to_be_bytes"];
-
 #[derive(Clone, Debug)]
 enum LintKind {
     Host,
     Little,
     Big,
 }
-
 #[derive(Clone, Copy, PartialEq)]
 enum Prefix {
     From,
     To,
 }
-
 impl LintKind {
     fn allowed(&self, cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         is_lint_allowed(cx, self.as_lint(), expr.hir_id)
     }
-
     fn as_lint(&self) -> &'static Lint {
         match self {
             LintKind::Host => HOST_ENDIAN_BYTES,
@@ -94,10 +87,8 @@ impl LintKind {
             LintKind::Big => BIG_ENDIAN_BYTES,
         }
     }
-
     fn as_name(&self, prefix: Prefix) -> &str {
         let index = usize::from(prefix == Prefix::To);
-
         match self {
             LintKind::Host => HOST_NAMES[index],
             LintKind::Little => LITTLE_NAMES[index],
@@ -105,7 +96,6 @@ impl LintKind {
         }
     }
 }
-
 impl LateLintPass<'_> for EndianBytes {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         let (prefix, name, ty_expr) = match expr.kind {
@@ -127,19 +117,16 @@ impl LateLintPass<'_> for EndianBytes {
         }
     }
 }
-
 fn maybe_lint_endian_bytes(cx: &LateContext<'_>, expr: &Expr<'_>, prefix: Prefix, name: Symbol, ty: Ty<'_>) {
     let ne = LintKind::Host.as_name(prefix);
     let le = LintKind::Little.as_name(prefix);
     let be = LintKind::Big.as_name(prefix);
-
     let (lint, other_lints) = match name.as_str() {
         name if name == ne => ((&LintKind::Host), [(&LintKind::Little), (&LintKind::Big)]),
         name if name == le => ((&LintKind::Little), [(&LintKind::Host), (&LintKind::Big)]),
         name if name == be => ((&LintKind::Big), [(&LintKind::Host), (&LintKind::Little)]),
         _ => return,
     };
-
     span_lint_and_then(
         cx,
         lint.as_lint(),
@@ -159,33 +146,26 @@ fn maybe_lint_endian_bytes(cx: &LateContext<'_>, expr: &Expr<'_>, prefix: Prefix
             {
                 return;
             }
-
             // ne_bytes and all other lints allowed
             if lint.as_name(prefix) == ne && other_lints.iter().all(|lint| lint.allowed(cx, expr)) {
                 diag.help("specify the desired endianness explicitly");
                 return;
             }
-
             // le_bytes where ne_bytes allowed but be_bytes is not, or le_bytes where ne_bytes allowed but
             // le_bytes is not
             if (lint.as_name(prefix) == le || lint.as_name(prefix) == be) && LintKind::Host.allowed(cx, expr) {
                 diag.help("use the native endianness instead");
                 return;
             }
-
             let allowed_lints = other_lints.iter().filter(|lint| lint.allowed(cx, expr));
             let len = allowed_lints.clone().count();
-
             let mut help_str = "use ".to_owned();
-
             for (i, lint) in allowed_lints.enumerate() {
                 let only_one = len == 1;
                 if !only_one {
                     help_str.push_str("either of ");
                 }
-
                 write!(help_str, "`{ty}::{}` ", lint.as_name(prefix)).unwrap();
-
                 if i != len && !only_one {
                     help_str.push_str("or ");
                 }

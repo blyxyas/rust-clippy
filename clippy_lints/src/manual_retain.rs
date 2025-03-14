@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::SpanlessEq;
 use clippy_utils::diagnostics::span_lint_and_sugg;
@@ -12,7 +14,6 @@ use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_span::symbol::{Symbol, sym};
-
 const ACCEPTABLE_METHODS: [Symbol; 5] = [
     sym::binaryheap_iter,
     sym::hashset_iter,
@@ -20,7 +21,6 @@ const ACCEPTABLE_METHODS: [Symbol; 5] = [
     sym::slice_iter,
     sym::vecdeque_iter,
 ];
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for code to be replaced by `.retain()`.
@@ -43,19 +43,15 @@ declare_clippy_lint! {
     perf,
     "`retain()` is simpler and the same functionalities"
 }
-
 pub struct ManualRetain {
     msrv: Msrv,
 }
-
 impl ManualRetain {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(ManualRetain => [MANUAL_RETAIN]);
-
 impl<'tcx> LateLintPass<'tcx> for ManualRetain {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) {
         if let Assign(left_expr, collect_expr, _) = &expr.kind
@@ -70,7 +66,6 @@ impl<'tcx> LateLintPass<'tcx> for ManualRetain {
         }
     }
 }
-
 fn check_into_iter(
     cx: &LateContext<'_>,
     left_expr: &hir::Expr<'_>,
@@ -113,7 +108,6 @@ fn check_into_iter(
         }
     }
 }
-
 fn check_iter(
     cx: &LateContext<'_>,
     left_expr: &hir::Expr<'_>,
@@ -171,7 +165,6 @@ fn check_iter(
         }
     }
 }
-
 fn check_to_owned(
     cx: &LateContext<'_>,
     left_expr: &hir::Expr<'_>,
@@ -213,7 +206,6 @@ fn check_to_owned(
         // TODO: Ideally, we can rewrite the lambda by stripping one level of reference
     }
 }
-
 fn make_sugg(
     cx: &LateContext<'_>,
     key_pat: &rustc_hir::Pat<'_>,
@@ -242,13 +234,11 @@ fn make_sugg(
         _ => None,
     }
 }
-
 fn match_acceptable_sym(cx: &LateContext<'_>, collect_def_id: DefId) -> bool {
     ACCEPTABLE_METHODS
         .iter()
         .any(|&method| cx.tcx.is_diagnostic_item(method, collect_def_id))
 }
-
 fn match_acceptable_type(cx: &LateContext<'_>, expr: &hir::Expr<'_>, msrv: Msrv) -> bool {
     let ty = cx.typeck_results().expr_ty(expr).peel_refs();
     let required = match get_type_diagnostic_name(cx, ty) {
@@ -262,12 +252,10 @@ fn match_acceptable_type(cx: &LateContext<'_>, expr: &hir::Expr<'_>, msrv: Msrv)
     };
     msrv.meets(cx, required)
 }
-
 fn match_map_type(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> bool {
     let ty = cx.typeck_results().expr_ty(expr).peel_refs();
     matches!(get_type_diagnostic_name(cx, ty), Some(sym::BTreeMap | sym::HashMap))
 }
-
 fn make_span_lint_and_sugg(cx: &LateContext<'_>, span: Span, sugg: String) {
     span_lint_and_sugg(
         cx,

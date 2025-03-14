@@ -1,4 +1,7 @@
+use crate::HVec;
+
 use super::utils::clone_or_copy_needed;
+use super::{UNNECESSARY_FILTER_MAP, UNNECESSARY_FIND_MAP};
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::ty::is_copy;
 use clippy_utils::usage::mutated_variables;
@@ -11,22 +14,16 @@ use rustc_hir::LangItem::{OptionNone, OptionSome};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::sym;
-
-use super::{UNNECESSARY_FILTER_MAP, UNNECESSARY_FIND_MAP};
-
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'tcx>, arg: &'tcx hir::Expr<'tcx>, name: &str) {
     if !is_trait_method(cx, expr, sym::Iterator) {
         return;
     }
-
     if let hir::ExprKind::Closure(&hir::Closure { body, .. }) = arg.kind {
         let body = cx.tcx.hir_body(body);
         let arg_id = body.params[0].pat.hir_id;
         let mutates_arg = mutated_variables(body.value, cx).is_none_or(|used_mutably| used_mutably.contains(&arg_id));
         let (clone_or_copy_needed, _) = clone_or_copy_needed(cx, body.params[0].pat, body.value);
-
         let (mut found_mapping, mut found_filtering) = check_expression(cx, arg_id, body.value);
-
         let _: Option<!> = for_each_expr_without_closures(body.value, |e| {
             if let hir::ExprKind::Ret(Some(e)) = &e.kind {
                 let (found_mapping_res, found_filtering_res) = check_expression(cx, arg_id, e);
@@ -83,7 +80,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'tcx>, a
         );
     }
 }
-
 // returns (found_mapping, found_filtering)
 fn check_expression<'tcx>(cx: &LateContext<'tcx>, arg_id: hir::HirId, expr: &'tcx hir::Expr<'_>) -> (bool, bool) {
     match expr.kind {

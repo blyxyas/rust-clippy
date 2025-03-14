@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::eager_or_lazy::switch_to_eager_eval;
@@ -12,7 +14,6 @@ use rustc_hir::LangItem::{OptionNone, OptionSome};
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for if-else that could be written using either `bool::then` or `bool::then_some`.
@@ -47,19 +48,15 @@ declare_clippy_lint! {
     restriction,
     "Finds if-else that could be written using either `bool::then` or `bool::then_some`"
 }
-
 pub struct IfThenSomeElseNone {
     msrv: Msrv,
 }
-
 impl IfThenSomeElseNone {
     pub fn new(conf: &'static Conf) -> Self {
         Self { msrv: conf.msrv }
     }
 }
-
 impl_lint_pass!(IfThenSomeElseNone => [IF_THEN_SOME_ELSE_NONE]);
-
 impl<'tcx> LateLintPass<'tcx> for IfThenSomeElseNone {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let Some(higher::If {
@@ -85,7 +82,6 @@ impl<'tcx> LateLintPass<'tcx> for IfThenSomeElseNone {
             } else {
                 "then"
             };
-
             span_lint_and_then(
                 cx,
                 IF_THEN_SOME_ELSE_NONE,
@@ -107,7 +103,6 @@ impl<'tcx> LateLintPass<'tcx> for IfThenSomeElseNone {
                     } else {
                         arg_snip.into_owned()
                     };
-
                     diag.span_suggestion(
                         expr.span,
                         "try",

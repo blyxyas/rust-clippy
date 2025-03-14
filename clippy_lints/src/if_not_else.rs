@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_sugg};
 use clippy_utils::is_else_clause;
@@ -7,7 +9,6 @@ use rustc_hir::{BinOpKind, Expr, ExprKind, UnOp};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `!` or `!=` in an if condition with an
@@ -45,16 +46,13 @@ declare_clippy_lint! {
     pedantic,
     "`if` branches that could be swapped so no negation operation is necessary on the condition"
 }
-
 declare_lint_pass!(IfNotElse => [IF_NOT_ELSE]);
-
 fn is_zero_const(expr: &Expr<'_>, cx: &LateContext<'_>) -> bool {
     if let Some(value) = ConstEvalCtxt::new(cx).eval_simple(expr) {
         return Constant::Int(0) == value;
     }
     false
 }
-
 impl LateLintPass<'_> for IfNotElse {
     fn check_expr(&mut self, cx: &LateContext<'_>, e: &Expr<'_>) {
         if let ExprKind::If(cond, cond_inner, Some(els)) = e.kind
@@ -74,7 +72,6 @@ impl LateLintPass<'_> for IfNotElse {
                 ),
                 _ => return,
             };
-
             // `from_expansion` will also catch `while` loops which appear in the HIR as:
             // ```rust
             // loop {
@@ -98,7 +95,6 @@ impl LateLintPass<'_> for IfNotElse {
         }
     }
 }
-
 fn make_sugg<'a>(
     sess: &impl HasSession,
     cond_kind: &'a ExprKind<'a>,
@@ -110,7 +106,6 @@ fn make_sugg<'a>(
     let cond_inner_snip = snippet(sess, cond_inner, default);
     let els_snip = snippet(sess, els_span, default);
     let indent = indent_relative_to.and_then(|s| indent_of(sess, s));
-
     let suggestion = match cond_kind {
         ExprKind::Unary(UnOp::Not, cond_rest) => {
             format!(
@@ -123,11 +118,9 @@ fn make_sugg<'a>(
         ExprKind::Binary(_, lhs, rhs) => {
             let lhs_snip = snippet(sess, lhs.span, default);
             let rhs_snip = snippet(sess, rhs.span, default);
-
             format!("if {lhs_snip} == {rhs_snip} {els_snip} else {cond_inner_snip}")
         },
         _ => String::new(),
     };
-
     reindent_multiline(&suggestion, true, indent)
 }

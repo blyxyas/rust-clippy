@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use crate::ref_patterns::REF_PATTERNS;
 use clippy_utils::diagnostics::{span_lint_and_then, span_lint_hir, span_lint_hir_and_then};
 use clippy_utils::source::{snippet, snippet_with_context};
 use clippy_utils::sugg::Sugg;
@@ -15,9 +18,6 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
 use rustc_span::def_id::LocalDefId;
-
-use crate::ref_patterns::REF_PATTERNS;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for function arguments and let bindings denoted as
@@ -52,7 +52,6 @@ declare_clippy_lint! {
     style,
     "an entire binding declared as `ref`, in a function argument or a `let` statement"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the use of bindings with a single leading
@@ -78,7 +77,6 @@ declare_clippy_lint! {
     pedantic,
     "using a binding which is prefixed with an underscore"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the use of item with a single leading
@@ -117,7 +115,6 @@ declare_clippy_lint! {
     pedantic,
     "using a item which is prefixed with an underscore"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for the use of short circuit boolean conditions as
@@ -138,14 +135,12 @@ declare_clippy_lint! {
     complexity,
     "using a short circuit boolean condition as a statement"
 }
-
 declare_lint_pass!(LintPass => [
     TOPLEVEL_REF_ARG,
     USED_UNDERSCORE_BINDING,
     USED_UNDERSCORE_ITEMS,
     SHORT_CIRCUIT_STATEMENT,
 ]);
-
 impl<'tcx> LateLintPass<'tcx> for LintPass {
     fn check_fn(
         &mut self,
@@ -174,7 +169,6 @@ impl<'tcx> LateLintPass<'tcx> for LintPass {
             }
         }
     }
-
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'_>) {
         if let StmtKind::Let(local) = stmt.kind
             && let PatKind::Binding(BindingMode(ByRef::Yes(mutabl), _), .., name, None) = local.pat.kind
@@ -235,7 +229,6 @@ impl<'tcx> LateLintPass<'tcx> for LintPass {
             );
         }
     }
-
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if expr.span.in_external_macro(cx.sess().source_map())
             || expr.span.desugaring_kind().is_some()
@@ -243,12 +236,10 @@ impl<'tcx> LateLintPass<'tcx> for LintPass {
         {
             return;
         }
-
         used_underscore_binding(cx, expr);
         used_underscore_items(cx, expr);
     }
 }
-
 fn used_underscore_items<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
     let (def_id, ident) = match expr.kind {
         ExprKind::Call(func, ..) => {
@@ -279,7 +270,6 @@ fn used_underscore_items<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         },
         _ => return,
     };
-
     let name = ident.name.as_str();
     let definition_span = cx.tcx.def_span(def_id);
     if name.starts_with('_')
@@ -299,7 +289,6 @@ fn used_underscore_items<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         );
     }
 }
-
 fn used_underscore_binding<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
     let (definition_hir_id, ident) = match expr.kind {
         ExprKind::Path(ref qpath) => {
@@ -325,7 +314,6 @@ fn used_underscore_binding<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         },
         _ => return,
     };
-
     let name = ident.name.as_str();
     if name.starts_with('_')
         && !name.starts_with("__")
@@ -344,7 +332,6 @@ fn used_underscore_binding<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         );
     }
 }
-
 /// Heuristic to see if an expression is used. Should be compatible with
 /// `unused_variables`'s idea
 /// of what it means for an expression to be "used".

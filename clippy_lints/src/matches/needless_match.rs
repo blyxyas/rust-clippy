@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::NEEDLESS_MATCH;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
@@ -13,7 +15,6 @@ use rustc_hir::{
 };
 use rustc_lint::LateContext;
 use rustc_span::sym;
-
 pub(crate) fn check_match(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>], expr: &Expr<'_>) {
     if arms.len() > 1 && expr_ty_matches_p_ty(cx, ex, expr) && check_all_arms(cx, ex, arms) {
         let mut applicability = Applicability::MachineApplicable;
@@ -28,7 +29,6 @@ pub(crate) fn check_match(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>],
         );
     }
 }
-
 /// Check for nop `if let` expression that assembled as unnecessary match
 ///
 /// ```rust,ignore
@@ -62,17 +62,14 @@ pub(crate) fn check_if_let<'tcx>(cx: &LateContext<'tcx>, ex: &Expr<'_>, if_let: 
         );
     }
 }
-
 fn check_all_arms(cx: &LateContext<'_>, match_expr: &Expr<'_>, arms: &[Arm<'_>]) -> bool {
     for arm in arms {
         let arm_expr = peel_blocks_with_stmt(arm.body);
-
         if let Some(guard_expr) = &arm.guard {
             if guard_expr.can_have_side_effects() {
                 return false;
             }
         }
-
         if let PatKind::Wild = arm.pat.kind {
             if !eq_expr_value(cx, match_expr, strip_return(arm_expr)) {
                 return false;
@@ -81,23 +78,19 @@ fn check_all_arms(cx: &LateContext<'_>, match_expr: &Expr<'_>, arms: &[Arm<'_>])
             return false;
         }
     }
-
     true
 }
-
 fn check_if_let_inner(cx: &LateContext<'_>, if_let: &higher::IfLet<'_>) -> bool {
     if let Some(if_else) = if_let.if_else {
         if !pat_same_as_expr(if_let.let_pat, peel_blocks_with_stmt(if_let.if_then)) {
             return false;
         }
-
         // Recursively check for each `else if let` phrase,
         if let Some(ref nested_if_let) = higher::IfLet::hir(cx, if_else)
             && SpanlessEq::new(cx).eq_expr(nested_if_let.let_expr, if_let.let_expr)
         {
             return check_if_let_inner(cx, nested_if_let);
         }
-
         if matches!(if_else.kind, ExprKind::Block(..)) {
             let else_expr = peel_blocks_with_stmt(if_else);
             if matches!(else_expr.kind, ExprKind::Block(..)) {
@@ -111,10 +104,8 @@ fn check_if_let_inner(cx: &LateContext<'_>, if_let: &higher::IfLet<'_>) -> bool 
             return eq_expr_value(cx, if_let.let_expr, ret);
         }
     }
-
     false
 }
-
 /// Strip `return` keyword if the expression type is `ExprKind::Ret`.
 fn strip_return<'hir>(expr: &'hir Expr<'hir>) -> &'hir Expr<'hir> {
     if let ExprKind::Ret(Some(ret)) = expr.kind {
@@ -123,7 +114,6 @@ fn strip_return<'hir>(expr: &'hir Expr<'hir>) -> &'hir Expr<'hir> {
         expr
     }
 }
-
 /// Manually check for coercion casting by checking if the type of the match operand or let expr
 /// differs with the assigned local variable or the function return type.
 fn expr_ty_matches_p_ty(cx: &LateContext<'_>, expr: &Expr<'_>, p_expr: &Expr<'_>) -> bool {
@@ -159,7 +149,6 @@ fn expr_ty_matches_p_ty(cx: &LateContext<'_>, expr: &Expr<'_>, p_expr: &Expr<'_>
     }
     false
 }
-
 fn pat_same_as_expr(pat: &Pat<'_>, expr: &Expr<'_>) -> bool {
     let expr = strip_return(expr);
     match (&pat.kind, &expr.kind) {
@@ -208,20 +197,16 @@ fn pat_same_as_expr(pat: &Pat<'_>, expr: &Expr<'_>) -> bool {
         },
         _ => {},
     }
-
     false
 }
-
 fn same_non_ref_symbols(pats: &[Pat<'_>], exprs: &[Expr<'_>]) -> bool {
     if pats.len() != exprs.len() {
         return false;
     }
-
     for i in 0..pats.len() {
         if !pat_same_as_expr(&pats[i], &exprs[i]) {
             return false;
         }
     }
-
     true
 }

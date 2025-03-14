@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::is_lint_allowed;
@@ -10,7 +12,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::{Span, SyntaxContext, sym};
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Looks for macros that expand metavariables in an unsafe block.
@@ -83,13 +84,11 @@ declare_clippy_lint! {
     "expanding macro metavariables in an unsafe block"
 }
 impl_lint_pass!(ExprMetavarsInUnsafe => [MACRO_METAVARS_IN_UNSAFE]);
-
 #[derive(Clone, Debug)]
 pub enum MetavarState {
     ReferencedInUnsafe { unsafe_blocks: Vec<HirId> },
     ReferencedInSafe,
 }
-
 pub struct ExprMetavarsInUnsafe {
     warn_unsafe_macro_metavars_in_private_macros: bool,
     /// A metavariable can be expanded more than once, potentially across multiple bodies, so it
@@ -107,7 +106,6 @@ pub struct ExprMetavarsInUnsafe {
     /// ```
     metavar_expns: BTreeMap<Span, MetavarState>,
 }
-
 impl ExprMetavarsInUnsafe {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -116,11 +114,10 @@ impl ExprMetavarsInUnsafe {
         }
     }
 }
-
 struct BodyVisitor<'a, 'tcx> {
     /// Stack of unsafe blocks -- the top item always represents the last seen unsafe block from
     /// within a relevant macro.
-    macro_unsafe_blocks: Vec<HirId>,
+    macro_unsafe_blocks: HVec<HirId>,
     /// When this is >0, it means that the node currently being visited is "within" a
     /// macro definition.
     /// This is used to detect if an expression represents a metavariable.
@@ -143,12 +140,10 @@ struct BodyVisitor<'a, 'tcx> {
     cx: &'a LateContext<'tcx>,
     lint: &'a mut ExprMetavarsInUnsafe,
 }
-
 fn is_public_macro(cx: &LateContext<'_>, def_id: LocalDefId) -> bool {
     (cx.effective_visibilities.is_exported(def_id) || cx.tcx.has_attr(def_id, sym::macro_export))
         && !cx.tcx.is_doc_hidden(def_id)
 }
-
 impl<'tcx> Visitor<'tcx> for BodyVisitor<'_, 'tcx> {
     fn visit_stmt(&mut self, s: &'tcx Stmt<'tcx>) {
         let from_expn = s.span.from_expansion();
@@ -160,10 +155,8 @@ impl<'tcx> Visitor<'tcx> for BodyVisitor<'_, 'tcx> {
             self.expn_depth -= 1;
         }
     }
-
     fn visit_expr(&mut self, e: &'tcx Expr<'tcx>) {
         let ctxt = e.span.ctxt();
-
         if let ExprKind::Block(block, _) = e.kind
             && let BlockCheckMode::UnsafeBlock(UnsafeSource::UserProvided) = block.rules
             && !ctxt.is_root()
@@ -178,7 +171,6 @@ impl<'tcx> Visitor<'tcx> for BodyVisitor<'_, 'tcx> {
             self.macro_unsafe_blocks.pop();
         } else if ctxt.is_root() && self.expn_depth > 0 {
             let unsafe_block = self.macro_unsafe_blocks.last().copied();
-
             match (self.lint.metavar_expns.entry(e.span), unsafe_block) {
                 (Entry::Vacant(e), None) => {
                     e.insert(MetavarState::ReferencedInSafe);
@@ -201,7 +193,6 @@ impl<'tcx> Visitor<'tcx> for BodyVisitor<'_, 'tcx> {
                     }
                 },
             }
-
             // NB: No need to visit descendant nodes. They're guaranteed to represent the same
             // metavariable
         } else {
@@ -209,18 +200,15 @@ impl<'tcx> Visitor<'tcx> for BodyVisitor<'_, 'tcx> {
         }
     }
 }
-
 impl<'tcx> LateLintPass<'tcx> for ExprMetavarsInUnsafe {
     fn check_body(&mut self, cx: &LateContext<'tcx>, body: &rustc_hir::Body<'tcx>) {
         if is_lint_allowed(cx, MACRO_METAVARS_IN_UNSAFE, body.value.hir_id) {
             return;
         }
-
         // This BodyVisitor is separate and not part of the lint pass because there is no
         // `check_stmt_post` on `(Late)LintPass`, which we'd need to detect when we're leaving a macro span
-
         let mut vis = BodyVisitor {
-            macro_unsafe_blocks: Vec::new(),
+            macro_unsafe_blocks: HVec::new(),
             #[expect(clippy::bool_to_int_with_if)] // obfuscates the meaning
             expn_depth: if body.value.span.from_expansion() { 1 } else { 0 },
             cx,
@@ -228,7 +216,6 @@ impl<'tcx> LateLintPass<'tcx> for ExprMetavarsInUnsafe {
         };
         vis.visit_body(body);
     }
-
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
         // Aggregate all unsafe blocks from all spans:
         // ```
@@ -254,11 +241,9 @@ impl<'tcx> LateLintPass<'tcx> for ExprMetavarsInUnsafe {
                 // The invocation doesn't matter. Also we want to dedupe by the unsafe block and not by anything
                 // related to the callsite.
                 let span = cx.tcx.hir().span(id);
-
                 (id, Span::new(span.lo(), span.hi(), SyntaxContext::root(), None))
             })
             .dedup_by(|&(_, a), &(_, b)| a == b);
-
         for (id, span) in bad_unsafe_blocks {
             span_lint_hir_and_then(
                 cx,

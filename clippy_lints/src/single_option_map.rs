@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::{path_res, peel_blocks};
@@ -8,7 +10,6 @@ use rustc_hir::{Body, ExprKind, FnDecl, FnRetTy};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{Span, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions with method calls to `.map(_)` on an arg
@@ -35,9 +36,7 @@ declare_clippy_lint! {
     nursery,
     "Checks for functions with method calls to `.map(_)` on an arg of type `Option` as the outermost expression."
 }
-
 declare_lint_pass!(SingleOptionMap => [SINGLE_OPTION_MAP]);
-
 impl<'tcx> LateLintPass<'tcx> for SingleOptionMap {
     fn check_fn(
         &mut self,
@@ -76,7 +75,6 @@ impl<'tcx> LateLintPass<'tcx> for SingleOptionMap {
                         return;
                     }
                 }
-
                 span_lint_and_help(
                     cx,
                     SINGLE_OPTION_MAP,

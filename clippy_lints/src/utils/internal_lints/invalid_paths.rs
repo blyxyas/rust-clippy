@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::def_path_res;
 use clippy_utils::diagnostics::span_lint;
@@ -9,7 +11,6 @@ use rustc_middle::ty::fast_reject::SimplifiedType;
 use rustc_middle::ty::{self, FloatTy};
 use rustc_session::declare_lint_pass;
 use rustc_span::symbol::Symbol;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks the paths module for invalid paths.
@@ -23,9 +24,7 @@ declare_clippy_lint! {
     internal,
     "invalid path"
 }
-
 declare_lint_pass!(InvalidPaths => [INVALID_PATHS]);
-
 impl<'tcx> LateLintPass<'tcx> for InvalidPaths {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
         let local_def_id = &cx.tcx.parent_module(item.hir_id());
@@ -54,14 +53,12 @@ impl<'tcx> LateLintPass<'tcx> for InvalidPaths {
         }
     }
 }
-
 // This is not a complete resolver for paths. It works on all the paths currently used in the paths
 // module.  That's all it does and all it needs to do.
 pub fn check_path(cx: &LateContext<'_>, path: &[&str]) -> bool {
     if !def_path_res(cx.tcx, path).is_empty() {
         return true;
     }
-
     // Some implementations can't be found by `path_to_res`, particularly inherent
     // implementations of native types. Check lang items.
     let path_syms: Vec<_> = path.iter().map(|p| Symbol::intern(p)).collect();
@@ -101,6 +98,5 @@ pub fn check_path(cx: &LateContext<'_>, path: &[&str]) -> bool {
             }
         }
     }
-
     false
 }

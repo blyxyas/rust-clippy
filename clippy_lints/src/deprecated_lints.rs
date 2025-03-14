@@ -1,6 +1,7 @@
+use crate::HVec;
+
 // This file is managed by `cargo dev rename_lint` and `cargo dev deprecate_lint`.
 // Prefer to use those when possible.
-
 macro_rules! declare_with_version {
     ($name:ident($name_version:ident): &[$ty:ty] = &[$(
         #[clippy::version = $version:literal]
@@ -11,7 +12,6 @@ macro_rules! declare_with_version {
         pub static $name_version: &[&str] = &[$($version),*];
     };
 }
-
 #[rustfmt::skip]
 declare_with_version! { DEPRECATED(DEPRECATED_VERSION): &[(&str, &str)] = &[
     #[clippy::version = "pre 1.29.0"]
@@ -44,7 +44,6 @@ declare_with_version! { DEPRECATED(DEPRECATED_VERSION): &[(&str, &str)] = &[
     ("clippy::option_map_or_err_ok", "`clippy::manual_ok_or` covers this case"),
     // end deprecated lints. used by `cargo dev deprecate_lint`
 ]}
-
 #[rustfmt::skip]
 declare_with_version! { RENAMED(RENAMED_VERSION): &[(&str, &str)] = &[
     #[clippy::version = ""]

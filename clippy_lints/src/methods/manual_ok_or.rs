@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MANUAL_OK_OR;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::{SpanRangeExt, indent_of, reindent_multiline};
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -7,9 +10,6 @@ use rustc_hir::LangItem::{ResultErr, ResultOk};
 use rustc_hir::{Expr, ExprKind, PatKind};
 use rustc_lint::LateContext;
 use rustc_span::symbol::sym;
-
-use super::MANUAL_OK_OR;
-
 pub(super) fn check<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'tcx>,
@@ -39,7 +39,6 @@ pub(super) fn check<'tcx>(
         );
     }
 }
-
 fn is_ok_wrapping(cx: &LateContext<'_>, map_expr: &Expr<'_>) -> bool {
     match map_expr.kind {
         ExprKind::Path(ref qpath) if is_res_lang_ctor(cx, cx.qpath_res(qpath, map_expr.hir_id), ResultOk) => true,

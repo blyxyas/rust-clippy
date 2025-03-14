@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_in_test;
@@ -9,7 +11,6 @@ use rustc_hir::{Expr, ExprKind, Node};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, SyntaxContext, sym};
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of the [`dbg!`](https://doc.rust-lang.org/std/macro.dbg.html) macro.
@@ -32,7 +33,6 @@ declare_clippy_lint! {
     restriction,
     "`dbg!` macro is intended as a debugging tool"
 }
-
 pub struct DbgMacro {
     allow_dbg_in_tests: bool,
     /// Tracks the `dbg!` macro callsites that are already checked.
@@ -40,9 +40,7 @@ pub struct DbgMacro {
     /// Tracks the previous `SyntaxContext`, to avoid walking the same context chain.
     prev_ctxt: SyntaxContext,
 }
-
 impl_lint_pass!(DbgMacro => [DBG_MACRO]);
-
 impl DbgMacro {
     pub fn new(conf: &'static Conf) -> Self {
         DbgMacro {
@@ -52,11 +50,9 @@ impl DbgMacro {
         }
     }
 }
-
 impl LateLintPass<'_> for DbgMacro {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         let cur_syntax_ctxt = expr.span.ctxt();
-
         if cur_syntax_ctxt != self.prev_ctxt &&
             let Some(macro_call) = first_dbg_macro_in_expansion(cx, expr.span) &&
             !macro_call.span.in_external_macro(cx.sess().source_map()) &&
@@ -65,7 +61,6 @@ impl LateLintPass<'_> for DbgMacro {
             !(self.allow_dbg_in_tests && is_in_test(cx.tcx, expr.hir_id))
         {
             self.prev_ctxt = cur_syntax_ctxt;
-
             span_lint_and_then(
                 cx,
                 DBG_MACRO,
@@ -73,7 +68,6 @@ impl LateLintPass<'_> for DbgMacro {
                 "the `dbg!` macro is intended as a debugging tool",
                 |diag| {
                     let mut applicability = Applicability::MachineApplicable;
-
                     let (sugg_span, suggestion) = match expr.peel_drop_temps().kind {
                         // dbg!()
                         ExprKind::Block(..) => {
@@ -117,7 +111,6 @@ impl LateLintPass<'_> for DbgMacro {
                         },
                         _ => unreachable!(),
                     };
-
                     diag.span_suggestion(
                         sugg_span,
                         "remove the invocation before committing it to a version control system",
@@ -128,12 +121,10 @@ impl LateLintPass<'_> for DbgMacro {
             );
         }
     }
-
     fn check_crate_post(&mut self, _: &LateContext<'_>) {
         self.checked_dbg_call_site = FxHashSet::default();
     }
 }
-
 fn first_dbg_macro_in_expansion(cx: &LateContext<'_>, span: Span) -> Option<MacroCall> {
     macro_backtrace(span).find(|mc| cx.tcx.is_diagnostic_item(sym::dbg_macro, mc.def_id))
 }

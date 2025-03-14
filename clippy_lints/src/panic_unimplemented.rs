@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::is_in_test;
@@ -7,11 +9,9 @@ use rustc_hir::{Expr, ExprKind, QPath};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
-
 pub struct PanicUnimplemented {
     allow_panic_in_tests: bool,
 }
-
 impl PanicUnimplemented {
     pub fn new(conf: &'static Conf) -> Self {
         Self {
@@ -19,7 +19,6 @@ impl PanicUnimplemented {
         }
     }
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `panic!`.
@@ -36,7 +35,6 @@ declare_clippy_lint! {
     restriction,
     "usage of the `panic!` macro"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `unimplemented!`.
@@ -53,7 +51,6 @@ declare_clippy_lint! {
     restriction,
     "`unimplemented!` should not be present in production code"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `todo!`.
@@ -75,7 +72,6 @@ declare_clippy_lint! {
     restriction,
     "`todo!` should not be present in production code"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of `unreachable!`.
@@ -92,9 +88,7 @@ declare_clippy_lint! {
     restriction,
     "usage of the `unreachable!` macro"
 }
-
 impl_lint_pass!(PanicUnimplemented => [UNIMPLEMENTED, UNREACHABLE, TODO, PANIC]);
-
 impl<'tcx> LateLintPass<'tcx> for PanicUnimplemented {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let Some(macro_call) = root_macro_call_first_node(cx, expr) {
@@ -104,7 +98,6 @@ impl<'tcx> LateLintPass<'tcx> for PanicUnimplemented {
                 {
                     return;
                 }
-
                 span_lint(
                     cx,
                     PANIC,
@@ -145,7 +138,6 @@ impl<'tcx> LateLintPass<'tcx> for PanicUnimplemented {
             {
                 return;
             }
-
             span_lint(
                 cx,
                 PANIC,

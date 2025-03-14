@@ -1,10 +1,11 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_errors::Applicability;
 use rustc_hir::Item;
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::declare_lint_pass;
 use rustc_span::Span;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for outer doc comments written with 4 forward slashes (`////`).
@@ -34,7 +35,6 @@ declare_clippy_lint! {
     "comments with 4 forward slashes (`////`) likely intended to be doc comments (`///`)"
 }
 declare_lint_pass!(FourForwardSlashes => [FOUR_FORWARD_SLASHES]);
-
 impl<'tcx> LateLintPass<'tcx> for FourForwardSlashes {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if item.span.from_expansion() {
@@ -60,7 +60,6 @@ impl<'tcx> LateLintPass<'tcx> for FourForwardSlashes {
             if !contents.is_empty() && !contents.starts_with("//") && !contents.starts_with("#[") {
                 break;
             }
-
             if contents.starts_with("////") && !matches!(contents.chars().nth(4), Some('/' | '!')) {
                 let bounds = file.line_bounds(line);
                 let line_span = Span::with_root_ctxt(bounds.start, bounds.end);
@@ -68,7 +67,6 @@ impl<'tcx> LateLintPass<'tcx> for FourForwardSlashes {
                 bad_comments.push((line_span, contents));
             }
         }
-
         if !bad_comments.is_empty() {
             span_lint_and_then(
                 cx,
@@ -81,7 +79,6 @@ impl<'tcx> LateLintPass<'tcx> for FourForwardSlashes {
                     } else {
                         "turn these into doc comments by removing one `/`"
                     };
-
                     diag.multipart_suggestion(
                         msg,
                         bad_comments

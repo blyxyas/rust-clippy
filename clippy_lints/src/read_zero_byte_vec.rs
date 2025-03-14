@@ -1,8 +1,9 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint_hir, span_lint_hir_and_then};
 use clippy_utils::get_enclosing_block;
 use clippy_utils::higher::{VecInitKind, get_vec_init_kind};
 use clippy_utils::source::snippet;
-
 use hir::{Expr, ExprKind, HirId, LetStmt, PatKind, PathSegment, QPath, StmtKind};
 use rustc_errors::Applicability;
 use rustc_hir as hir;
@@ -10,7 +11,6 @@ use rustc_hir::def::Res;
 use rustc_hir::intravisit::{Visitor, walk_expr};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-
 declare_clippy_lint! {
     /// ### What it does
     /// This lint catches reads into a zero-length `Vec`.
@@ -48,14 +48,12 @@ declare_clippy_lint! {
     "checks for reads into a zero-length `Vec`"
 }
 declare_lint_pass!(ReadZeroByteVec => [READ_ZERO_BYTE_VEC]);
-
 impl<'tcx> LateLintPass<'tcx> for ReadZeroByteVec {
     fn check_block(&mut self, cx: &LateContext<'tcx>, block: &hir::Block<'tcx>) {
         for stmt in block.stmts {
             if stmt.span.from_expansion() {
                 return;
             }
-
             if let StmtKind::Let(local) = stmt.kind
                 && let LetStmt {
                     pat, init: Some(init), ..
@@ -68,12 +66,10 @@ impl<'tcx> LateLintPass<'tcx> for ReadZeroByteVec {
                     read_zero_expr: None,
                     has_resize: false,
                 };
-
                 let Some(enclosing_block) = get_enclosing_block(cx, id) else {
                     return;
                 };
                 visitor.visit_block(enclosing_block);
-
                 if let Some(expr) = visitor.read_zero_expr {
                     let applicability = Applicability::MaybeIncorrect;
                     match vec_init_kind {
@@ -130,18 +126,15 @@ impl<'tcx> LateLintPass<'tcx> for ReadZeroByteVec {
         }
     }
 }
-
 struct ReadVecVisitor<'tcx> {
     local_id: HirId,
     read_zero_expr: Option<&'tcx Expr<'tcx>>,
     has_resize: bool,
 }
-
 impl<'tcx> Visitor<'tcx> for ReadVecVisitor<'tcx> {
     fn visit_expr(&mut self, e: &'tcx Expr<'tcx>) {
         if let ExprKind::MethodCall(path, receiver, args, _) = e.kind {
             let PathSegment { ident, .. } = *path;
-
             match ident.as_str() {
                 "read" | "read_exact" => {
                     let [arg] = args else { return };
@@ -168,7 +161,6 @@ impl<'tcx> Visitor<'tcx> for ReadVecVisitor<'tcx> {
                 _ => {},
             }
         }
-
         if !self.has_resize && self.read_zero_expr.is_none() {
             walk_expr(self, e);
         }

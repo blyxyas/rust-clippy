@@ -1,3 +1,6 @@
+use crate::HVec;
+
+use super::MATCH_AS_REF;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::{is_none_arm, is_res_lang_ctor, path_res, peel_blocks};
@@ -5,9 +8,6 @@ use rustc_errors::Applicability;
 use rustc_hir::{Arm, BindingMode, ByRef, Expr, ExprKind, LangItem, Mutability, PatKind, QPath};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
-
-use super::MATCH_AS_REF;
-
 pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>], expr: &Expr<'_>) {
     if arms.len() == 2 && arms[0].guard.is_none() && arms[1].guard.is_none() {
         let arm_ref_mut = if is_none_arm(cx, &arms[0]) {
@@ -22,10 +22,8 @@ pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>], expr:
                 Mutability::Not => "as_ref",
                 Mutability::Mut => "as_mut",
             };
-
             let output_ty = cx.typeck_results().expr_ty(expr);
             let input_ty = cx.typeck_results().expr_ty(ex);
-
             let cast = if let ty::Adt(_, args) = input_ty.kind()
                 && let input_ty = args.type_at(0)
                 && let ty::Adt(_, args) = output_ty.kind()
@@ -37,7 +35,6 @@ pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>], expr:
             } else {
                 ""
             };
-
             let mut applicability = Applicability::MachineApplicable;
             span_lint_and_sugg(
                 cx,
@@ -54,7 +51,6 @@ pub(crate) fn check(cx: &LateContext<'_>, ex: &Expr<'_>, arms: &[Arm<'_>], expr:
         }
     }
 }
-
 // Checks if arm has the form `Some(ref v) => Some(v)` (checks for `ref` and `ref mut`)
 fn is_ref_some_arm(cx: &LateContext<'_>, arm: &Arm<'_>) -> Option<Mutability> {
     if let PatKind::TupleStruct(ref qpath, [first_pat, ..], _) = arm.pat.kind

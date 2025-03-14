@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use super::{BIND_INSTEAD_OF_MAP, contains_return};
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::peel_blocks;
@@ -9,7 +11,6 @@ use rustc_hir::def::{CtorKind, CtorOf, DefKind, Res};
 use rustc_hir::{LangItem, QPath};
 use rustc_lint::LateContext;
 use rustc_span::Span;
-
 pub(super) fn check_and_then_some(
     cx: &LateContext<'_>,
     expr: &hir::Expr<'_>,
@@ -23,7 +24,6 @@ pub(super) fn check_and_then_some(
     }
     .check(cx, expr, recv, arg)
 }
-
 pub(super) fn check_and_then_ok(
     cx: &LateContext<'_>,
     expr: &hir::Expr<'_>,
@@ -37,7 +37,6 @@ pub(super) fn check_and_then_ok(
     }
     .check(cx, expr, recv, arg)
 }
-
 pub(super) fn check_or_else_err(
     cx: &LateContext<'_>,
     expr: &hir::Expr<'_>,
@@ -51,13 +50,11 @@ pub(super) fn check_or_else_err(
     }
     .check(cx, expr, recv, arg)
 }
-
 struct BindInsteadOfMap {
     variant_lang_item: LangItem,
     bad_method_name: &'static str,
     good_method_name: &'static str,
 }
-
 impl BindInsteadOfMap {
     fn no_op_msg(&self, cx: &LateContext<'_>) -> Option<String> {
         let variant_id = cx.tcx.lang_items().get(self.variant_lang_item)?;
@@ -69,7 +66,6 @@ impl BindInsteadOfMap {
             cx.tcx.item_name(variant_id),
         ))
     }
-
     fn lint_msg(&self, cx: &LateContext<'_>) -> Option<String> {
         let variant_id = cx.tcx.lang_items().get(self.variant_lang_item)?;
         let item_id = cx.tcx.parent(variant_id);
@@ -81,7 +77,6 @@ impl BindInsteadOfMap {
             self.good_method_name,
         ))
     }
-
     fn lint_closure_autofixable(
         &self,
         cx: &LateContext<'_>,
@@ -98,7 +93,6 @@ impl BindInsteadOfMap {
         {
             let mut app = Applicability::MachineApplicable;
             let some_inner_snip = snippet_with_context(cx, inner_expr.span, closure_expr.span.ctxt(), "_", &mut app).0;
-
             let closure_args_snip = snippet(cx, closure_args_span, "..");
             let option_snip = snippet(cx, recv.span, "..");
             let note = format!(
@@ -111,7 +105,6 @@ impl BindInsteadOfMap {
             false
         }
     }
-
     fn lint_closure(&self, cx: &LateContext<'_>, expr: &hir::Expr<'_>, closure_expr: &hir::Expr<'_>) -> bool {
         let mut suggs = Vec::new();
         let can_sugg: bool = find_all_ret_expressions(cx, closure_expr, |ret_expr| {
@@ -150,7 +143,6 @@ impl BindInsteadOfMap {
         });
         true
     }
-
     /// Lint use of `_.and_then(|x| Some(y))` for `Option`s
     fn check(&self, cx: &LateContext<'_>, expr: &hir::Expr<'_>, recv: &hir::Expr<'_>, arg: &hir::Expr<'_>) -> bool {
         if let Some(adt) = cx.typeck_results().expr_ty(recv).ty_adt_def()
@@ -160,12 +152,10 @@ impl BindInsteadOfMap {
         } else {
             return false;
         }
-
         match arg.kind {
             hir::ExprKind::Closure(&hir::Closure { body, fn_decl_span, .. }) => {
                 let closure_body = cx.tcx.hir_body(body);
                 let closure_expr = peel_blocks(closure_body.value);
-
                 if self.lint_closure_autofixable(cx, expr, recv, closure_expr, fn_decl_span) {
                     true
                 } else {
@@ -190,7 +180,6 @@ impl BindInsteadOfMap {
             _ => false,
         }
     }
-
     fn is_variant(&self, cx: &LateContext<'_>, res: Res) -> bool {
         if let Res::Def(DefKind::Ctor(CtorOf::Variant, CtorKind::Fn), id) = res {
             if let Some(variant_id) = cx.tcx.lang_items().get(self.variant_lang_item) {

@@ -1,3 +1,5 @@
+use crate::HVec;
+
 use clippy_utils::diagnostics::{span_lint_hir, span_lint_hir_and_then};
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::ty::has_drop;
@@ -16,7 +18,6 @@ use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 use rustc_trait_selection::error_reporting::InferCtxtErrorExt;
 use std::ops::Deref;
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for statements which have no effect.
@@ -35,7 +36,6 @@ declare_clippy_lint! {
     complexity,
     "statements with no effect"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for binding to underscore prefixed variable without side-effects.
@@ -54,7 +54,6 @@ declare_clippy_lint! {
     pedantic,
     "binding to `_` prefixed variable with no side-effect"
 }
-
 declare_clippy_lint! {
     /// ### What it does
     /// Checks for expression statements that can be reduced to a
@@ -73,15 +72,12 @@ declare_clippy_lint! {
     complexity,
     "outer expressions with no effect"
 }
-
 #[derive(Default)]
 pub struct NoEffect {
     underscore_bindings: HirIdMap<Span>,
     local_bindings: Vec<Vec<HirId>>,
 }
-
 impl_lint_pass!(NoEffect => [NO_EFFECT, UNNECESSARY_OPERATION, NO_EFFECT_UNDERSCORE_BINDING]);
-
 impl<'tcx> LateLintPass<'tcx> for NoEffect {
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'_>) {
         if self.check_no_effect(cx, stmt) {
@@ -89,11 +85,9 @@ impl<'tcx> LateLintPass<'tcx> for NoEffect {
         }
         check_unnecessary_operation(cx, stmt);
     }
-
     fn check_block(&mut self, _: &LateContext<'tcx>, _: &'tcx rustc_hir::Block<'tcx>) {
         self.local_bindings.push(Vec::default());
     }
-
     fn check_block_post(&mut self, cx: &LateContext<'tcx>, _: &'tcx rustc_hir::Block<'tcx>) {
         for hir_id in self.local_bindings.pop().unwrap() {
             if let Some(span) = self.underscore_bindings.swap_remove(&hir_id) {
@@ -107,14 +101,12 @@ impl<'tcx> LateLintPass<'tcx> for NoEffect {
             }
         }
     }
-
     fn check_expr(&mut self, _: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         if let Some(def_id) = path_to_local(expr) {
             self.underscore_bindings.swap_remove(&def_id);
         }
     }
 }
-
 impl NoEffect {
     fn check_no_effect(&mut self, cx: &LateContext<'_>, stmt: &Stmt<'_>) -> bool {
         if let StmtKind::Semi(expr) = stmt.kind {
@@ -122,12 +114,10 @@ impl NoEffect {
             if matches!(expr.kind, ExprKind::Path(_)) {
                 return true;
             }
-
             if expr.span.from_expansion() {
                 return false;
             }
             let expr = peel_blocks(expr);
-
             if is_operator_overridden(cx, expr) {
                 // Return `true`, to prevent `check_unnecessary_operation` from
                 // linting on this statement as well.
@@ -155,7 +145,6 @@ impl NoEffect {
                                     .instantiate_identity()
                                     .output()
                                     .skip_binder();
-
                                 // Remove `impl Future<Output = T>` to get `T`
                                 if cx.tcx.ty_is_opaque_future(ret_ty)
                                     && let Some(true_ret_ty) = cx
@@ -167,7 +156,6 @@ impl NoEffect {
                                 {
                                     ret_ty = true_ret_ty;
                                 }
-
                                 if !ret_ty.is_unit() && ret_ty == expr_ty {
                                     diag.span_suggestion(
                                         stmt.span.shrink_to_lo(),
@@ -203,7 +191,6 @@ impl NoEffect {
         false
     }
 }
-
 fn is_operator_overridden(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     // It's very hard or impossible to check whether overridden operator have side-effect this lint.
     // So, this function assume user-defined operator is overridden with an side-effect.
@@ -213,7 +200,6 @@ fn is_operator_overridden(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         ExprKind::Binary(..) | ExprKind::Unary(..) => {
             // No need to check type of `lhs` and `rhs`
             // because if the operator is overridden, at least one operand is ADT type
-
             // reference: rust/compiler/rustc_middle/src/ty/typeck_results.rs: `is_method_call`.
             // use this function to check whether operator is overridden in `ExprKind::{Binary, Unary}`.
             cx.typeck_results().is_method_call(expr)
@@ -221,7 +207,6 @@ fn is_operator_overridden(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         _ => false,
     }
 }
-
 fn has_no_effect(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     match expr.kind {
         ExprKind::Lit(..) | ExprKind::Closure { .. } => true,
@@ -264,7 +249,6 @@ fn has_no_effect(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         _ => false,
     }
 }
-
 fn check_unnecessary_operation(cx: &LateContext<'_>, stmt: &Stmt<'_>) {
     if let StmtKind::Semi(expr) = stmt.kind
         && !stmt.span.in_external_macro(cx.sess().source_map())
@@ -323,7 +307,6 @@ fn check_unnecessary_operation(cx: &LateContext<'_>, stmt: &Stmt<'_>) {
         }
     }
 }
-
 fn reduce_expression<'a>(cx: &LateContext<'_>, expr: &'a Expr<'a>) -> Option<Vec<&'a Expr<'a>>> {
     if expr.span.from_expansion() {
         return None;
