@@ -29,6 +29,51 @@
     unused_qualifications,
     rustc::internal
 )]
+use std::sync::atomic::AtomicUsize;
+static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+
+/// Refer to [Perf] Heap allocation monitoring
+/// Replace the desired Vec to monitor with an `HVec`
+/// And run a test (or several tests). When the vector drops,
+/// that 
+struct HVec<T> {
+    v: Box<Vec<T>>,
+    id: usize,
+    manual_len: usize
+}
+
+impl<T> HVec<T> {
+    #[track_caller]
+    pub fn new() -> Self {
+        use std::sync::atomic::Ordering;
+        let current_counter = ID_COUNTER.load(Ordering::Relaxed);
+        println!("{} == Counter: {}", std::panic::Location::caller(), current_counter + 1);
+        ID_COUNTER.store(current_counter + 1, Ordering::Relaxed);
+        Self { v: Box::new(Vec::<T>::new()), id: current_counter, manual_len: 0 }
+    }
+}
+
+impl<T> std::ops::Deref for HVec<T> {
+    type Target = Vec<T>;
+    fn deref(&self) -> &Vec<T> {
+        &self.v
+    }
+}
+impl<T> std::ops::DerefMut for HVec<T> {
+    fn deref_mut(&mut self) -> &mut Vec<T> {
+        if self.v.len() != 0 {
+            self.manual_len = self.v.len();
+            println!("[Deref] ID = {}, LEN = {}", self.id, self.v.len());
+        }
+        &mut self.v
+    }
+}
+impl<T> Drop for HVec<T> {
+    fn drop(&mut self) {
+        println!("[Drop] ID = {} ; LEN = {}", self.id, self.manual_len);
+    }
+}
 
 // FIXME: switch to something more ergonomic here, once available.
 // (Currently there is no way to opt into sysroot crates without `extern crate`.)
