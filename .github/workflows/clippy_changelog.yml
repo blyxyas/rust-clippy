@@ -46,16 +46,15 @@ jobs:
       uses: actions/github-script@v7
       with:
           script: |
-            let res = await github.rest.issues.listLabelsOnIssue({
+            const { data: names } =  await github.rest.issues.listLabelsOnIssue({
               owner: 'blyxyas',
               repo: 'rust-clippy',
               issue_number: ${{ github.event.number }}
             });
-            let names = res.data.map((element) => element.name);
             // We've already visited this PR
-            //if (!names.includes('A-new-lint')) {
+            if (!names.some(l => l.name === "A-new-lint")) {
             // Check if we're with a new lint (there are 0 mentions of this lint on the codebase
-            //} // if (${{ env.LINT_CHANGELOG }} != "") {}}
+            } // if (${{ env.LINT_CHANGELOG }} != "") {}}
           #   const lint_name = /\[`(.*)`\]/g.exec(${{ env.LINT_CHANGELOG }}).slice(1);
           #   let lint_name_upper = lint_name.toString().toUpperCase();
           #   let res = await octokit.rest.search.code({
