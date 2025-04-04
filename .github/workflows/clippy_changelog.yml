@@ -55,7 +55,7 @@ jobs:
             // We've already visited this PR
             if (!names.includes('A-new-lint')) {
             // Check if we're with a new lint (there are 0 mentions of this lint on the codebase
-            if (${{ env.LINT_CHANGELOG }} != "") {}}
+            } // if (${{ env.LINT_CHANGELOG }} != "") {}}
           #   const lint_name = /\[`(.*)`\]/g.exec(${{ env.LINT_CHANGELOG }}).slice(1);
           #   let lint_name_upper = lint_name.toString().toUpperCase();
           #   let res = await octokit.rest.search.code({
