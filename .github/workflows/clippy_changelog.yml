@@ -50,7 +50,7 @@ jobs:
               owner: 'blyxyas',
               repo: 'rust-clippy',
               issue_number: ${{ github.event.number }}
-            })
+            });
             let names = res.data.map((element) => element.name);
             // We've already visited this PR
             //if (!names.includes('A-new-lint')) {
