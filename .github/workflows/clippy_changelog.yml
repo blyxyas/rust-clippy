@@ -52,7 +52,7 @@ jobs:
               issue_number: ${{ github.event.number }}
             });
             // We've already visited this PR
-            if (!names.some(l => l.name === "A-new-lint")) {
+            if (!names.some(function(l) => { l.name === "A-new-lint" })) {
             // Check if we're with a new lint (there are 0 mentions of this lint on the codebase
             } // if (${{ env.LINT_CHANGELOG }} != "") {}}
           #   const lint_name = /\[`(.*)`\]/g.exec(${{ env.LINT_CHANGELOG }}).slice(1);
