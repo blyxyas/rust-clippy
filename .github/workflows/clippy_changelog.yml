@@ -51,8 +51,13 @@ jobs:
               repo: 'rust-clippy',
               issue_number: ${{ github.event.number }}
             });
+
+            function filter_names(l) {
+              return (l.name === "A-new-lint")
+            }
+
             // We've already visited this PR
-            if (!names.some(function(l) => { l.name === "A-new-lint" })) {
+            if (!names.some(filter_names) {
             // Check if we're with a new lint (there are 0 mentions of this lint on the codebase
             } // if (${{ env.LINT_CHANGELOG }} != "") {}}
           #   const lint_name = /\[`(.*)`\]/g.exec(${{ env.LINT_CHANGELOG }}).slice(1);
