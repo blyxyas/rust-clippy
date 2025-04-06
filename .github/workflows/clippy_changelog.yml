@@ -68,6 +68,13 @@ jobs:
                       issue_number: ${{ github.event.number }},
                       body: "Seems that you are trying to add a new lint! We are currently in a feature freeze, I'll add it to a milestone."
                     });
+
+                    github.rest.issues.addLabels({
+                      owner: "blyxyas",
+                      repo: "rust-clippy",
+                      issue_number: ${{ github.event.number }},
+                      labels: ["A-new-lint"],
+                    })
                   }
                 }
             }
