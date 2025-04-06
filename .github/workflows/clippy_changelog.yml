@@ -54,10 +54,10 @@ jobs:
 
             console.log(!names.includes("A-new-lint"));
             if (!names.includes("A-new-lint")) {  
+              if (${{ env.LINT_CHANGELOG }} != "") {}
               console.log("miaumiau");
             }
           #   const lint_name = /\[`(.*)`\]/g.exec(${{ env.LINT_CHANGELOG }}).slice(1);
-          # if (${{ env.LINT_CHANGELOG }} != "") {
           #   let lint_name_upper = lint_name.toString().toUpperCase();
           # }
           #   let res = await octokit.rest.search.code({
