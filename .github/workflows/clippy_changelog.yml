@@ -46,6 +46,7 @@ jobs:
       uses: actions/github-script@v7
       with:
           script: |
+            if (${{ env.LINT_CHANGELOG }} != "") {
             const { data: names } =  await github.rest.issues.listLabelsOnIssue({
               owner: 'blyxyas',
               repo: 'rust-clippy',
@@ -54,7 +55,6 @@ jobs:
 
             console.log(!names.includes("A-new-lint"));
             if (!names.includes("A-new-lint")) {  
-              if (${{ env.LINT_CHANGELOG }} != "") {
                 const lint_name = /\[`(.*)`\]/g.exec(${{ env.LINT_CHANGELOG }}).slice(1);
                 let lint_name_upper = lint_name.toString().toUpperCase();
                   let res = await github.rest.search.code({
