@@ -53,6 +53,8 @@ jobs:
               issue_number: ${{ github.event.number }}
             });
 
+            console.log(names);
+
             console.log(!names.includes("A-new-lint"));
             if (!names.includes("A-new-lint")) {  
                 const lint_name = /\[`(.*)`\]/g.exec(${{ env.LINT_CHANGELOG }}).slice(1);
