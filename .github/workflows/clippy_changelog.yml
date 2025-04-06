@@ -54,26 +54,24 @@ jobs:
 
             console.log(!names.includes("A-new-lint"));
             if (!names.includes("A-new-lint")) {  
-              if (${{ env.LINT_CHANGELOG }} != "") {}
-              console.log("miaumiau");
-            }
-          #   const lint_name = /\[`(.*)`\]/g.exec(${{ env.LINT_CHANGELOG }}).slice(1);
-          #   let lint_name_upper = lint_name.toString().toUpperCase();
-          # }
-          #   let res = await octokit.rest.search.code({
-          #     q: `${lint_name_upper} repo:rust-lang/rust-clippy`,
-          #     per_page: 1,
-          #     });
+              if (${{ env.LINT_CHANGELOG }} != "") {
+                const lint_name = /\[`(.*)`\]/g.exec(${{ env.LINT_CHANGELOG }}).slice(1);
+                let lint_name_upper = lint_name.toString().toUpperCase();
+                  let res = await octokit.rest.search.code({
+                      q: `${lint_name_upper} repo:rust-lang/rust-clippy`,
+                      per_page: 1,
+                      });
+                  if (res.data.items.length == 0) {
+                    await octokit.rest.issues.createComment({
+                      owner: "blyxyas",
+                      repo: "rust-clippy",
+                      issue_number: ${{ github.event.number }},
+                      body: "Seems that you are trying to add a new lint! We are currently in a feature freeze, I'll add it to a milestone."
+                    });
+                  }
+                }
+            }}
               
-          #     if (res.data.items.length == 0) {
-          #       await octokit.rest.issues.createComment({
-          #         owner: "blyxyas",
-          #         repo: "rust-clippy",
-          #         issue_number: ${{ github.event.number }},
-          #         body: "Seems that you are trying to add a new lint! We are currently in a feature freeze, I'll add it to a milestone."
-          #       });
-          #     }
-          #   }
           # }
                     
 
