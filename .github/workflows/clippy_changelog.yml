@@ -59,7 +59,7 @@ jobs:
           #   const lint_name = /\[`(.*)`\]/g.exec(${{ env.LINT_CHANGELOG }}).slice(1);
           # if (${{ env.LINT_CHANGELOG }} != "") {
           #   let lint_name_upper = lint_name.toString().toUpperCase();
-                }
+          # }
           #   let res = await octokit.rest.search.code({
           #     q: `${lint_name_upper} repo:rust-lang/rust-clippy`,
           #     per_page: 1,
