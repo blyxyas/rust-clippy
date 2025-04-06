@@ -56,7 +56,7 @@ jobs:
             console.log(names);
 
             console.log(!names.includes("A-new-lint"));
-            if (!names.includes({ name: "A-new-lint", ... })) {  
+            if (!names.filter(function(e) {return e.name === "A-new-lint"; }).filter > 0) {  
                 const lint_name = /\[`(.*)`\]/g.exec(${{ env.LINT_CHANGELOG }}).slice(1);
                 let lint_name_upper = lint_name.toString().toUpperCase();
                   let res = await github.rest.search.code({
