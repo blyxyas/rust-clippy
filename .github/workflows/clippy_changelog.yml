@@ -34,7 +34,7 @@ jobs:
         else
           echo "changelog: $output"
           if [[ "${output}" == \[\`* ]]; then
-            echo "LINT_CHANGELOG=\"${output}\"" >> $GITHUB_ENV
+            echo "LINT_CHANGELOG=\"${output//[$'\t\r\n ']}\"" >> $GITHUB_ENV
           else
             echo "LINT_CHANGELOG=\"meowmeow\"" >> $GITHUB_ENV
           fi
