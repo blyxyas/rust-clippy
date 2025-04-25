@@ -550,6 +550,17 @@ fn register_categories(store: &mut rustc_lint::LintStore) {
     groups.register(store);
 }
 
+// #[cfg(selected_lints)]
+// macro_rules! select_lint {
+    // () => {
+        // cfg!(selected)
+    // }
+// }
+// #[cfg(not(selected_lints))]
+// macro_rules! select_lint {
+    // ()
+// }
+
 /// Register all lints and lint groups with the rustc lint store
 ///
 /// Used in `./src/driver.rs`.
@@ -564,10 +575,15 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
         store.register_removed(name, reason);
     }
 
+    if cfg!(feature = "selected_lints") {
+        include!(env!("SELECTED_LINTS_FILE"));
+    }
+
     // NOTE: Do not add any more pre-expansion passes. These should be removed eventually.
     // Due to the architecture of the compiler, currently `cfg_attr` attributes on crate
     // level (i.e `#![cfg_attr(...)]`) will still be expanded even when using a pre-expansion pass.
     store.register_pre_expansion_pass(move || Box::new(attrs::EarlyAttributes::new(conf)));
+
 
     store.register_early_pass(move || Box::new(attrs::PostExpansionEarlyAttributes::new(conf)));
 
