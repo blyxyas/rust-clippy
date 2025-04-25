@@ -25,3 +25,6 @@ tar = "0.4"
 toml = "0.7.3"
 ureq = { version = "2.2", features = ["json"] }
 walkdir = "2.3"
+
+[features]
+selected_lints = []
