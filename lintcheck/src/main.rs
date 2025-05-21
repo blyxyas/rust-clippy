@@ -265,7 +265,7 @@ fn build_clippy(release_build: bool) -> String {
         "run",
         "--bin=clippy-driver",
         "--features=selected_lints",
-        "if release_build { "-r" } else { "" },
+        if release_build { "-r" } else { "" },
         "--",
         "--version",
     ]);
