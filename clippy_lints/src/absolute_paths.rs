@@ -77,6 +77,7 @@ impl<'tcx> LateLintPass<'tcx> for AbsolutePaths {
     // we don't need to use a visitor or anything as we can just check if the `Node` for `hir_id` isn't
     // a `Use`
     fn check_path(&mut self, cx: &LateContext<'tcx>, path: &Path<'tcx>, hir_id: HirId) {
+        dbg!("@");
         let segments = match path.segments {
             [] | [_] => return,
             // Don't count enum variants and trait items as part of the length.
