@@ -1,6 +1,7 @@
 use clippy_config::Conf;
 use clippy_config::types::MacroMatcher;
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::macros::{MacroCall, macro_backtrace};
 use clippy_utils::source::{SourceText, SpanRangeExt};
 use rustc_ast::ast;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
@@ -80,7 +81,8 @@ impl EarlyLintPass for MacroBraces {
         {
             // if we turn `macro!{}` into `macro!()`/`macro![]`, we'll no longer get the implicit
             // trailing semicolon, see #9913
-            // NOTE: `stmt.kind != StmtKind::MacCall` because `EarlyLintPass` happens after macro expansion
+            // NOTE: `stmt.kind != StmtKind::MacCall` because `EarlyLintPass` happens after macro
+            // expansion
             let add_semi = matches!(stmt.kind, ast::StmtKind::Expr(..)) && old_open_brace == '{';
             emit_help(cx, &callsite_snippet, braces, callsite_span, add_semi);
             self.done.insert(callsite_span);
@@ -88,12 +90,14 @@ impl EarlyLintPass for MacroBraces {
     }
 
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &ast::Expr) {
-        if let Some(MacroInfo {
-            callsite_span,
-            callsite_snippet,
-            braces,
-            ..
-        }) = is_offending_macro(cx, expr.span, self)
+        #[expect(rustc::potential_query_instability)]
+        if !self.done.iter().any(|s| s.contains(expr.span))
+            && let Some(MacroInfo {
+                callsite_span,
+                callsite_snippet,
+                braces,
+                ..
+            }) = is_offending_macro(cx, expr.span, self)
         {
             emit_help(cx, &callsite_snippet, braces, callsite_span, false);
             self.done.insert(callsite_span);
@@ -115,6 +119,7 @@ impl EarlyLintPass for MacroBraces {
 }
 
 fn is_offending_macro(cx: &EarlyContext<'_>, span: Span, mac_braces: &MacroBraces) -> Option<MacroInfo> {
+    // return None;
     let unnested_or_local = |span: Span| {
         !span.from_expansion()
             || span
