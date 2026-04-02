@@ -59,12 +59,13 @@ impl MacroBraces {
 
 impl EarlyLintPass for MacroBraces {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &ast::Item) {
-        if let Some(MacroInfo {
-            callsite_span,
-            callsite_snippet,
-            braces,
-            ..
-        }) = is_offending_macro(cx, item.span, self)
+        if !self.done.iter().any(|s| s.contains(item.span))
+            && let Some(MacroInfo {
+                callsite_span,
+                callsite_snippet,
+                braces,
+                ..
+            }) = is_offending_macro(cx, item.span, self)
         {
             emit_help(cx, &callsite_snippet, braces, callsite_span, false);
             self.done.insert(callsite_span);
@@ -72,12 +73,13 @@ impl EarlyLintPass for MacroBraces {
     }
 
     fn check_stmt(&mut self, cx: &EarlyContext<'_>, stmt: &ast::Stmt) {
-        if let Some(MacroInfo {
-            callsite_span,
-            callsite_snippet,
-            braces,
-            old_open_brace,
-        }) = is_offending_macro(cx, stmt.span, self)
+        if !self.done.iter().any(|s| s.contains(stmt.span))
+            && let Some(MacroInfo {
+                callsite_span,
+                callsite_snippet,
+                braces,
+                old_open_brace,
+            }) = is_offending_macro(cx, stmt.span, self)
         {
             // if we turn `macro!{}` into `macro!()`/`macro![]`, we'll no longer get the implicit
             // trailing semicolon, see #9913
@@ -105,12 +107,13 @@ impl EarlyLintPass for MacroBraces {
     }
 
     fn check_ty(&mut self, cx: &EarlyContext<'_>, ty: &ast::Ty) {
-        if let Some(MacroInfo {
-            callsite_span,
-            braces,
-            callsite_snippet,
-            ..
-        }) = is_offending_macro(cx, ty.span, self)
+        if !self.done.iter().any(|s| s.contains(ty.span))
+            && let Some(MacroInfo {
+                callsite_span,
+                braces,
+                callsite_snippet,
+                ..
+            }) = is_offending_macro(cx, ty.span, self)
         {
             emit_help(cx, &callsite_snippet, braces, callsite_span, false);
             self.done.insert(callsite_span);
