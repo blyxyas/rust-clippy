@@ -12,13 +12,15 @@ mod should_panic_without_expect;
 mod unnecessary_clippy_cfg;
 mod useless_attribute;
 mod utils;
-
 use clippy_config::Conf;
+use clippy_config::types::MacroMatcher;
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::msrvs::{self, Msrv, MsrvStack};
+use clippy_utils::source::snippet_opt;
 use rustc_ast::{self as ast, AttrArgs, AttrItemKind, AttrKind, Attribute, MetaItemInner, MetaItemKind};
+use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::{ImplItem, Item, ItemKind, TraitItem};
-use rustc_lint::{EarlyContext, EarlyLintPass, LateContext, LateLintPass};
+use rustc_lint::{EarlyContext, EarlyLintPass, LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
 use utils::{is_lint_level, is_relevant_impl, is_relevant_item, is_relevant_trait};
@@ -553,6 +555,29 @@ impl EarlyLintPass for EarlyAttributes {
     }
 
     extract_msrv_attr!();
+}
+
+fn macro_braces(conf: &[MacroMatcher]) -> FxHashMap<String, (char, char)> {
+    let mut braces = FxHashMap::from_iter(
+        [
+            ("print", ('(', ')')),
+            ("println", ('(', ')')),
+            ("eprint", ('(', ')')),
+            ("eprintln", ('(', ')')),
+            ("write", ('(', ')')),
+            ("writeln", ('(', ')')),
+            ("format", ('(', ')')),
+            ("format_args", ('(', ')')),
+            ("vec", ('[', ']')),
+            ("matches", ('(', ')')),
+        ]
+        .map(|(k, v)| (k.to_string(), v)),
+    );
+    // We want users items to override any existing items
+    for it in conf {
+        braces.insert(it.name.clone(), it.braces);
+    }
+    braces
 }
 
 pub struct PostExpansionEarlyAttributes {
