@@ -53,7 +53,7 @@ error: use of irregular braces for `println!` macro
   --> tests/ui-toml/nonstandard_macro_braces/conf_nonstandard_macro_braces.rs:75:5
    |
 LL |     println! {"hello world"}
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^ help: consider writing: `println!("hello world")`
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^ help: consider writing: `println!("hello world");`
 
 error: use of irregular braces for `println!` macro
   --> tests/ui-toml/nonstandard_macro_braces/conf_nonstandard_macro_braces.rs:83:5
