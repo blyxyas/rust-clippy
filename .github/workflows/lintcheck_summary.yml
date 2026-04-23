@@ -68,7 +68,7 @@ jobs:
             }
 
             let summary = `Lintcheck changes for ${context.payload.workflow_run.head_sha}
-            
+
             | Lint | Added | Removed | Changed |
             | ---- | ----: | ------: | ------: |
             `;
@@ -92,6 +92,12 @@ jobs:
 
       - name: Create/update comment
         run: |
+          # FIXME(feature-freeze): Don't add a comment if this is a lint-adding PR.
+          LABELS=$(gh api --jq '.labels.[].name' /repos/${process.env.GITHUB_REPOSITORY}/pulls/${{ github.event.number }})
+          if [[ $LABELS == *"A-lint"* ]]; then
+            # We won't post the comment, to not overwrite the feature freeze comment.
+            echo "$PR"
+          fi
           if [[ -f summary.md ]]; then
              gh pr comment "$PR" --body-file summary.md --edit-last --create-if-none
           else
