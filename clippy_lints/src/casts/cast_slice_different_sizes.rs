@@ -2,7 +2,7 @@ use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source;
 use rustc_ast::Mutability;
-use rustc_hir::{Expr, ExprKind, Node};
+use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::layout::LayoutOf as _;
 use rustc_middle::ty::{self, Ty, TypeAndMut};
@@ -10,12 +10,6 @@ use rustc_middle::ty::{self, Ty, TypeAndMut};
 use super::CAST_SLICE_DIFFERENT_SIZES;
 
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>, msrv: Msrv) {
-    // if this cast is the child of another cast expression then don't emit something for it, the full
-    // chain will be analyzed
-    if is_child_of_cast(cx, expr) {
-        return;
-    }
-
     if let Some(CastChainInfo {
         left_cast,
         start_ty,
@@ -63,23 +57,6 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>, msrv: Msrv)
             );
         }
     }
-}
-
-fn is_child_of_cast(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
-    let parent = cx.tcx.parent_hir_node(expr.hir_id);
-    let expr = match parent {
-        Node::Block(block) => {
-            if let Some(parent_expr) = block.expr {
-                parent_expr
-            } else {
-                return false;
-            }
-        },
-        Node::Expr(expr) => expr,
-        _ => return false,
-    };
-
-    matches!(expr.kind, ExprKind::Cast(..))
 }
 
 /// Returns the type T of the pointed to *const [T] or *mut [T] and the mutability of the slice if
